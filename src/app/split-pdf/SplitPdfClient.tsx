@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, X, Download, RefreshCw, Scissors, FileBox, Wand2 } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, X, Download, RefreshCw, Scissors, FileBox, Wand2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
@@ -229,6 +229,11 @@ export function SplitPdfClient() {
     setOutputFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+  
+  const handleGoBackToOptions = () => {
+    setOutputFiles([]);
+    setStep('options');
+  };
 
   const handleDownloadFile = (file: { name: string; blob: Blob }) => {
     const url = URL.createObjectURL(file.blob);
@@ -408,9 +413,9 @@ export function SplitPdfClient() {
                 </Card>
 
                 <div className="flex justify-center gap-4">
-                    <Button onClick={handleStartOver} variant="outline">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Split Another PDF
+                    <Button onClick={handleGoBackToOptions} variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
                     </Button>
                     {outputFiles.length > 1 && (
                         <Button onClick={handleDownloadAllAsZip} size="lg">

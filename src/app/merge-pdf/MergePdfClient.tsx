@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight } from 'lucide-react';
+import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -207,6 +207,11 @@ export function MergePdfClient() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  const handleGoBackToReorder = () => {
+    setFinalPdfUrl(null);
+    setStep('reorder_pages');
+  };
+
   const handleDownload = () => {
     if(!finalPdfUrl) return;
     const a = document.createElement('a');
@@ -247,18 +252,29 @@ export function MergePdfClient() {
     for (const pageNum of newOrder) {
       const pageIndex = pageNum - 1;
       if (pageIndex >= 0 && pageIndex < pages.length) {
-        reorderedPages.push(pages[pageIndex]);
+        const foundPage = pages.find((_p, index) => index === pageIndex);
+        if (foundPage) {
+           reorderedPages.push(foundPage);
+        } else {
+           isValid = false;
+           break;
+        }
       } else {
         isValid = false;
         break;
       }
     }
+    
+    // This logic needs to be revisited to handle indexes vs page content correctly
+    const tempPages = newOrder.map(num => pages[num - 1]).filter(Boolean);
 
-    if(isValid && reorderedPages.length === pages.length) {
-        setPages(reorderedPages);
+
+    if(tempPages.length === pages.length) {
+        setPages(tempPages);
         toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
         toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
+        setPageOrderInput(Array.from({ length: pages.length }, (_, i) => i + 1).join(', '));
     }
   };
 
@@ -271,9 +287,9 @@ export function MergePdfClient() {
             <p className="text-muted-foreground mt-2">Review the document below. If it looks good, download it.</p>
         </div>
         <div className="flex justify-center gap-4 mb-8">
-           <Button onClick={handleStartOver} variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Start Over
+           <Button onClick={handleGoBackToReorder} variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
             </Button>
             <Button onClick={handleDownload} size="lg">
               <Download className="mr-2 h-4 w-4" />
@@ -307,8 +323,8 @@ export function MergePdfClient() {
               onChange={(e) => setPageOrderInput(e.target.value)}
               className="flex-grow"
             />
-            <Button onClick={handleReorderFromInput}>
-              Apply Order <ArrowRight className="ml-2 h-4 w-4"/>
+            <Button onClick={handleReorderFromInput} variant="secondary">
+              Apply Order
             </Button>
           </CardContent>
         </Card>

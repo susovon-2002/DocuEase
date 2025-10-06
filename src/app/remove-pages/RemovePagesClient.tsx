@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, ArrowRight, Search } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, ArrowRight, Search, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
@@ -93,13 +93,12 @@ export function RemovePagesClient() {
     
     try {
       const fileBuffer = await originalFile.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(fileBuffer);
       
       setProcessingMessage('Generating thumbnails...');
       const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
 
       const pageObjects: PageObject[] = [];
-      for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+      for (let i = 0; i < imageUrls.length; i++) {
         pageObjects.push({ 
           id: Date.now() + i, 
           thumbnailUrl: imageUrls[i],
@@ -297,6 +296,11 @@ export function RemovePagesClient() {
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+  
+  const handleGoBackToSelect = () => {
+    setOutputFile(null);
+    setStep('select');
+  };
 
   const handleDownloadFile = () => {
     if (!outputFile) return;
@@ -467,9 +471,9 @@ export function RemovePagesClient() {
                     <p className="text-muted-foreground mt-2">Your modified document is ready. Download it below.</p>
                 </div>
                 <div className="flex justify-center gap-4">
-                    <Button onClick={handleStartOver} variant="outline">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Start Over
+                    <Button onClick={handleGoBackToSelect} variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
                     </Button>
                     <Button onClick={handleDownloadFile} size="lg">
                         <Download className="mr-2 h-4 w-4" />
