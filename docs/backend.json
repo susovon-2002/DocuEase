@@ -1,0 +1,238 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the DocuEase application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "Date and time the user registered.",
+          "format": "date-time"
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Date and time of the user's last login.",
+          "format": "date-time"
+        },
+        "subscriptionId": {
+          "type": "string",
+          "description": "Reference to Subscription. (Relationship: Subscription 1:1 User)"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "registrationDate"
+      ]
+    },
+    "Subscription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Subscription",
+      "type": "object",
+      "description": "Represents a user's subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the subscription."
+        },
+        "planType": {
+          "type": "string",
+          "description": "Type of subscription plan (e.g., Free, Daily)."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Date the subscription started.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "Date the subscription ends.",
+          "format": "date-time"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the subscription plan.",
+          "format": "number"
+        }
+      },
+      "required": [
+        "id",
+        "planType",
+        "startDate",
+        "endDate",
+        "price"
+      ]
+    },
+    "Document": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Document",
+      "type": "object",
+      "description": "Represents a document that a user has uploaded or processed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the document."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Document)"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time the document was uploaded.",
+          "format": "date-time"
+        },
+        "originalFileName": {
+          "type": "string",
+          "description": "Original file name of the uploaded document."
+        },
+        "storageLocation": {
+          "type": "string",
+          "description": "Location where the document is stored (e.g., cloud storage path)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "uploadDate",
+        "originalFileName",
+        "storageLocation"
+      ]
+    },
+    "ToolUsage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ToolUsage",
+      "type": "object",
+      "description": "Represents a record of a specific tool being used by a user on a document.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the tool usage record."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N ToolUsage)"
+        },
+        "documentId": {
+          "type": "string",
+          "description": "Reference to Document. (Relationship: Document 1:N ToolUsage)"
+        },
+        "toolName": {
+          "type": "string",
+          "description": "Name of the tool used (e.g., Merge PDF, Compress PDF)."
+        },
+        "usageTimestamp": {
+          "type": "string",
+          "description": "Date and time the tool was used.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "documentId",
+        "toolName",
+        "usageTimestamp"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Access is restricted to the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/subscriptions/{subscriptionId}",
+        "definition": {
+          "entityName": "Subscription",
+          "schema": {
+            "$ref": "#/backend/entities/Subscription"
+          },
+          "description": "Stores subscription information for each user.",
+          "params": [
+            {
+              "name": "subscriptionId",
+              "description": "The unique identifier of the subscription."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/documents/{documentId}",
+        "definition": {
+          "entityName": "Document",
+          "schema": {
+            "$ref": "#/backend/entities/Document"
+          },
+          "description": "Stores documents uploaded by the user.  Path-based ownership ensures only the user can access these documents.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier of the document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/toolUsages/{toolUsageId}",
+        "definition": {
+          "entityName": "ToolUsage",
+          "schema": {
+            "$ref": "#/backend/entities/ToolUsage"
+          },
+          "description": "Stores tool usage records for each user. Path-based ownership ensures only the user can access these records.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "toolUsageId",
+              "description": "The unique identifier of the tool usage record."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, further isolating data and ensuring secure access.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents and tool usage records is based on the user ID in the path, eliminating the need for `get()` calls to parent documents.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used; access is determined by the user's UID and the path.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents and tool usage records within their own user path.\n5.  **Invariants:** The structure supports ownership integrity, as documents and tool usages are always associated with a specific user through the path.\n"
+  }
+}
