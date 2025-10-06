@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, StandardFonts, PDFFont, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Trash2, ArrowLeft, Bold, Italic, Underline, Strikethrough, Pilcrow } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Trash2, ArrowLeft, Bold, Italic, Underline, Strikethrough } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,15 +20,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 type EditStep = 'upload' | 'edit' | 'download';
 
 type PageData = {
-  imageUrl: string;
   width: number;
   height: number;
-  originalPage: any; // pdfjs page object
+  items: EditableItem[];
 };
 
 type EditableItemBase = {
   id: string;
-  pageIndex: number;
   x: number;
   y: number;
   width: number;
@@ -86,7 +84,6 @@ export function EditPdfClient() {
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [pagesData, setPagesData] = useState<PageData[]>([]);
-  const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
@@ -136,27 +133,41 @@ export function EditPdfClient() {
           setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({ scale: 1.5 });
+          const textContent = await page.getTextContent();
           
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          if (!context) throw new Error("Could not get canvas context");
-          
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+          const items: TextItem[] = textContent.items.map((item: any, index: number) => {
+            const transform = pdfjsLib.util.transform(viewport.transform, item.transform);
+            const fontHeight = Math.sqrt((transform[2] * transform[2]) + (transform[3] * transform[3]));
 
-          await page.render({ canvasContext: context, viewport }).promise;
+            return {
+              id: `text-${i}-${index}`,
+              type: 'text',
+              x: transform[4],
+              y: transform[5] - fontHeight,
+              width: item.width,
+              height: item.height,
+              text: item.str,
+              fontSize: fontHeight,
+              fontFamily: item.fontName.includes('Bold') ? StandardFonts.HelveticaBold : StandardFonts.Helvetica,
+              color: { r: 0, g: 0, b: 0 }, // Default to black
+              rotation: 0,
+              isBold: item.fontName.includes('Bold'),
+              isItalic: item.fontName.includes('Italic'),
+              isUnderline: false,
+              isStrikethrough: false,
+            };
+          });
 
           processedPages.push({
-            imageUrl: canvas.toDataURL('image/png'),
             width: viewport.width,
             height: viewport.height,
-            originalPage: page,
+            items: items,
           });
         }
         
         setPagesData(processedPages);
         setStep('edit');
-        toast({ title: 'PDF Loaded', description: 'Use the toolbar to add text or images.' });
+        toast({ title: 'PDF Loaded', description: 'Click on any text to edit it.' });
 
     } catch (error) {
       console.error(error);
@@ -166,14 +177,13 @@ export function EditPdfClient() {
       setIsProcessing(false);
     }
   };
-
+  
   const addItem = (type: 'text' | 'image', pageIndex: number, data?: any) => {
     const newItem: EditableItem =
       type === 'text'
         ? {
             id: `text-${Date.now()}`,
             type: 'text',
-            pageIndex,
             x: 50,
             y: 50,
             width: 200,
@@ -191,7 +201,6 @@ export function EditPdfClient() {
         : {
             id: `image-${Date.now()}`,
             type: 'image',
-            pageIndex,
             x: 50,
             y: 50,
             width: 200,
@@ -199,7 +208,13 @@ export function EditPdfClient() {
             rotation: 0,
             ...data,
           };
-    setEditableItems(prev => [...prev, newItem]);
+
+    setPagesData(prev => {
+        const newPagesData = [...prev];
+        newPagesData[pageIndex].items.push(newItem);
+        return newPagesData;
+    });
+
     setSelectedItemId(newItem.id);
   };
   
@@ -217,23 +232,27 @@ export function EditPdfClient() {
         addItem('image', pageIndex, { imageUrl, imageBytes, mimeType: file.type });
     };
     reader.readAsArrayBuffer(file);
-    // Reset file input
     if (imageInputRef.current) imageInputRef.current.value = '';
   }
 
   const updateItem = (id: string, updates: Partial<EditableItem>) => {
-    setEditableItems(items => items.map(item => item.id === id ? { ...item, ...updates } : item));
+    setPagesData(prev => prev.map(page => ({
+        ...page,
+        items: page.items.map(item => item.id === id ? { ...item, ...updates } : item)
+    })));
   };
   
   const deleteSelectedItem = () => {
     if(!selectedItemId) return;
-    setEditableItems(items => items.filter(item => item.id !== selectedItemId));
+    setPagesData(prev => prev.map(page => ({
+        ...page,
+        items: page.items.filter(item => item.id !== selectedItemId)
+    })));
     setSelectedItemId(null);
   };
 
   const getFont = async (pdfDoc: PDFDocument, item: TextItem): Promise<PDFFont> => {
       let font = item.fontFamily;
-      // pdf-lib doesn't have a generic "get font" so we map it.
       if (font === StandardFonts.TimesRoman) {
           if (item.isBold && item.isItalic) return pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
           if (item.isBold) return pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -246,7 +265,6 @@ export function EditPdfClient() {
           if (item.isItalic) return pdfDoc.embedFont(StandardFonts.CourierOblique);
           return pdfDoc.embedFont(StandardFonts.Courier);
       }
-      // Default to Helvetica
       if (item.isBold && item.isItalic) return pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
       if (item.isBold) return pdfDoc.embedFont(StandardFonts.HelveticaBold);
       if (item.isItalic) return pdfDoc.embedFont(StandardFonts.HelveticaOblique);
@@ -259,33 +277,23 @@ export function EditPdfClient() {
       
       try {
         const newPdfDoc = await PDFDocument.create();
-        const origPdf = await PDFDocument.load(await originalFile!.arrayBuffer());
         
         for (let i = 0; i < pagesData.length; i++) {
           const pageData = pagesData[i];
+          const scale = pageData.width / pageData.width; // This should be based on original vs rendered size. For now 1.
           
-          const { width, height } = pageData.originalPage.getViewport({ scale: 1.0 });
-          const newPage = newPdfDoc.addPage([width, height]);
-          const [embeddedPage] = await newPdfDoc.embedPdf(origPdf, [i]);
-          newPage.drawPdf(embeddedPage, { x: 0, y: 0, width, height });
+          const newPage = newPdfDoc.addPage([pageData.width / 1.5, pageData.height / 1.5]); // Use original dimensions
 
-
-          const itemsOnPage = editableItems.filter(item => item.pageIndex === i);
-          
-          for (const item of itemsOnPage) {
-            const scale = width / pageData.width;
-
+          for (const item of pageData.items) {
             if (item.type === 'text') {
               const font = await getFont(newPdfDoc, item);
               
               newPage.drawText(item.text, {
-                  x: item.x * scale,
-                  y: height - (item.y * scale) - (item.fontSize * scale),
+                  x: item.x / 1.5,
+                  y: (pageData.height - item.y - item.fontSize) / 1.5,
                   font,
-                  size: item.fontSize * scale,
+                  size: item.fontSize / 1.5,
                   color: rgb(item.color.r, item.color.g, item.color.b),
-                  lineHeight: item.fontSize * scale * 1.2,
-                  rotate: degrees(-item.rotation),
               });
               
             } else if (item.type === 'image') {
@@ -296,10 +304,10 @@ export function EditPdfClient() {
                     embeddedImage = await newPdfDoc.embedJpg(item.imageBytes);
                }
                newPage.drawImage(embeddedImage, {
-                    x: item.x * scale,
-                    y: height - (item.y * scale) - (item.height * scale),
-                    width: item.width * scale,
-                    height: item.height * scale,
+                    x: item.x / 1.5,
+                    y: (pageData.height - item.y - item.height) / 1.5,
+                    width: item.width / 1.5,
+                    height: item.height / 1.5,
                     rotate: degrees(-item.rotation),
                });
             }
@@ -334,18 +342,15 @@ export function EditPdfClient() {
     URL.revokeObjectURL(url);
   };
 
-
   const handleStartOver = () => {
     setStep('upload');
     setOriginalFile(null);
-    pagesData.forEach(p => URL.revokeObjectURL(p.imageUrl));
     setPagesData([]);
-    setEditableItems([]);
     setSelectedItemId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (outputFile) {
-        const url = URL.createObjectURL(outputFile.blob);
-        URL.revokeObjectURL(url);
+        // Clean up previous blob URL
+        URL.revokeObjectURL(URL.createObjectURL(outputFile.blob));
     }
     setOutputFile(null);
   };
@@ -355,9 +360,18 @@ export function EditPdfClient() {
     setStep('edit');
   };
   
+  const getSelectedItem = () => {
+    if (!selectedItemId) return null;
+    for (const page of pagesData) {
+        const item = page.items.find(i => i.id === selectedItemId);
+        if (item) return item;
+    }
+    return null;
+  }
+
   const renderTextToolbar = () => {
-    const item = editableItems.find(i => i.id === selectedItemId) as TextItem;
-    if (!item) return null;
+    const item = getSelectedItem();
+    if (!item || item.type !== 'text') return null;
     
     return (
        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-20 bg-card p-2 rounded-lg shadow-lg border flex items-center gap-2 flex-wrap justify-center">
@@ -439,7 +453,7 @@ export function EditPdfClient() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit PDF</h1>
-            <p className="text-muted-foreground mt-2">Add text, images, and shapes to your PDF document.</p>
+            <p className="text-muted-foreground mt-2">Edit text and add images to your PDF document.</p>
           </div>
           <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10 text-center">
@@ -464,7 +478,7 @@ export function EditPdfClient() {
       );
     
     case 'edit':
-      const selectedItem = editableItems.find(item => item.id === selectedItemId);
+      const selectedItem = getSelectedItem();
       return (
         <div className="w-full">
           {/* Main Toolbar */}
@@ -493,11 +507,8 @@ export function EditPdfClient() {
                         key={`editable-page-${pageIndex}`}
                         className="relative shadow-lg bg-white"
                         style={{ width: page.width, height: page.height, flexShrink: 0 }}
-                        // Deselect items when clicking on page background
                         onClick={(e) => { e.stopPropagation(); setSelectedItemId(null); }}
                       >
-                        <img src={page.imageUrl} alt={`Page ${pageIndex+1}`} width={page.width} height={page.height} className="pointer-events-none" />
-                        
                         {/* Add buttons for this page */}
                         <div className="absolute top-2 right-2 z-10 flex gap-2">
                            <Button size="sm" onClick={(e) => { e.stopPropagation(); addItem('text', pageIndex); }}> <Type className="mr-2 h-4 w-4"/> Add Text</Button>
@@ -506,8 +517,7 @@ export function EditPdfClient() {
                         </div>
                         
                         {/* Render editable items */}
-                        {editableItems.filter(item => item.pageIndex === pageIndex).map(item => {
-                          if (item.type === 'text') {
+                        {page.items.map(item => {
                             return (
                                 <Rnd
                                     key={item.id}
@@ -518,8 +528,8 @@ export function EditPdfClient() {
                                     onClick={(e) => { e.stopPropagation(); setSelectedItemId(item.id); }}
                                     className={cn('border-2 border-dashed z-10', selectedItemId === item.id ? 'border-blue-500' : 'border-transparent hover:border-gray-400')}
                                     minWidth={50}
-                                    minHeight={20}
                                 >
+                                  {item.type === 'text' ? (
                                     <div
                                       style={{
                                         fontFamily: item.fontFamily,
@@ -536,26 +546,11 @@ export function EditPdfClient() {
                                     >
                                       {item.text}
                                     </div>
+                                  ) : (
+                                     <img src={item.imageUrl} alt="user content" style={{ width: '100%', height: '100%', pointerEvents: 'none' }} />
+                                  )}
                                 </Rnd>
                             );
-                          }
-                           if (item.type === 'image') {
-                            return (
-                                <Rnd
-                                    key={item.id}
-                                    size={{ width: item.width, height: item.height }}
-                                    position={{ x: item.x, y: item.y }}
-                                    onDragStop={(e, d) => updateItem(item.id, { x: d.x, y: d.y })}
-                                    onResizeStop={(e, dir, ref, delta, pos) => updateItem(item.id, { width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos })}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedItemId(item.id); }}
-                                    className={cn('border-2 border-dashed z-10', selectedItemId === item.id ? 'border-blue-500' : 'border-transparent hover:border-gray-400')}
-                                    lockAspectRatio
-                                >
-                                    <img src={item.imageUrl} alt="user content" style={{ width: '100%', height: '100%', pointerEvents: 'none' }} />
-                                </Rnd>
-                            );
-                          }
-                          return null;
                         })}
                       </div>
                     ))}
