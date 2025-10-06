@@ -24,9 +24,9 @@ function getYouTubeEmbedUrl(url: string): string | null {
       }
     }
   } catch (e) {
-    // Fallback for non-URL formats
+    // Fallback for non-URL formats that might still be valid shortlinks
     if (url.includes('youtu.be/')) {
-      videoId = url.split('youtu.be/')[1].split('?')[0];
+       videoId = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
     }
   }
 
