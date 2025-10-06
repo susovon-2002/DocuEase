@@ -136,7 +136,7 @@ export function EditPdfClient() {
           const textContent = await page.getTextContent();
           
           const items: TextItem[] = textContent.items.map((item: any, index: number) => {
-            const transform = pdfjsLib.util.transform(viewport.transform, item.transform);
+            const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
             const fontHeight = Math.sqrt((transform[2] * transform[2]) + (transform[3] * transform[3]));
 
             return {
