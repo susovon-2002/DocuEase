@@ -3,13 +3,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, Wand2 } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, Wand2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { PageThumbnail } from '../merge-pdf/PageThumbnail';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 type PageObject = {
   id: number;
@@ -28,6 +29,7 @@ export function RemovePagesClient() {
   const [allPages, setAllPages] = useState<PageObject[]>([]);
   
   const [pagesToRemove, setPagesToRemove] = useState<Set<number>>(new Set());
+  const [pagesToRemoveInput, setPagesToRemoveInput] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
@@ -116,6 +118,52 @@ export function RemovePagesClient() {
     });
   };
 
+  const handleSelectFromInput = () => {
+    const pageNumbers = new Set<number>();
+    const parts = pagesToRemoveInput.split(/,| /).filter(s => s.trim() !== '');
+
+    for (const part of parts) {
+      if (part.includes('-')) {
+        const [start, end] = part.split('-').map(n => parseInt(n.trim(), 10));
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            pageNumbers.add(i);
+          }
+        } else {
+          toast({ variant: 'destructive', title: 'Invalid Range', description: `The range "${part}" is not valid.` });
+          return;
+        }
+      } else {
+        const num = parseInt(part, 10);
+        if (!isNaN(num)) {
+          pageNumbers.add(num);
+        } else {
+          toast({ variant: 'destructive', title: 'Invalid Number', description: `The value "${part}" is not a valid page number.` });
+          return;
+        }
+      }
+    }
+    
+    const validPages = new Set<number>();
+    const invalidPages: number[] = [];
+
+    for (const num of Array.from(pageNumbers)) {
+      if (num > 0 && num <= allPages.length) {
+        validPages.add(num);
+      } else {
+        invalidPages.push(num);
+      }
+    }
+
+    if (invalidPages.length > 0) {
+      toast({ variant: 'destructive', title: 'Invalid Page Numbers', description: `These pages are out of range: ${invalidPages.join(', ')}.` });
+    }
+
+    setPagesToRemove(validPages);
+    toast({ title: 'Selection Updated', description: `${validPages.size} pages have been selected for removal.` });
+  };
+
+
   const handleRemove = async () => {
     if (pagesToRemove.size === 0) {
       toast({
@@ -169,6 +217,7 @@ export function RemovePagesClient() {
     allPages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
     setAllPages([]);
     setPagesToRemove(new Set());
+    setPagesToRemoveInput('');
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -231,8 +280,28 @@ export function RemovePagesClient() {
         <div className="w-full max-w-6xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Select Pages to Remove</h1>
-            <p className="text-muted-foreground mt-2">Click on the pages you want to delete from the document.</p>
+            <p className="text-muted-foreground mt-2">Click on pages to select them for removal, or use the input field below.</p>
           </div>
+          
+           <Card className="mb-6">
+            <CardHeader>
+                <CardTitle className="text-lg">Select Pages by Number</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-4">
+                <label htmlFor="pageNumbers" className="font-medium flex-shrink-0">Pages to remove:</label>
+                <Input 
+                id="pageNumbers"
+                placeholder="e.g., 1, 5, 8-12"
+                value={pagesToRemoveInput}
+                onChange={(e) => setPagesToRemoveInput(e.target.value)}
+                className="flex-grow"
+                />
+                <Button onClick={handleSelectFromInput}>
+                Apply <ArrowRight className="ml-2 h-4 w-4"/>
+                </Button>
+            </CardContent>
+           </Card>
+
            <div className="flex justify-center gap-4 mt-8 mb-8">
               <Button onClick={handleStartOver} variant="outline">Back</Button>
               <Button onClick={handleRemove} size="lg" disabled={pagesToRemove.size === 0}>
