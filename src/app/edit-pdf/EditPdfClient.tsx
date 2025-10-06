@@ -385,7 +385,7 @@ export function EditPdfClient() {
     if (!outputFile) return;
     const url = URL.createObjectURL(outputFile.blob);
     const a = document.createElement('a');
-    a.href = url;
+a.href = url;
     a.download = outputFile.name;
     document.body.appendChild(a);
     a.click();
@@ -602,7 +602,7 @@ export function EditPdfClient() {
             <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Edits Complete!</h1>
-                    <p className="text-muted-foreground mt-2">Your edited document is ready for download.</p>
+                    <p className="text-muted-foreground mt-2">Your edited document is ready. Review the preview below before downloading.</p>
                 </div>
                 <div className="flex justify-center gap-4">
                      <Button onClick={handleGoBackToEdit} variant="outline">
@@ -620,11 +620,13 @@ export function EditPdfClient() {
                         Edit Another File
                     </Button>
                 </div>
-                <Card className="mt-8">
-                    <CardContent className="p-2">
-                        <iframe src={URL.createObjectURL(outputFile!.blob)} className="w-full h-[70vh] border-0" title="Edited PDF Preview" />
-                    </CardContent>
-                </Card>
+                {outputFile && (
+                  <Card className="mt-8">
+                      <CardContent className="p-2">
+                          <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Edited PDF Preview" />
+                      </CardContent>
+                  </Card>
+                )}
             </div>
         )
   }
