@@ -9,15 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CompressStep = 'upload' | 'options' | 'download';
-type CompressionLevel = 'recommended' | 'high' | 'custom';
+type CompressionLevel = 'extreme' | 'recommended' | 'less';
 
 export function CompressPdfClient() {
   const [step, setStep] = useState<CompressStep>('upload');
@@ -27,9 +24,6 @@ export function CompressPdfClient() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('recommended');
   
-  const [customSize, setCustomSize] = useState<number | string>('');
-  const [customUnit, setCustomUnit] = useState<'KB' | 'MB'>('KB');
-
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, originalSize: number, newSize: number } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,35 +86,13 @@ export function CompressPdfClient() {
         let scale: number;
 
         switch(compressionLevel) {
-          case 'high':
+          case 'extreme':
             quality = 0.5;
             scale = 1.0; 
             break;
-          case 'custom':
-            const targetSizeInBytes = (customUnit === 'MB' ? Number(customSize) * 1024 * 1024 : Number(customSize) * 1024);
-            const originalSize = originalFile.size;
-            const ratio = targetSizeInBytes / originalSize;
-            
-            // This is a heuristic. It's not guaranteed to hit the target.
-            if (ratio > 0.8) {
-              quality = 0.9;
-              scale = 2.0;
-            } else if (ratio > 0.5) {
-              quality = 0.75;
-              scale = 1.5;
-            } else if (ratio > 0.2) {
-              quality = 0.6;
-              scale = 1.2;
-            } else {
-              quality = 0.5;
-              scale = 1.0;
-            }
-
-            if(targetSizeInBytes < 50 * 1024) { // less than 50KB
-                quality = 0.3;
-                scale = 0.8;
-            }
-            toast({ title: 'Custom Compression Note', description: 'The tool will attempt to reach your target size, but the final result may vary.' });
+          case 'less':
+            quality = 0.9;
+            scale = 2.0;
             break;
           case 'recommended':
           default:
@@ -255,6 +227,13 @@ export function CompressPdfClient() {
                     <p className="text-sm text-muted-foreground">Original size: {formatBytes(originalFile?.size || 0)}</p>
                 </div>
                  <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-1">
+                    <Label htmlFor="level-extreme" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                      <RadioGroupItem value="extreme" id="level-extreme" />
+                      <div>
+                        <p className="font-semibold">Extreme compression</p>
+                        <p className="text-sm text-muted-foreground">Lowest quality, smallest size.</p>
+                      </div>
+                    </Label>
                     <Label htmlFor="level-recommended" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
                       <RadioGroupItem value="recommended" id="level-recommended" />
                       <div>
@@ -262,48 +241,12 @@ export function CompressPdfClient() {
                         <p className="text-sm text-muted-foreground">Good quality, good compression.</p>
                       </div>
                     </Label>
-                    <Label htmlFor="level-high" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                      <RadioGroupItem value="high" id="level-high" />
+                    <Label htmlFor="level-less" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                      <RadioGroupItem value="less" id="level-less" />
                       <div>
-                        <p className="font-semibold">High compression</p>
-                        <p className="text-sm text-muted-foreground">Lower quality, maximum compression.</p>
+                        <p className="font-semibold">Less compression</p>
+                        <p className="text-sm text-muted-foreground">Highest quality, larger size.</p>
                       </div>
-                    </Label>
-                    <Label htmlFor="level-custom" className="flex flex-col items-start gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                        <div className="flex items-center gap-4">
-                            <RadioGroupItem value="custom" id="level-custom" />
-                            <div>
-                                <p className="font-semibold">Custom (Advanced)</p>
-                                <p className="text-sm text-muted-foreground">Attempt to reach a target file size.</p>
-                            </div>
-                        </div>
-                         {compressionLevel === 'custom' && (
-                            <div className="w-full pt-4 pl-8 pr-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="custom-size">Target file size (approx.)</Label>
-                                    <div className="flex gap-2">
-                                        <Input 
-                                          id="custom-size" 
-                                          type="number" 
-                                          value={customSize} 
-                                          onChange={(e) => setCustomSize(Math.max(1, parseInt(e.target.value) || 1))}
-                                          placeholder="e.g., 20"
-                                          className="w-full"
-                                        />
-                                        <Select value={customUnit} onValueChange={(v) => setCustomUnit(v as 'KB' | 'MB')}>
-                                            <SelectTrigger className="w-[80px]">
-                                                <SelectValue/>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="KB">KB</SelectItem>
-                                                <SelectItem value="MB">MB</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Final size is an estimate and may vary.</p>
-                                </div>
-                            </div>
-                        )}
                     </Label>
                 </RadioGroup>
             </CardContent>
