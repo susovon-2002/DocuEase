@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from "pdfjs-dist";
 import { Button } from '@/components/ui/button';
 import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { PageThumbnail } from './PageThumbnail';
+
+// Set up the worker for pdfjs just once
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type PageObject = {
   id: number;

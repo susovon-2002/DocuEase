@@ -4,9 +4,6 @@ import { useEffect, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { Badge } from "@/components/ui/badge";
 
-// Set up the worker for pdfjs
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-
 interface PageThumbnailProps {
   pdfBytes: Uint8Array;
   pageNumber: number;
