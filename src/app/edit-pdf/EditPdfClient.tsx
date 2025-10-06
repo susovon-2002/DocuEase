@@ -87,21 +87,11 @@ export function EditPdfClient() {
         const pdfDoc = await PDFDocument.load(fileBuffer);
         const page = pdfDoc.getPage(0); // For simplicity, editing the first page.
         const { width, height } = page.getSize();
-        setPageDimensions({ width, height });
 
-        // We're not using pdf.js anymore to simplify, just pdf-lib to get dimensions and then apply overlays
-        // This avoids the complex text layer detection and focuses on adding new content.
-        // For rendering the background, we can create a temporary image from the page.
-        
-        const newPdf = await PDFDocument.create();
-        const [copiedPage] = await newPdf.copyPages(pdfDoc, [0]);
-        newPdf.addPage(copiedPage);
-        const tempPdfBytes = await newPdf.save();
-        
         // This is a bit of a trick: render the original page to an image to use as a background
         const pdfjsLib = await import('pdfjs-dist');
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        const pdf = await pdfjsLib.getDocument({ data: tempPdfBytes }).promise;
+        const pdf = await pdfjsLib.getDocument({ data: fileBuffer.slice(0) }).promise;
         const canvasPage = await pdf.getPage(1);
         const viewport = canvasPage.getViewport({ scale: 2.0 });
         const canvas = document.createElement('canvas');
@@ -197,10 +187,12 @@ export function EditPdfClient() {
             if (overlay.type === 'text') {
                 page.drawText(overlay.text, {
                     x: overlay.x * scaleX,
-                    y: pdfPageHeight - ((overlay.y + overlay.height) * scaleY),
+                    y: pdfPageHeight - ((overlay.y + overlay.fontSize) * scaleY), // Adjusted for proper text alignment from top-left
                     font: helveticaFont,
                     size: overlay.fontSize * scaleX,
                     color: rgb(0, 0, 0),
+                    lineHeight: overlay.fontSize * 1.2 * scaleY,
+                    maxWidth: overlay.width * scaleX,
                 });
             } else if (overlay.type === 'image') {
                 const image = overlay.fileType === 'png' 
@@ -333,33 +325,42 @@ export function EditPdfClient() {
                  <div 
                     className="relative shadow-lg"
                     style={{ width: pageDimensions.width, height: pageDimensions.height, flexShrink: 0 }}
+                    onClick={() => setSelectedOverlay(null)}
                  >
                     {pageImageUrl && <img src={pageImageUrl} alt="PDF page background" className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />}
-                    {overlays.map((overlay, index) => (
+                    {overlays.map((overlay) => (
                         <Rnd
                           key={overlay.id}
                           size={{ width: overlay.width, height: overlay.height }}
                           position={{ x: overlay.x, y: overlay.y }}
-                          onDragStop={(e, d) => updateOverlay(overlay.id, { x: d.x, y: d.y })}
+                          onDragStop={(e, d) => {
+                            e.stopPropagation();
+                            updateOverlay(overlay.id, { x: d.x, y: d.y })
+                          }}
                           onResizeStop={(e, direction, ref, delta, position) => {
+                            e.stopPropagation();
                             updateOverlay(overlay.id, {
                               width: parseInt(ref.style.width, 10),
                               height: parseInt(ref.style.height, 10),
                               ...position,
                             });
                           }}
-                          onClick={() => setSelectedOverlay(overlay.id)}
+                          onClick={(e) => {
+                             e.stopPropagation();
+                             setSelectedOverlay(overlay.id);
+                          }}
                           className={cn(
-                            'border border-dashed',
-                            selectedOverlay === overlay.id ? 'border-primary' : 'border-transparent'
+                            'border border-dashed flex items-center justify-center',
+                            selectedOverlay === overlay.id ? 'border-primary' : 'border-transparent hover:border-primary/50'
                           )}
+                          cancel=".non-draggable"
                         >
                             {overlay.type === 'text' ? (
                                 <textarea
                                     value={overlay.text}
                                     onChange={(e) => updateOverlay(overlay.id, { text: e.target.value })}
-                                    style={{ fontSize: overlay.fontSize }}
-                                    className="w-full h-full bg-transparent resize-none focus:outline-none p-1"
+                                    style={{ fontSize: overlay.fontSize, lineHeight: '1.2' }}
+                                    className="non-draggable w-full h-full bg-transparent resize-none focus:outline-none p-1"
                                 />
                             ) : (
                                 <img src={URL.createObjectURL(new Blob([overlay.imageBytes]))} alt="user content" className="w-full h-full object-cover" />
