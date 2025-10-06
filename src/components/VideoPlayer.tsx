@@ -64,7 +64,7 @@ export default function VideoPlayer() {
 
         {videoSrc && (
           <div className="mt-4 rounded-lg overflow-hidden border aspect-video">
-            <video key={videoSrc} controls className="w-full h-full">
+            <video key={videoSrc} controls autoPlay className="w-full h-full">
               <source src={videoSrc} />
               Your browser does not support the video tag.
             </video>
