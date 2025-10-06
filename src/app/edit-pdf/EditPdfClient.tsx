@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -135,7 +136,7 @@ export function EditPdfClient() {
           setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
           
-          const scale = 2.0;
+          const scale = 1.5; // Use a slightly smaller scale for side-by-side view
           const viewport = page.getViewport({ scale });
 
           const canvas = document.createElement('canvas');
@@ -190,7 +191,7 @@ export function EditPdfClient() {
         
         setPagesData(processedPages);
         setStep('edit');
-        toast({ title: 'PDF Loaded', description: 'Click on a text block to edit it.' });
+        toast({ title: 'PDF Loaded', description: 'Click on a text block in the right panel to edit it.' });
 
     } catch (error) {
       console.error(error);
@@ -435,7 +436,7 @@ a.href = url;
     
     case 'edit':
       return (
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="w-full">
            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
@@ -553,46 +554,61 @@ a.href = url;
               <Button onClick={handleStartOver} variant="outline">Start Over</Button>
               <Button onClick={handleApplyEdits} size="lg">
                 <Wand2 className="mr-2 h-4 w-4" />
-                Apply All Changes
+                Apply All Changes & Preview
               </Button>
             </div>
             
-            <div className="space-y-8">
-              {pagesData.map((page, pageIndex) => (
-                 <Card key={`page-${pageIndex}`}>
-                    <CardContent className="p-2 flex flex-col justify-center items-center overflow-auto gap-4">
-                        <Badge variant="secondary">Page {pageIndex + 1} of {pagesData.length}</Badge>
-                        <div 
-                          className="relative shadow-lg"
-                          style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
-                        >
-                          <img src={page.imageUrl} alt={`PDF page ${pageIndex + 1}`} className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />
-                          {page.textItems.map((item) => (
-                              <div
-                                  key={item.id}
-                                  className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
-                                  style={{
-                                      left: `${item.x}px`,
-                                      top: `${item.y}px`,
-                                      width: `${item.width}px`,
-                                      height: `${item.height}px`,
-                                  }}
-                                  onClick={() => openEditDialog(item)}
-                              >
-                                <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                  <Badge variant="secondary" className="bg-blue-600 text-white">
-                                      <Edit className="w-3 h-3 mr-1"/> Edit
-                                  </Badge>
-                                </div>
-                                {item.text !== item.originalText && (
-                                  <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
-                                )}
-                              </div>
-                          ))}
+            <div className="grid grid-cols-2 gap-8 px-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-center mb-4">Original</h2>
+                  <ScrollArea className="h-[calc(100vh-200px)] border rounded-lg">
+                    <div className="p-4 space-y-4">
+                      {pagesData.map((page, pageIndex) => (
+                        <div key={`original-page-${pageIndex}`}>
+                            <img src={page.imageUrl} alt={`Original PDF page ${pageIndex + 1}`} className="w-full h-auto shadow-lg" draggable={false} />
                         </div>
-                    </CardContent>
-                </Card>
-              ))}
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-center mb-4">Editor</h2>
+                   <ScrollArea className="h-[calc(100vh-200px)] border rounded-lg">
+                    <div className="p-4 space-y-4">
+                      {pagesData.map((page, pageIndex) => (
+                         <div 
+                           key={`editable-page-${pageIndex}`}
+                           className="relative shadow-lg"
+                           style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
+                         >
+                           <img src={page.imageUrl} alt={`PDF page ${pageIndex + 1}`} className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />
+                           {page.textItems.map((item) => (
+                               <div
+                                   key={item.id}
+                                   className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
+                                   style={{
+                                       left: `${item.x}px`,
+                                       top: `${item.y}px`,
+                                       width: `${item.width}px`,
+                                       height: `${item.height}px`,
+                                   }}
+                                   onClick={() => openEditDialog(item)}
+                               >
+                                 <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                   <Badge variant="secondary" className="bg-blue-600 text-white">
+                                       <Edit className="w-3 h-3 mr-1"/> Edit
+                                   </Badge>
+                                 </div>
+                                 {item.text !== item.originalText && (
+                                   <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
+                                 )}
+                               </div>
+                           ))}
+                         </div>
+                       ))}
+                    </div>
+                  </ScrollArea>
+                </div>
             </div>
         </div>
       );
