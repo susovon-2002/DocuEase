@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit, Bold, Italic, Palette, Highlighter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -35,7 +37,29 @@ type TextItem = {
   fontFamily: string;
   fontSize: number;
   transform: number[];
+  color: { r: number, g: number, b: number };
+  isBold: boolean;
+  isItalic: boolean;
+  highlightColor: { r: number, g: number, b: number, a: number } | null;
 };
+
+const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16) / 255,
+          g: parseInt(result[2], 16) / 255,
+          b: parseInt(result[3], 16) / 255,
+        }
+      : { r: 0, g: 0, b: 0 };
+};
+
+const rgbToHex = (r: number, g: number, b: number) => {
+  return "#" + [r, g, b].map(x => {
+    const hex = Math.round(x * 255).toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
 
 export function EditPdfClient() {
   const [step, setStep] = useState<EditStep>('upload');
@@ -49,6 +73,14 @@ export function EditPdfClient() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<TextItem | null>(null);
   const [editedText, setEditedText] = useState('');
+  const [editedStyle, setEditedStyle] = useState({
+      fontSize: 12,
+      fontFamily: 'Helvetica',
+      isBold: false,
+      isItalic: false,
+      color: { r: 0, g: 0, b: 0 },
+      highlightColor: null as { r: number, g: number, b: number, a: number } | null
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -129,8 +161,12 @@ export function EditPdfClient() {
                   width: width,
                   height: item.height * viewport.scale,
                   fontSize: fontHeight,
-                  fontFamily: item.fontName,
+                  fontFamily: item.fontName.includes('Bold') ? item.fontName.replace('Bold','') : item.fontName,
                   transform: item.transform,
+                  isBold: item.fontName.includes('Bold'),
+                  isItalic: item.fontName.includes('Italic'),
+                  color: { r: 0, g: 0, b: 0}, // pdf.js does not reliably provide color
+                  highlightColor: null,
               };
           });
 
@@ -157,6 +193,14 @@ export function EditPdfClient() {
   const openEditDialog = (item: TextItem) => {
     setCurrentItem(item);
     setEditedText(item.text);
+    setEditedStyle({
+      fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'), // default mapping
+      fontSize: item.fontSize,
+      isBold: item.isBold,
+      isItalic: item.isItalic,
+      color: item.color,
+      highlightColor: item.highlightColor
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -168,7 +212,11 @@ export function EditPdfClient() {
     const itemIndex = pageData.textItems.findIndex(item => item.id === currentItem.id);
     
     if (itemIndex > -1) {
-        pageData.textItems[itemIndex] = { ...pageData.textItems[itemIndex], text: editedText };
+        pageData.textItems[itemIndex] = { 
+            ...pageData.textItems[itemIndex], 
+            text: editedText,
+            ...editedStyle,
+        };
         setPagesData(newPagesData);
     }
 
@@ -177,9 +225,32 @@ export function EditPdfClient() {
     toast({ title: 'Text Updated', description: 'Your change has been staged. Apply all changes to finalize.'});
   };
 
+  const getFont = async (pdfDoc: PDFDocument, fontFamily: string, isBold: boolean, isItalic: boolean): Promise<PDFFont> => {
+      let fontEnum: StandardFonts = StandardFonts.Helvetica;
+
+      if (fontFamily.toLowerCase().includes('times')) {
+          if (isBold && isItalic) fontEnum = StandardFonts.TimesRomanBoldItalic;
+          else if (isBold) fontEnum = StandardFonts.TimesRomanBold;
+          else if (isItalic) fontEnum = StandardFonts.TimesRomanItalic;
+          else fontEnum = StandardFonts.TimesRoman;
+      } else if (fontFamily.toLowerCase().includes('courier')) {
+          if (isBold && isItalic) fontEnum = StandardFonts.CourierBoldOblique;
+          else if (isBold) fontEnum = StandardFonts.CourierBold;
+          else if (isItalic) fontEnum = StandardFonts.CourierOblique;
+          else fontEnum = StandardFonts.Courier;
+      } else { // Default to Helvetica
+          if (isBold && isItalic) fontEnum = StandardFonts.HelveticaBoldOblique;
+          else if (isBold) fontEnum = StandardFonts.HelveticaBold;
+          else if (isItalic) fontEnum = StandardFonts.HelveticaOblique;
+          else fontEnum = StandardFonts.Helvetica;
+      }
+      return await pdfDoc.embedFont(fontEnum);
+  }
 
   const handleApplyEdits = async () => {
-      const editedItems = pagesData.flatMap(p => p.textItems).filter(item => item.text !== item.originalText);
+      const editedItems = pagesData.flatMap(p => p.textItems).filter(item => 
+        item.text !== item.originalText || item.highlightColor !== null || item.isBold || item.isItalic
+      );
 
       if (editedItems.length === 0) {
         toast({ title: 'No Edits Made', description: 'Change some text before applying edits.' });
@@ -191,8 +262,7 @@ export function EditPdfClient() {
       
       try {
         const pdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
+        
         for (const item of editedItems) {
             const page = pdfDoc.getPage(item.pageIndex);
             const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
@@ -204,6 +274,7 @@ export function EditPdfClient() {
             const pdf_height = item.height / pageDimensions.scale;
             const pdf_fontSize = item.fontSize / pageDimensions.scale;
             
+            // Erase original text
             page.drawRectangle({
                 x: pdf_x - 2,
                 y: pdf_y - (pdf_height * 0.2),
@@ -211,13 +282,28 @@ export function EditPdfClient() {
                 height: pdf_height * 1.4,
                 color: rgb(1, 1, 1),
             });
+
+             const font = await getFont(pdfDoc, item.fontFamily, item.isBold, item.isItalic);
+
+            // Add highlight if exists
+            if (item.highlightColor) {
+                page.drawRectangle({
+                    x: pdf_x,
+                    y: pdf_y - (pdf_height * 0.2),
+                    width: pdf_width,
+                    height: pdf_height * 1.2,
+                    color: rgb(item.highlightColor.r, item.highlightColor.g, item.highlightColor.b),
+                    opacity: item.highlightColor.a,
+                });
+            }
             
+            // Draw new text
             page.drawText(item.text, {
                 x: pdf_x,
                 y: pdf_y,
-                font: helveticaFont,
+                font: font,
                 size: pdf_fontSize,
-                color: rgb(0, 0, 0),
+                color: rgb(item.color.r, item.color.g, item.color.b),
             });
         }
         
@@ -263,7 +349,6 @@ export function EditPdfClient() {
     URL.revokeObjectURL(url);
   };
   
-  
   if (isProcessing) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-20">
@@ -308,15 +393,72 @@ export function EditPdfClient() {
       return (
         <div className="w-full max-w-7xl mx-auto">
            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Edit Text</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div>
-                            <Label htmlFor="original-text">Original Text</Label>
-                            <p id="original-text" className="text-sm p-2 bg-muted rounded-md text-muted-foreground">{currentItem?.originalText}</p>
+                        <div className="p-2 rounded-md border bg-muted flex items-center gap-2">
+                           <Button 
+                             variant={editedStyle.isBold ? 'secondary' : 'ghost'} 
+                             size="icon" 
+                             onClick={() => setEditedStyle(s => ({...s, isBold: !s.isBold}))}
+                           >
+                               <Bold className="h-4 w-4" />
+                           </Button>
+                           <Button 
+                             variant={editedStyle.isItalic ? 'secondary' : 'ghost'} 
+                             size="icon"
+                             onClick={() => setEditedStyle(s => ({...s, isItalic: !s.isItalic}))}
+                           >
+                               <Italic className="h-4 w-4" />
+                           </Button>
+                           <Separator orientation="vertical" className="h-6" />
+                           <Select value={editedStyle.fontFamily} onValueChange={v => setEditedStyle(s => ({...s, fontFamily: v}))}>
+                               <SelectTrigger className="w-[150px]">
+                                   <SelectValue placeholder="Font" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                   <SelectItem value="Helvetica">Helvetica</SelectItem>
+                                   <SelectItem value="Times-Roman">Times New Roman</SelectItem>
+                                   <SelectItem value="Courier">Courier</SelectItem>
+                               </SelectContent>
+                           </Select>
+                           <Input 
+                             type="number" 
+                             value={Math.round(editedStyle.fontSize)} 
+                             onChange={e => setEditedStyle(s => ({...s, fontSize: parseInt(e.target.value, 10)}))}
+                             className="w-[70px]"
+                             min="1"
+                           />
+                           <Separator orientation="vertical" className="h-6" />
+
+                           <Button variant="ghost" size="icon" className="relative">
+                              <Palette className="h-4 w-4" />
+                              <Input type="color" 
+                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                value={rgbToHex(editedStyle.color.r, editedStyle.color.g, editedStyle.color.b)}
+                                onChange={e => setEditedStyle(s => ({...s, color: hexToRgb(e.target.value)}))}
+                              />
+                           </Button>
+                           <Button variant="ghost" size="icon" className="relative">
+                              <Highlighter className="h-4 w-4" />
+                              <Input type="color" 
+                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                value={editedStyle.highlightColor ? rgbToHex(editedStyle.highlightColor.r, editedStyle.highlightColor.g, editedStyle.highlightColor.b) : '#ffffff'}
+                                onChange={e => {
+                                  const color = hexToRgb(e.target.value);
+                                  if (e.target.value === '#ffffff') {
+                                    setEditedStyle(s => ({...s, highlightColor: null}));
+                                  } else {
+                                    setEditedStyle(s => ({...s, highlightColor: {...color, a: 0.3}}));
+                                  }
+                                }}
+                              />
+                           </Button>
+
                         </div>
+
                         <div>
                             <Label htmlFor="replacement-text">Replacement Text</Label>
                             <Textarea
@@ -324,6 +466,14 @@ export function EditPdfClient() {
                                 value={editedText}
                                 onChange={(e) => setEditedText(e.target.value)}
                                 rows={4}
+                                style={{
+                                    fontFamily: editedStyle.fontFamily,
+                                    fontSize: `${editedStyle.fontSize}px`,
+                                    fontWeight: editedStyle.isBold ? 'bold' : 'normal',
+                                    fontStyle: editedStyle.isItalic ? 'italic' : 'normal',
+                                    color: `rgb(${editedStyle.color.r * 255}, ${editedStyle.color.g * 255}, ${editedStyle.color.b * 255})`,
+                                    backgroundColor: editedStyle.highlightColor ? `rgba(${editedStyle.highlightColor.r * 255}, ${editedStyle.highlightColor.g * 255}, ${editedStyle.highlightColor.b * 255}, ${editedStyle.highlightColor.a})` : 'transparent'
+                                }}
                             />
                         </div>
                     </div>
