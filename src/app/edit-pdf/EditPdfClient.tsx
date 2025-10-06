@@ -4,46 +4,36 @@ import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Edit, Bold, Italic, Palette, Highlighter, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Rnd } from 'react-rnd';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
-type EditStep = 'upload' | 'edit';
+type EditStep = 'upload' | 'edit' | 'download';
 
 type PageData = {
-  dimensions: { width: number; height: number; scale: number; };
-  textItems: TextItem[];
-}
+  imageUrl: string;
+  width: number;
+  height: number;
+};
 
-type TextItem = {
+type EditableItem = {
   id: string;
+  type: 'text';
   pageIndex: number;
   x: number;
   y: number;
   width: number;
   height: number;
   text: string;
-  fontFamily: string;
   fontSize: number;
-  transform: number[];
-  color: { r: number, g: number, b: number };
+  fontFamily: string;
+  color: { r: number; g: number; b: number };
   isBold: boolean;
   isItalic: boolean;
-  isUnderline: boolean;
-  isStrikethrough: boolean;
-  alignment: 'left' | 'center' | 'right';
-  highlightColor: { r: number, g: number, b: number, a: number } | null;
 };
 
 const hexToRgb = (hex: string) => {
@@ -57,13 +47,6 @@ const hexToRgb = (hex: string) => {
       : { r: 0, g: 0, b: 0 };
 };
 
-const rgbToHex = (r: number, g: number, b: number) => {
-  return "#" + [r, g, b].map(x => {
-    const hex = Math.round(x * 255).toString(16)
-    return hex.length === 1 ? '0' + hex : hex
-  }).join('')
-}
-
 export function EditPdfClient() {
   const [step, setStep] = useState<EditStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -71,21 +54,8 @@ export function EditPdfClient() {
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [pagesData, setPagesData] = useState<PageData[]>([]);
-  
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<TextItem | null>(null);
-  const [editedText, setEditedText] = useState('');
-  const [editedStyle, setEditedStyle] = useState({
-      fontSize: 12,
-      fontFamily: 'Helvetica',
-      isBold: false,
-      isItalic: false,
-      isUnderline: false,
-      isStrikethrough: false,
-      alignment: 'left' as 'left' | 'center' | 'right',
-      color: { r: 0, g: 0, b: 0 },
-      highlightColor: null as { r: number, g: number, b: number, a: number } | null
-  });
+  const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -131,46 +101,27 @@ export function EditPdfClient() {
         for (let i = 1; i <= pdf.numPages; i++) {
           setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
           
-          const scale = 1.5;
-          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error("Could not get canvas context");
           
-          const textContent = await page.getTextContent();
-          
-          const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
-              const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-              const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
-              
-              return {
-                  id: `text-p${i}-${Date.now()}-${index}`,
-                  pageIndex: i - 1,
-                  text: item.str,
-                  x: tx[4],
-                  y: viewport.height - tx[5] - fontHeight,
-                  width: item.width * viewport.scale,
-                  height: item.height * viewport.scale,
-                  fontSize: fontHeight,
-                  fontFamily: item.fontName.includes('Bold') ? item.fontName.replace('Bold','') : item.fontName,
-                  transform: item.transform,
-                  isBold: item.fontName.includes('Bold'),
-                  isItalic: item.fontName.includes('Italic'),
-                  isUnderline: false,
-                  isStrikethrough: false,
-                  alignment: 'left',
-                  color: { r: 0, g: 0, b: 0}, // pdf.js does not reliably provide color
-                  highlightColor: null,
-              };
-          });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          await page.render({ canvasContext: context, viewport }).promise;
 
           processedPages.push({
-            dimensions: { width: viewport.width, height: viewport.height, scale },
-            textItems: extractedTextItems
+            imageUrl: canvas.toDataURL('image/png'),
+            width: viewport.width,
+            height: viewport.height,
           });
         }
         
         setPagesData(processedPages);
         setStep('edit');
-        toast({ title: 'PDF Loaded', description: 'Click on a text block to edit it.' });
+        toast({ title: 'PDF Loaded', description: 'Use the toolbar to add text or images.' });
 
     } catch (error) {
       console.error(error);
@@ -181,44 +132,35 @@ export function EditPdfClient() {
     }
   };
 
-  const openEditDialog = (item: TextItem) => {
-    setCurrentItem(item);
-    setEditedText(item.text);
-    setEditedStyle({
-      fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'), // default mapping
-      fontSize: item.fontSize,
-      isBold: item.isBold,
-      isItalic: item.isItalic,
-      isUnderline: item.isUnderline,
-      isStrikethrough: item.isStrikethrough,
-      alignment: item.alignment,
-      color: item.color,
-      highlightColor: item.highlightColor
-    });
-    setIsEditDialogOpen(true);
+  const addText = (pageIndex: number) => {
+    const newText: EditableItem = {
+      id: `text-${Date.now()}`,
+      type: 'text',
+      pageIndex,
+      x: 50,
+      y: 50,
+      width: 200,
+      height: 50,
+      text: 'New Text',
+      fontSize: 24,
+      fontFamily: 'Helvetica',
+      color: { r: 0, g: 0, b: 0 },
+      isBold: false,
+      isItalic: false,
+    };
+    setEditableItems([...editableItems, newText]);
+    setSelectedItemId(newText.id);
   };
 
-  const handleSaveTextChange = () => {
-    if (!currentItem) return;
-
-    setPagesData(prevPagesData => {
-      const newPagesData = [...prevPagesData];
-      const pageData = newPagesData[currentItem.pageIndex];
-      const itemIndex = pageData.textItems.findIndex(item => item.id === currentItem.id);
-      
-      if (itemIndex > -1) {
-          pageData.textItems[itemIndex] = { 
-              ...pageData.textItems[itemIndex], 
-              text: editedText,
-              ...editedStyle,
-          };
-      }
-      return newPagesData;
-    });
-
-    setIsEditDialogOpen(false);
-    setCurrentItem(null);
+  const updateItem = (id: string, updates: Partial<EditableItem>) => {
+    setEditableItems(items => items.map(item => item.id === id ? { ...item, ...updates } : item));
   };
+  
+  const deleteSelectedItem = () => {
+    if(!selectedItemId) return;
+    setEditableItems(items => items.filter(item => item.id !== selectedItemId));
+    setSelectedItemId(null);
+  }
 
   const getFont = async (pdfDoc: PDFDocument, fontFamily: string, isBold: boolean, isItalic: boolean): Promise<PDFFont> => {
       try {
@@ -249,66 +191,25 @@ export function EditPdfClient() {
       setProcessingMessage("Generating PDF...");
       
       try {
-        const newPdfDoc = await PDFDocument.create();
+        const originalPdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
         
-        for (const pageData of pagesData) {
-            const { width, height, scale } = pageData.dimensions;
-            const newPage = newPdfDoc.addPage([width / scale, height / scale]);
+        for (const item of editableItems) {
+            const page = originalPdfDoc.getPage(item.pageIndex);
+            const { width, height } = page.getSize();
+            const scale = width / pagesData[item.pageIndex].width;
 
-            for (const item of pageData.textItems) {
-                const font = await getFont(newPdfDoc, item.fontFamily, item.isBold, item.isItalic);
-                const textWidth = font.widthOfTextAtSize(item.text, item.fontSize / scale);
-
-                let x_pos = item.x / scale;
-                if (item.alignment === 'center') {
-                    x_pos = (item.x + item.width / 2 - textWidth / 2) / scale;
-                } else if (item.alignment === 'right') {
-                    x_pos = (item.x + item.width - textWidth) / scale;
-                }
-                
-                // Add highlight if exists
-                if (item.highlightColor) {
-                    newPage.drawRectangle({
-                        x: item.x / scale,
-                        y: (height - item.y - item.height) / scale,
-                        width: item.width / scale,
-                        height: item.height / scale,
-                        color: rgb(item.highlightColor.r, item.highlightColor.g, item.highlightColor.b),
-                        opacity: item.highlightColor.a,
-                    });
-                }
-                
-                // Draw new text
-                newPage.drawText(item.text, {
-                    x: x_pos,
-                    y: (height - item.y - item.fontSize) / scale,
-                    font: font,
-                    size: item.fontSize / scale,
-                    color: rgb(item.color.r, item.color.g, item.color.b),
-                });
-
-                // Add decorations
-                const lineThickness = (item.fontSize / scale) / 15;
-                if (item.isUnderline) {
-                    newPage.drawLine({
-                        start: { x: x_pos, y: ((height - item.y - item.fontSize) / scale) - lineThickness * 2 },
-                        end: { x: x_pos + textWidth, y: ((height - item.y - item.fontSize) / scale) - lineThickness * 2 },
-                        thickness: lineThickness,
-                        color: rgb(item.color.r, item.color.g, item.color.b),
-                    });
-                }
-                if (item.isStrikethrough) {
-                     newPage.drawLine({
-                        start: { x: x_pos, y: ((height - item.y - item.fontSize) / scale) + (item.height / scale) / 2.5 },
-                        end: { x: x_pos + textWidth, y: ((height - item.y - item.fontSize) / scale) + (item.height / scale) / 2.5 },
-                        thickness: lineThickness,
-                        color: rgb(item.color.r, item.color.g, item.color.b),
-                    });
-                }
-            }
+            const font = await getFont(originalPdfDoc, item.fontFamily, item.isBold, item.isItalic);
+            
+            page.drawText(item.text, {
+                x: item.x * scale,
+                y: height - (item.y * scale) - (item.fontSize * scale), // adjust y from top-left to bottom-left
+                font: font,
+                size: item.fontSize * scale,
+                color: rgb(item.color.r, item.color.g, item.color.b),
+            });
         }
         
-        const pdfBytes = await newPdfDoc.save();
+        const pdfBytes = await originalPdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -333,6 +234,8 @@ export function EditPdfClient() {
     setStep('upload');
     setOriginalFile(null);
     setPagesData([]);
+    setEditableItems([]);
+    setSelectedItemId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -352,7 +255,7 @@ export function EditPdfClient() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit PDF</h1>
-            <p className="text-muted-foreground mt-2">Click on existing text to replace it.</p>
+            <p className="text-muted-foreground mt-2">Add text and images to your PDF documents.</p>
           </div>
           <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10 text-center">
@@ -377,122 +280,10 @@ export function EditPdfClient() {
       );
     
     case 'edit':
+      const selectedItem = editableItems.find(item => item.id === selectedItemId);
       return (
         <div className="w-full">
-           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Edit Text</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="p-2 rounded-md border bg-muted flex flex-wrap items-center gap-1">
-                           <ToggleGroup type="multiple" value={
-                                [
-                                 editedStyle.isBold ? 'bold' : '',
-                                 editedStyle.isItalic ? 'italic' : '',
-                                 editedStyle.isUnderline ? 'underline' : '',
-                                 editedStyle.isStrikethrough ? 'strikethrough' : ''
-                                ].filter(Boolean)
-                             } onValueChange={(value) => {
-                                setEditedStyle(s => ({
-                                    ...s,
-                                    isBold: value.includes('bold'),
-                                    isItalic: value.includes('italic'),
-                                    isUnderline: value.includes('underline'),
-                                    isStrikethrough: value.includes('strikethrough'),
-                                }))
-                             }}>
-                               <ToggleGroupItem value="bold" aria-label="Toggle bold"><Bold className="h-4 w-4" /></ToggleGroupItem>
-                               <ToggleGroupItem value="italic" aria-label="Toggle italic"><Italic className="h-4 w-4" /></ToggleGroupItem>
-                               <ToggleGroupItem value="underline" aria-label="Toggle underline"><Underline className="h-4 w-4" /></ToggleGroupItem>
-                               <ToggleGroupItem value="strikethrough" aria-label="Toggle strikethrough"><Strikethrough className="h-4 w-4" /></ToggleGroupItem>
-                           </ToggleGroup>
-                           <Separator orientation="vertical" className="h-6 mx-1" />
-                           <Select value={editedStyle.fontFamily} onValueChange={v => setEditedStyle(s => ({...s, fontFamily: v}))}>
-                               <SelectTrigger className="w-[140px]">
-                                   <SelectValue placeholder="Font" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                   <SelectItem value="Helvetica">Helvetica</SelectItem>
-                                   <SelectItem value="Times-Roman">Times New Roman</SelectItem>
-                                   <SelectItem value="Courier">Courier</SelectItem>
-                               </SelectContent>
-                           </Select>
-                           <Input 
-                             type="number" 
-                             value={Math.round(editedStyle.fontSize)} 
-                             onChange={e => setEditedStyle(s => ({...s, fontSize: parseInt(e.target.value, 10)}))}
-                             className="w-[70px]"
-                             min="1"
-                           />
-                           <Separator orientation="vertical" className="h-6 mx-1" />
-                            <ToggleGroup type="single" value={editedStyle.alignment} onValueChange={(value: 'left' | 'center' | 'right') => { if(value) setEditedStyle(s => ({ ...s, alignment: value }))}}>
-                               <ToggleGroupItem value="left" aria-label="Left aligned"><AlignLeft className="h-4 w-4" /></ToggleGroupItem>
-                               <ToggleGroupItem value="center" aria-label="Center aligned"><AlignCenter className="h-4 w-4" /></ToggleGroupItem>
-                               <ToggleGroupItem value="right" aria-label="Right aligned"><AlignRight className="h-4 w-4" /></ToggleGroupItem>
-                           </ToggleGroup>
-                           <Separator orientation="vertical" className="h-6 mx-1" />
-                           <Button variant="ghost" size="icon" className="relative">
-                              <Palette className="h-4 w-4" />
-                              <Input type="color" 
-                                className="absolute inset-0 opacity-0 cursor-pointer" 
-                                value={rgbToHex(editedStyle.color.r, editedStyle.color.g, editedStyle.color.b)}
-                                onChange={e => setEditedStyle(s => ({...s, color: hexToRgb(e.target.value)}))}
-                              />
-                           </Button>
-                           <Button variant="ghost" size="icon" className="relative">
-                              <Highlighter className="h-4 w-4" />
-                              <Input type="color" 
-                                className="absolute inset-0 opacity-0 cursor-pointer" 
-                                value={editedStyle.highlightColor ? rgbToHex(editedStyle.highlightColor.r, editedStyle.highlightColor.g, editedStyle.highlightColor.b) : '#ffffff'}
-                                onChange={e => {
-                                  const color = hexToRgb(e.target.value);
-                                  if (e.target.value === '#ffffff') {
-                                    setEditedStyle(s => ({...s, highlightColor: null}));
-                                  } else {
-                                    setEditedStyle(s => ({...s, highlightColor: {...color, a: 0.3}}));
-                                  }
-                                }}
-                              />
-                           </Button>
-                             <Button variant="ghost" size="icon" onClick={() => setEditedStyle(s => ({...s, highlightColor: null}))}>
-                                <Eraser className="h-4 w-4" />
-                           </Button>
-                        </div>
-
-                        <div>
-                            <Label htmlFor="replacement-text">Replacement Text</Label>
-                            <Textarea
-                                id="replacement-text"
-                                value={editedText}
-                                onChange={(e) => setEditedText(e.target.value)}
-                                rows={4}
-                                style={{
-                                    fontFamily: editedStyle.fontFamily,
-                                    fontSize: `${editedStyle.fontSize}px`,
-                                    fontWeight: editedStyle.isBold ? 'bold' : 'normal',
-                                    fontStyle: editedStyle.isItalic ? 'italic' : 'normal',
-                                    textDecoration: `${editedStyle.isUnderline ? 'underline' : ''} ${editedStyle.isStrikethrough ? 'line-through' : ''}`.trim(),
-                                    textAlign: editedStyle.alignment,
-                                    color: `rgb(${editedStyle.color.r * 255}, ${editedStyle.color.g * 255}, ${editedStyle.color.b * 255})`,
-                                    backgroundColor: editedStyle.highlightColor ? `rgba(${editedStyle.highlightColor.r * 255}, ${editedStyle.highlightColor.g * 255}, ${editedStyle.highlightColor.b * 255}, ${editedStyle.highlightColor.a})` : 'transparent'
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveTextChange}>Save Change</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-          <div className="text-center mb-4">
-            <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Click on any text block to modify its content and style.</p>
-          </div>
-          
-           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-4 p-4 bg-card border rounded-lg shadow-sm sticky top-0 z-10">
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-20 bg-card p-2 rounded-lg shadow-lg border flex gap-2">
               <Button onClick={handleStartOver} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Start Over
@@ -501,62 +292,92 @@ export function EditPdfClient() {
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 {isProcessing ? processingMessage : 'Download Edited PDF'}
               </Button>
+              {selectedItemId && (
+                 <Button onClick={deleteSelectedItem} variant="destructive">
+                   <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                 </Button>
+              )}
+          </div>
+
+          {selectedItem && selectedItem.type === 'text' && (
+            <div className="fixed top-32 left-1/2 -translate-x-1/2 z-20 bg-card p-3 rounded-lg shadow-lg border flex items-center gap-2">
+               <input 
+                 type="text"
+                 value={selectedItem.text}
+                 onChange={e => updateItem(selectedItem.id, { text: e.target.value })}
+                 className="bg-transparent border-b"
+               />
+               <input 
+                 type="number"
+                 value={selectedItem.fontSize}
+                 onChange={e => updateItem(selectedItem.id, { fontSize: parseInt(e.target.value, 10) || 12 })}
+                 className="w-16"
+               />
+               <input
+                type="color"
+                value={`#${Object.values(selectedItem.color).map(c => Math.round(c * 255).toString(16).padStart(2, '0')).join('')}`}
+                onChange={e => updateItem(selectedItem.id, { color: hexToRgb(e.target.value) })}
+               />
             </div>
-            
-            <div className="max-w-4xl mx-auto">
-              <ScrollArea className="h-[calc(100vh-250px)] border rounded-lg bg-secondary/50">
+          )}
+
+            <div className="max-w-5xl mx-auto pt-32">
+              <ScrollArea className="h-[calc(100vh-200px)] border rounded-lg bg-secondary/50">
                 <div className="p-4 sm:p-8 space-y-8 flex flex-col items-center">
                   {pagesData.map((page, pageIndex) => (
                       <div 
                         key={`editable-page-${pageIndex}`}
                         className="relative shadow-lg bg-white"
-                        style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
+                        style={{ width: page.width, height: page.height, flexShrink: 0 }}
+                        onClick={() => setSelectedItemId(null)}
                       >
-                        {page.textItems.map((item) => {
-                          const textWidth = item.width;
-                          let xPos = 0;
-                          if (item.alignment === 'center') {
-                              xPos = (item.width - textWidth) / 2;
-                          } else if (item.alignment === 'right') {
-                              xPos = item.width - textWidth;
-                          }
-                          return (
-                            <div
+                        <img src={page.imageUrl} alt={`Page ${pageIndex+1}`} width={page.width} height={page.height} />
+                        <div className="absolute top-2 right-2 z-10 flex gap-2">
+                           <Button size="sm" onClick={(e) => { e.stopPropagation(); addText(pageIndex); }}> <Type className="mr-2 h-4 w-4"/> Add Text</Button>
+                        </div>
+                        {editableItems.filter(item => item.pageIndex === pageIndex).map(item => (
+                            <Rnd
                                 key={item.id}
-                                className="absolute border border-dashed border-transparent hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
-                                style={{
-                                    left: `${item.x}px`,
-                                    top: `${item.y}px`,
-                                    width: `${item.width}px`,
-                                    height: `${item.height}px`,
+                                size={{ width: item.width, height: item.height }}
+                                position={{ x: item.x, y: item.y }}
+                                onDragStop={(e, d) => {
+                                    updateItem(item.id, { x: d.x, y: d.y });
                                 }}
-                                onClick={() => openEditDialog(item)}
+                                onResizeStop={(e, direction, ref, delta, position) => {
+                                    updateItem(item.id, {
+                                        width: parseInt(ref.style.width),
+                                        height: parseInt(ref.style.height),
+                                        ...position,
+                                    });
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedItemId(item.id);
+                                }}
+                                className={selectedItemId === item.id ? 'border-2 border-dashed border-blue-500 z-10' : 'border-2 border-dashed border-transparent hover:border-gray-400 z-10'}
                             >
-                              <div 
-                                  className="absolute flex items-center w-full h-full"
+                                <div
                                   style={{
-                                      fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'), // pdf.js internal font names
-                                      fontSize: `${item.fontSize}px`,
-                                      fontWeight: item.isBold ? 'bold' : 'normal',
-                                      fontStyle: item.isItalic ? 'italic' : 'normal',
-                                      textDecoration: `${item.isUnderline ? 'underline' : ''} ${item.isStrikethrough ? 'line-through' : ''}`.trim(),
-                                      color: `rgb(${item.color.r * 255}, ${item.color.g * 255}, ${item.color.b * 255})`,
-                                      backgroundColor: item.highlightColor ? `rgba(${item.highlightColor.r * 255}, ${item.highlightColor.g * 255}, ${item.highlightColor.b * 255}, ${item.highlightColor.a})` : 'transparent',
-                                      justifyContent: item.alignment === 'left' ? 'flex-start' : item.alignment === 'center' ? 'center' : 'flex-end',
-                                      paddingLeft: '2px',
-                                      paddingRight: '2px',
+                                    width: '100%',
+                                    height: '100%',
+                                    fontFamily: item.fontFamily,
+                                    fontSize: `${item.fontSize}px`,
+                                    color: `rgb(${item.color.r * 255}, ${item.color.g * 255}, ${item.color.b * 255})`,
+                                    fontWeight: item.isBold ? 'bold' : 'normal',
+                                    fontStyle: item.isItalic ? 'italic' : 'normal',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'move',
+                                    whiteSpace: 'pre-wrap', // To allow text wrapping
+                                    overflow: 'hidden'
                                   }}
-                              >
-                                {item.text}
-                              </div>
-                              <div className="absolute -top-6 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none">
-                                <Badge variant="secondary" className="bg-blue-600 text-white">
-                                    <Edit className="w-3 h-3 mr-1"/> Edit
-                                </Badge>
-                              </div>
-                            </div>
-                           )
-                        })}
+                                >
+                                  {item.text}
+                                </div>
+                            </Rnd>
+                        ))}
                       </div>
                     ))}
                 </div>
@@ -564,5 +385,8 @@ export function EditPdfClient() {
             </div>
         </div>
       );
+    
+    default:
+        return null;
   }
 }
