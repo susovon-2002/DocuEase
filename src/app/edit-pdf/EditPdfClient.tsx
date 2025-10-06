@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont, Line, cmyk } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit, Bold, Italic, Palette, Highlighter } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit, Bold, Italic, Palette, Highlighter, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -40,6 +42,9 @@ type TextItem = {
   color: { r: number, g: number, b: number };
   isBold: boolean;
   isItalic: boolean;
+  isUnderline: boolean;
+  isStrikethrough: boolean;
+  alignment: 'left' | 'center' | 'right';
   highlightColor: { r: number, g: number, b: number, a: number } | null;
 };
 
@@ -78,6 +83,9 @@ export function EditPdfClient() {
       fontFamily: 'Helvetica',
       isBold: false,
       isItalic: false,
+      isUnderline: false,
+      isStrikethrough: false,
+      alignment: 'left' as 'left' | 'center' | 'right',
       color: { r: 0, g: 0, b: 0 },
       highlightColor: null as { r: number, g: number, b: number, a: number } | null
   });
@@ -165,6 +173,9 @@ export function EditPdfClient() {
                   transform: item.transform,
                   isBold: item.fontName.includes('Bold'),
                   isItalic: item.fontName.includes('Italic'),
+                  isUnderline: false,
+                  isStrikethrough: false,
+                  alignment: 'left',
                   color: { r: 0, g: 0, b: 0}, // pdf.js does not reliably provide color
                   highlightColor: null,
               };
@@ -198,6 +209,9 @@ export function EditPdfClient() {
       fontSize: item.fontSize,
       isBold: item.isBold,
       isItalic: item.isItalic,
+      isUnderline: item.isUnderline,
+      isStrikethrough: item.isStrikethrough,
+      alignment: item.alignment,
       color: item.color,
       highlightColor: item.highlightColor
     });
@@ -226,30 +240,32 @@ export function EditPdfClient() {
   };
 
   const getFont = async (pdfDoc: PDFDocument, fontFamily: string, isBold: boolean, isItalic: boolean): Promise<PDFFont> => {
-      let fontEnum: StandardFonts = StandardFonts.Helvetica;
-
-      if (fontFamily.toLowerCase().includes('times')) {
-          if (isBold && isItalic) fontEnum = StandardFonts.TimesRomanBoldItalic;
-          else if (isBold) fontEnum = StandardFonts.TimesRomanBold;
-          else if (isItalic) fontEnum = StandardFonts.TimesRomanItalic;
-          else fontEnum = StandardFonts.TimesRoman;
-      } else if (fontFamily.toLowerCase().includes('courier')) {
-          if (isBold && isItalic) fontEnum = StandardFonts.CourierBoldOblique;
-          else if (isBold) fontEnum = StandardFonts.CourierBold;
-          else if (isItalic) fontEnum = StandardFonts.CourierOblique;
-          else fontEnum = StandardFonts.Courier;
-      } else { // Default to Helvetica
-          if (isBold && isItalic) fontEnum = StandardFonts.HelveticaBoldOblique;
-          else if (isBold) fontEnum = StandardFonts.HelveticaBold;
-          else if (isItalic) fontEnum = StandardFonts.HelveticaOblique;
-          else fontEnum = StandardFonts.Helvetica;
+      try {
+        if (fontFamily.toLowerCase().includes('times')) {
+            if (isBold && isItalic) return await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
+            if (isBold) return await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+            if (isItalic) return await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+            return await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        } else if (fontFamily.toLowerCase().includes('courier')) {
+            if (isBold && isItalic) return await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+            if (isBold) return await pdfDoc.embedFont(StandardFonts.CourierBold);
+            if (isItalic) return await pdfDoc.embedFont(StandardFonts.CourierOblique);
+            return await pdfDoc.embedFont(StandardFonts.Courier);
+        } else { // Default to Helvetica
+            if (isBold && isItalic) return await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+            if (isBold) return await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            if (isItalic) return await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+            return await pdfDoc.embedFont(StandardFonts.Helvetica);
+        }
+      } catch (e) {
+        console.warn("Font embedding failed, falling back to Helvetica", e);
+        return await pdfDoc.embedFont(StandardFonts.Helvetica);
       }
-      return await pdfDoc.embedFont(fontEnum);
   }
 
   const handleApplyEdits = async () => {
       const editedItems = pagesData.flatMap(p => p.textItems).filter(item => 
-        item.text !== item.originalText || item.highlightColor !== null || item.isBold || item.isItalic
+        item.text !== item.originalText || item.highlightColor !== null || item.isBold || item.isItalic || item.isUnderline || item.isStrikethrough || item.alignment !== 'left'
       );
 
       if (editedItems.length === 0) {
@@ -268,30 +284,39 @@ export function EditPdfClient() {
             const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
             const pageDimensions = pagesData[item.pageIndex].dimensions;
             
-            const pdf_x = item.x / pageDimensions.scale;
-            const pdf_y = pdfPageHeight - (item.y / pageDimensions.scale) - (item.fontSize / pageDimensions.scale);
-            const pdf_width = item.width / pageDimensions.scale;
-            const pdf_height = item.height / pageDimensions.scale;
+            const pdf_x_orig = item.x / pageDimensions.scale;
+            const pdf_y_orig = pdfPageHeight - (item.y / pageDimensions.scale) - (item.fontSize / pageDimensions.scale);
+            const pdf_width_orig = item.width / pageDimensions.scale;
+            const pdf_height_orig = item.height / pageDimensions.scale;
             const pdf_fontSize = item.fontSize / pageDimensions.scale;
             
-            // Erase original text
+            // Erase original text by drawing a white box over it
             page.drawRectangle({
-                x: pdf_x - 2,
-                y: pdf_y - (pdf_height * 0.2),
-                width: pdf_width + 4,
-                height: pdf_height * 1.4,
+                x: pdf_x_orig - 2,
+                y: pdf_y_orig - (pdf_height_orig * 0.2),
+                width: pdf_width_orig + 4,
+                height: pdf_height_orig * 1.4,
                 color: rgb(1, 1, 1),
             });
 
              const font = await getFont(pdfDoc, item.fontFamily, item.isBold, item.isItalic);
+             const textWidth = font.widthOfTextAtSize(item.text, pdf_fontSize);
+             
+             let pdf_x = pdf_x_orig;
 
+             if (item.alignment === 'center') {
+                pdf_x = pdf_x_orig + (pdf_width_orig - textWidth) / 2;
+             } else if (item.alignment === 'right') {
+                pdf_x = pdf_x_orig + pdf_width_orig - textWidth;
+             }
+             
             // Add highlight if exists
             if (item.highlightColor) {
                 page.drawRectangle({
-                    x: pdf_x,
-                    y: pdf_y - (pdf_height * 0.2),
-                    width: pdf_width,
-                    height: pdf_height * 1.2,
+                    x: pdf_x_orig,
+                    y: pdf_y_orig - (pdf_height_orig * 0.2),
+                    width: pdf_width_orig,
+                    height: pdf_height_orig * 1.2,
                     color: rgb(item.highlightColor.r, item.highlightColor.g, item.highlightColor.b),
                     opacity: item.highlightColor.a,
                 });
@@ -300,11 +325,30 @@ export function EditPdfClient() {
             // Draw new text
             page.drawText(item.text, {
                 x: pdf_x,
-                y: pdf_y,
+                y: pdf_y_orig,
                 font: font,
                 size: pdf_fontSize,
                 color: rgb(item.color.r, item.color.g, item.color.b),
             });
+
+            // Add decorations
+            const lineThickness = pdf_fontSize / 15;
+            if (item.isUnderline) {
+                page.drawLine({
+                    start: { x: pdf_x, y: pdf_y_orig - lineThickness * 2 },
+                    end: { x: pdf_x + textWidth, y: pdf_y_orig - lineThickness * 2 },
+                    thickness: lineThickness,
+                    color: rgb(item.color.r, item.color.g, item.color.b),
+                });
+            }
+            if (item.isStrikethrough) {
+                 page.drawLine({
+                    start: { x: pdf_x, y: pdf_y_orig + pdf_height_orig / 2.5 },
+                    end: { x: pdf_x + textWidth, y: pdf_y_orig + pdf_height_orig / 2.5 },
+                    thickness: lineThickness,
+                    color: rgb(item.color.r, item.color.g, item.color.b),
+                });
+            }
         }
         
         const pdfBytes = await pdfDoc.save();
@@ -398,24 +442,31 @@ export function EditPdfClient() {
                         <DialogTitle>Edit Text</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div className="p-2 rounded-md border bg-muted flex items-center gap-2">
-                           <Button 
-                             variant={editedStyle.isBold ? 'secondary' : 'ghost'} 
-                             size="icon" 
-                             onClick={() => setEditedStyle(s => ({...s, isBold: !s.isBold}))}
-                           >
-                               <Bold className="h-4 w-4" />
-                           </Button>
-                           <Button 
-                             variant={editedStyle.isItalic ? 'secondary' : 'ghost'} 
-                             size="icon"
-                             onClick={() => setEditedStyle(s => ({...s, isItalic: !s.isItalic}))}
-                           >
-                               <Italic className="h-4 w-4" />
-                           </Button>
-                           <Separator orientation="vertical" className="h-6" />
+                        <div className="p-2 rounded-md border bg-muted flex flex-wrap items-center gap-1">
+                           <ToggleGroup type="multiple" value={
+                                [
+                                 editedStyle.isBold ? 'bold' : '',
+                                 editedStyle.isItalic ? 'italic' : '',
+                                 editedStyle.isUnderline ? 'underline' : '',
+                                 editedStyle.isStrikethrough ? 'strikethrough' : ''
+                                ].filter(Boolean)
+                             } onValueChange={(value) => {
+                                setEditedStyle(s => ({
+                                    ...s,
+                                    isBold: value.includes('bold'),
+                                    isItalic: value.includes('italic'),
+                                    isUnderline: value.includes('underline'),
+                                    isStrikethrough: value.includes('strikethrough'),
+                                }))
+                             }}>
+                               <ToggleGroupItem value="bold" aria-label="Toggle bold"><Bold className="h-4 w-4" /></ToggleGroupItem>
+                               <ToggleGroupItem value="italic" aria-label="Toggle italic"><Italic className="h-4 w-4" /></ToggleGroupItem>
+                               <ToggleGroupItem value="underline" aria-label="Toggle underline"><Underline className="h-4 w-4" /></ToggleGroupItem>
+                               <ToggleGroupItem value="strikethrough" aria-label="Toggle strikethrough"><Strikethrough className="h-4 w-4" /></ToggleGroupItem>
+                           </ToggleGroup>
+                           <Separator orientation="vertical" className="h-6 mx-1" />
                            <Select value={editedStyle.fontFamily} onValueChange={v => setEditedStyle(s => ({...s, fontFamily: v}))}>
-                               <SelectTrigger className="w-[150px]">
+                               <SelectTrigger className="w-[140px]">
                                    <SelectValue placeholder="Font" />
                                </SelectTrigger>
                                <SelectContent>
@@ -431,8 +482,13 @@ export function EditPdfClient() {
                              className="w-[70px]"
                              min="1"
                            />
-                           <Separator orientation="vertical" className="h-6" />
-
+                           <Separator orientation="vertical" className="h-6 mx-1" />
+                            <ToggleGroup type="single" value={editedStyle.alignment} onValueChange={(value: 'left' | 'center' | 'right') => { if(value) setEditedStyle(s => ({ ...s, alignment: value }))}}>
+                               <ToggleGroupItem value="left" aria-label="Left aligned"><AlignLeft className="h-4 w-4" /></ToggleGroupItem>
+                               <ToggleGroupItem value="center" aria-label="Center aligned"><AlignCenter className="h-4 w-4" /></ToggleGroupItem>
+                               <ToggleGroupItem value="right" aria-label="Right aligned"><AlignRight className="h-4 w-4" /></ToggleGroupItem>
+                           </ToggleGroup>
+                           <Separator orientation="vertical" className="h-6 mx-1" />
                            <Button variant="ghost" size="icon" className="relative">
                               <Palette className="h-4 w-4" />
                               <Input type="color" 
@@ -456,7 +512,9 @@ export function EditPdfClient() {
                                 }}
                               />
                            </Button>
-
+                             <Button variant="ghost" size="icon" onClick={() => setEditedStyle(s => ({...s, highlightColor: null}))}>
+                                <Eraser className="h-4 w-4" />
+                           </Button>
                         </div>
 
                         <div>
@@ -471,6 +529,8 @@ export function EditPdfClient() {
                                     fontSize: `${editedStyle.fontSize}px`,
                                     fontWeight: editedStyle.isBold ? 'bold' : 'normal',
                                     fontStyle: editedStyle.isItalic ? 'italic' : 'normal',
+                                    textDecoration: `${editedStyle.isUnderline ? 'underline' : ''} ${editedStyle.isStrikethrough ? 'line-through' : ''}`.trim(),
+                                    textAlign: editedStyle.alignment,
                                     color: `rgb(${editedStyle.color.r * 255}, ${editedStyle.color.g * 255}, ${editedStyle.color.b * 255})`,
                                     backgroundColor: editedStyle.highlightColor ? `rgba(${editedStyle.highlightColor.r * 255}, ${editedStyle.highlightColor.g * 255}, ${editedStyle.highlightColor.b * 255}, ${editedStyle.highlightColor.a})` : 'transparent'
                                 }}
@@ -486,7 +546,7 @@ export function EditPdfClient() {
 
           <div className="text-center mb-4">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Click on any highlighted text block to modify its content.</p>
+            <p className="text-muted-foreground mt-2">Click on any highlighted text block to modify its content and style.</p>
           </div>
           
            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-4 p-4 bg-card border rounded-lg shadow-sm sticky top-0 z-10">
