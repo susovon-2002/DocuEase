@@ -143,7 +143,7 @@ export function EditPdfClient() {
               id: `text-${i}-${index}`,
               type: 'text',
               x: transform[4],
-              y: transform[5] - fontHeight,
+              y: viewport.height - transform[5] - fontHeight,
               width: item.width,
               height: item.height,
               text: item.str,
@@ -231,7 +231,7 @@ export function EditPdfClient() {
         const imageBytes = reader.result as ArrayBuffer;
         addItem('image', pageIndex, { imageUrl, imageBytes, mimeType: file.type });
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
     if (imageInputRef.current) imageInputRef.current.value = '';
   }
 
@@ -280,20 +280,22 @@ export function EditPdfClient() {
         
         for (let i = 0; i < pagesData.length; i++) {
           const pageData = pagesData[i];
-          const scale = pageData.width / pageData.width; // This should be based on original vs rendered size. For now 1.
+          const scale = 1 / 1.5;
           
-          const newPage = newPdfDoc.addPage([pageData.width / 1.5, pageData.height / 1.5]); // Use original dimensions
+          const newPage = newPdfDoc.addPage([pageData.width * scale, pageData.height * scale]);
 
           for (const item of pageData.items) {
             if (item.type === 'text') {
               const font = await getFont(newPdfDoc, item);
               
               newPage.drawText(item.text, {
-                  x: item.x / 1.5,
-                  y: (pageData.height - item.y - item.fontSize) / 1.5,
+                  x: item.x * scale,
+                  y: newPage.getHeight() - (item.y * scale) - (item.fontSize * scale),
                   font,
-                  size: item.fontSize / 1.5,
+                  size: item.fontSize * scale,
                   color: rgb(item.color.r, item.color.g, item.color.b),
+                  lineHeight: (item.fontSize + 2) * scale,
+                  // The wordBreaks property has been removed as it's not a standard pdf-lib feature
               });
               
             } else if (item.type === 'image') {
@@ -304,10 +306,10 @@ export function EditPdfClient() {
                     embeddedImage = await newPdfDoc.embedJpg(item.imageBytes);
                }
                newPage.drawImage(embeddedImage, {
-                    x: item.x / 1.5,
-                    y: (pageData.height - item.y - item.height) / 1.5,
-                    width: item.width / 1.5,
-                    height: item.height / 1.5,
+                    x: item.x * scale,
+                    y: newPage.getHeight() - (item.y * scale) - (item.height * scale),
+                    width: item.width * scale,
+                    height: item.height * scale,
                     rotate: degrees(-item.rotation),
                });
             }
@@ -399,7 +401,7 @@ export function EditPdfClient() {
             </Select>
             <Input 
                 type="number"
-                value={item.fontSize}
+                value={Math.round(item.fontSize)}
                 onChange={e => updateItem(item.id, { fontSize: parseInt(e.target.value, 10) || 12 })}
                 className="w-20 h-8"
             />
@@ -542,6 +544,7 @@ export function EditPdfClient() {
                                         height: '100%',
                                         overflow: 'hidden',
                                         cursor: 'move',
+                                        whiteSpace: 'pre-wrap', // Allows text to wrap
                                       }}
                                     >
                                       {item.text}
