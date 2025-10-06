@@ -83,8 +83,7 @@ export function ExtractPagesClient() {
       const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
 
       const pageObjects: PageObject[] = [];
-      const pdfDoc = await PDFDocument.load(fileBuffer);
-      for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+      for (let i = 0; i < imageUrls.length; i++) {
         pageObjects.push({ 
           id: Date.now() + i, 
           thumbnailUrl: imageUrls[i],
