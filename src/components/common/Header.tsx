@@ -28,6 +28,7 @@ const AuthContent = () => {
     setIsClient(true);
   }, []);
 
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -40,7 +41,7 @@ const AuthContent = () => {
   if (!isClient || isUserLoading) {
     return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
   }
-
+  
   if (user) {
     return (
       <DropdownMenu>
