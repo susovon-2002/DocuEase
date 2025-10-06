@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection } from 'firebase/firestore';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
 import { groupBy, countBy } from 'lodash';
 
 export default function DashboardPage() {
@@ -49,11 +49,26 @@ export default function DashboardPage() {
     }
   };
 
-  const chartData = useMemo(() => {
+  const toolUsageChartData = useMemo(() => {
     if (!toolUsages) return [];
     const counts = countBy(toolUsages, 'toolName');
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [toolUsages]);
+  
+  const documentsByWeekData = useMemo(() => {
+      if (!documents) return [];
+      const groupedByWeek = groupBy(documents, (doc) => 
+          format(startOfWeek(new Date(doc.uploadDate)), 'yyyy-MM-dd')
+      );
+      return Object.entries(groupedByWeek)
+          .map(([week, docs]) => ({
+              week,
+              count: docs.length
+          }))
+          .sort((a,b) => new Date(a.week).getTime() - new Date(b.week).getTime());
+  }, [documents]);
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
   const recentActivities = useMemo(() => {
     if (!toolUsages) return [];
@@ -121,33 +136,7 @@ export default function DashboardPage() {
             </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="lg:col-span-1">
-                <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>
-                        Here are the latest actions you've performed.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Tool</TableHead>
-                                <TableHead className="text-right">Time</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {recentActivities.map(activity => (
-                                <TableRow key={activity.id}>
-                                    <TableCell>{activity.toolName}</TableCell>
-                                    <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
              <Card className="lg:col-span-1">
                 <CardHeader>
                     <CardTitle>Tool Usage Breakdown</CardTitle>
@@ -157,17 +146,75 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={chartData}>
-                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="value" fill="hsl(var(--primary))" />
-                        </BarChart>
+                        <PieChart>
+                          <Pie
+                            data={toolUsageChartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {toolUsageChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                  <CardTitle>Documents Processed Over Time</CardTitle>
+                  <CardDescription>
+                      Weekly document processing count.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={documentsByWeekData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="week" tickFormatter={(tick) => format(new Date(tick), 'MMM d')} />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" name="Documents" />
+                      </LineChart>
+                  </ResponsiveContainer>
+              </CardContent>
+            </Card>
         </div>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>
+                    Here are the latest actions you've performed.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+               <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tool</TableHead>
+                            <TableHead className="text-right">Time</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {recentActivities.map(activity => (
+                            <TableRow key={activity.id}>
+                                <TableCell>{activity.toolName}</TableCell>
+                                <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+
 
         <Card className="mt-8">
           <CardHeader>
