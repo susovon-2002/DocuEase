@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -36,6 +39,9 @@ export function EditPdfClient() {
   const [textItems, setTextItems] = useState<TextItem[]>([]);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState<TextItem | null>(null);
+  const [editedText, setEditedText] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -81,7 +87,6 @@ export function EditPdfClient() {
         const scale = 2.0;
         const viewport = page.getViewport({ scale });
 
-        // Render page to canvas for background image
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -91,7 +96,6 @@ export function EditPdfClient() {
         setPageImageUrl(canvas.toDataURL('image/png'));
         setPageDimensions({ width: viewport.width, height: viewport.height, scale });
         
-        // Extract text items and their properties
         const textContent = await page.getTextContent();
         const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
             const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
@@ -124,8 +128,18 @@ export function EditPdfClient() {
     }
   };
 
-  const updateTextItem = (id: string, newText: string) => {
-    setTextItems(prev => prev.map(item => item.id === id ? { ...item, text: newText } : item));
+  const openEditDialog = (item: TextItem) => {
+    setCurrentItem(item);
+    setEditedText(item.text);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveTextChange = () => {
+    if (!currentItem) return;
+    setTextItems(prev => prev.map(item => item.id === currentItem.id ? { ...item, text: editedText } : item));
+    setIsEditDialogOpen(false);
+    setCurrentItem(null);
+    toast({ title: 'Text Updated', description: 'Your change has been staged. Apply all changes to finalize.'});
   };
 
 
@@ -153,20 +167,18 @@ export function EditPdfClient() {
             const pdf_height = item.height / pageDimensions.scale;
             const pdf_fontSize = item.fontSize / pageDimensions.scale;
             
-            // Draw a white rectangle to cover the old text
             page.drawRectangle({
-                x: pdf_x,
-                y: pdf_y - (pdf_height * 0.2), // Adjust for baseline
-                width: pdf_width,
-                height: pdf_height * 1.2,
+                x: pdf_x - 2,
+                y: pdf_y - (pdf_height * 0.2),
+                width: pdf_width + 4,
+                height: pdf_height * 1.4,
                 color: rgb(1, 1, 1),
             });
             
-            // Draw the new text
             page.drawText(item.text, {
                 x: pdf_x,
                 y: pdf_y,
-                font: helveticaFont, // Using a standard font for simplicity
+                font: helveticaFont,
                 size: pdf_fontSize,
                 color: rgb(0, 0, 0),
             });
@@ -260,16 +272,43 @@ export function EditPdfClient() {
     case 'edit':
       return (
         <div className="w-full max-w-7xl mx-auto">
+           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Text</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label htmlFor="original-text">Original Text</Label>
+                            <p id="original-text" className="text-sm p-2 bg-muted rounded-md text-muted-foreground">{currentItem?.originalText}</p>
+                        </div>
+                        <div>
+                            <Label htmlFor="replacement-text">Replacement Text</Label>
+                            <Textarea
+                                id="replacement-text"
+                                value={editedText}
+                                onChange={(e) => setEditedText(e.target.value)}
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveTextChange}>Save Change</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
           <div className="text-center mb-4">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Click on the text you want to change and type your replacement.</p>
+            <p className="text-muted-foreground mt-2">Click on any highlighted text block to modify its content.</p>
           </div>
           
            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-4 p-4 bg-card border rounded-lg shadow-sm sticky top-0 z-10">
               <Button onClick={handleStartOver} variant="outline">Start Over</Button>
               <Button onClick={handleApplyEdits} size="lg">
                 <Wand2 className="mr-2 h-4 w-4" />
-                Apply Changes
+                Apply All Changes
               </Button>
             </div>
             
@@ -281,21 +320,26 @@ export function EditPdfClient() {
                  >
                     {pageImageUrl && <img src={pageImageUrl} alt="PDF page background" className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />}
                     {textItems.map((item) => (
-                        <textarea
+                        <div
                             key={item.id}
-                            value={item.text}
-                            onChange={(e) => updateTextItem(item.id, e.target.value)}
-                            className="absolute bg-transparent text-transparent caret-black resize-none p-0 m-0 border border-transparent hover:border-blue-400 focus:border-blue-600 focus:outline-none"
+                            className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
                             style={{
                                 left: `${item.x}px`,
                                 top: `${item.y}px`,
                                 width: `${item.width}px`,
-                                height: `${item.height * 1.2}px`, // Add some extra height for multiline editing
-                                fontSize: `${item.fontSize}px`,
-                                fontFamily: item.fontFamily.includes('Bold') ? 'Helvetica-Bold' : 'Helvetica', // Simple font mapping
-                                lineHeight: 1,
+                                height: `${item.height}px`,
                             }}
-                        />
+                            onClick={() => openEditDialog(item)}
+                        >
+                          <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                            <Badge variant="secondary" className="bg-blue-600 text-white">
+                                <Edit className="w-3 h-3 mr-1"/> Edit
+                            </Badge>
+                          </div>
+                          {item.text !== item.originalText && (
+                            <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
+                          )}
+                        </div>
                     ))}
                  </div>
               </CardContent>
