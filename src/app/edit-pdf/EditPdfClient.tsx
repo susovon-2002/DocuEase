@@ -11,13 +11,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type EditStep = 'upload' | 'edit' | 'download';
 
+type PageData = {
+  imageUrl: string;
+  dimensions: { width: number; height: number; scale: number; };
+  textItems: TextItem[];
+}
+
 type TextItem = {
   id: string;
+  pageIndex: number;
   x: number;
   y: number;
   width: number;
@@ -35,9 +43,7 @@ export function EditPdfClient() {
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
-  const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0, scale: 1 });
-  const [textItems, setTextItems] = useState<TextItem[]>([]);
+  const [pagesData, setPagesData] = useState<PageData[]>([]);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -78,53 +84,64 @@ export function EditPdfClient() {
     if (!originalFile) return;
 
     setIsProcessing(true);
-    setProcessingMessage('Analyzing PDF text...');
+    setProcessingMessage('Analyzing PDF...');
     
     try {
         const fileBuffer = await originalFile.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: fileBuffer.slice(0) }).promise;
-        const page = await pdf.getPage(1); // For now, editing the first page.
+        const processedPages: PageData[] = [];
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
+          const page = await pdf.getPage(i);
+          
+          const scale = 2.0;
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext('2d');
+          if(!context) throw new Error('Canvas context not available');
+          await page.render({ canvasContext: context, viewport }).promise;
+          const imageUrl = canvas.toDataURL('image/png');
+          
+          const textContent = await page.getTextContent();
+          
+          const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
+              const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+              
+              const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
+              const angle = Math.atan2(tx[1], tx[0]);
+
+              let width = item.width * viewport.scale;
+              if (Math.abs(angle) > 0.01) {
+                width = item.width * viewport.scale;
+              }
+
+              return {
+                  id: `text-p${i}-${Date.now()}-${index}`,
+                  pageIndex: i - 1,
+                  text: item.str,
+                  originalText: item.str,
+                  x: tx[4],
+                  y: tx[5] - fontHeight,
+                  width: width,
+                  height: item.height * viewport.scale,
+                  fontSize: fontHeight,
+                  fontFamily: item.fontName,
+                  transform: item.transform,
+              };
+          });
+
+          processedPages.push({
+            imageUrl,
+            dimensions: { width: viewport.width, height: viewport.height, scale },
+            textItems: extractedTextItems
+          });
+        }
         
-        const scale = 2.0;
-        const viewport = page.getViewport({ scale });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const context = canvas.getContext('2d');
-        if(!context) throw new Error('Canvas context not available');
-        await page.render({ canvasContext: context, viewport }).promise;
-        setPageImageUrl(canvas.toDataURL('image/png'));
-        setPageDimensions({ width: viewport.width, height: viewport.height, scale });
-        
-        const textContent = await page.getTextContent();
-        
-        const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
-            const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-            
-            const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
-            const angle = Math.atan2(tx[1], tx[0]);
-
-            let width = item.width * viewport.scale;
-            if (Math.abs(angle) > 0.01) {
-              width = item.width * viewport.scale;
-            }
-
-            return {
-                id: `text-${Date.now()}-${index}`,
-                text: item.str,
-                originalText: item.str,
-                x: tx[4],
-                y: tx[5] - fontHeight,
-                width: width,
-                height: item.height * viewport.scale,
-                fontSize: fontHeight,
-                fontFamily: item.fontName,
-                transform: item.transform,
-            };
-        });
-
-        setTextItems(extractedTextItems);
+        setPagesData(processedPages);
         setStep('edit');
         toast({ title: 'PDF Loaded', description: 'Click on a text block to edit it.' });
 
@@ -145,7 +162,16 @@ export function EditPdfClient() {
 
   const handleSaveTextChange = () => {
     if (!currentItem) return;
-    setTextItems(prev => prev.map(item => item.id === currentItem.id ? { ...item, text: editedText } : item));
+
+    const newPagesData = [...pagesData];
+    const pageData = newPagesData[currentItem.pageIndex];
+    const itemIndex = pageData.textItems.findIndex(item => item.id === currentItem.id);
+    
+    if (itemIndex > -1) {
+        pageData.textItems[itemIndex] = { ...pageData.textItems[itemIndex], text: editedText };
+        setPagesData(newPagesData);
+    }
+
     setIsEditDialogOpen(false);
     setCurrentItem(null);
     toast({ title: 'Text Updated', description: 'Your change has been staged. Apply all changes to finalize.'});
@@ -153,7 +179,8 @@ export function EditPdfClient() {
 
 
   const handleApplyEdits = async () => {
-      const editedItems = textItems.filter(item => item.text !== item.originalText);
+      const editedItems = pagesData.flatMap(p => p.textItems).filter(item => item.text !== item.originalText);
+
       if (editedItems.length === 0) {
         toast({ title: 'No Edits Made', description: 'Change some text before applying edits.' });
         return;
@@ -164,12 +191,13 @@ export function EditPdfClient() {
       
       try {
         const pdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
-        const page = pdfDoc.getPage(0);
-        const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
-        
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
         for (const item of editedItems) {
+            const page = pdfDoc.getPage(item.pageIndex);
+            const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
+            const pageDimensions = pagesData[item.pageIndex].dimensions;
+            
             const pdf_x = item.x / pageDimensions.scale;
             const pdf_y = pdfPageHeight - (item.y / pageDimensions.scale) - (item.fontSize / pageDimensions.scale);
             const pdf_width = item.width / pageDimensions.scale;
@@ -212,10 +240,8 @@ export function EditPdfClient() {
   const handleStartOver = () => {
     setStep('upload');
     setOriginalFile(null);
-    if(pageImageUrl) URL.revokeObjectURL(pageImageUrl);
-    setPageImageUrl(null);
-    setPageDimensions({ width: 0, height: 0, scale: 1 });
-    setTextItems([]);
+    pagesData.forEach(p => URL.revokeObjectURL(p.imageUrl));
+    setPagesData([]);
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -254,7 +280,7 @@ export function EditPdfClient() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit PDF</h1>
-            <p className="text-muted-foreground mt-2">Click on existing text to replace it. Editing is currently supported for the first page only.</p>
+            <p className="text-muted-foreground mt-2">Click on existing text to replace it.</p>
           </div>
           <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10 text-center">
@@ -321,38 +347,43 @@ export function EditPdfClient() {
               </Button>
             </div>
             
-            <Card>
-              <CardContent className="p-2 flex justify-center items-start overflow-auto">
-                 <div 
-                    className="relative shadow-lg"
-                    style={{ width: pageDimensions.width, height: pageDimensions.height, flexShrink: 0 }}
-                 >
-                    {pageImageUrl && <img src={pageImageUrl} alt="PDF page background" className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />}
-                    {textItems.map((item) => (
-                        <div
-                            key={item.id}
-                            className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
-                            style={{
-                                left: `${item.x}px`,
-                                top: `${item.y}px`,
-                                width: `${item.width}px`,
-                                height: `${item.height}px`,
-                            }}
-                            onClick={() => openEditDialog(item)}
+            <div className="space-y-8">
+              {pagesData.map((page, pageIndex) => (
+                 <Card key={`page-${pageIndex}`}>
+                    <CardContent className="p-2 flex flex-col justify-center items-center overflow-auto gap-4">
+                        <Badge variant="secondary">Page {pageIndex + 1} of {pagesData.length}</Badge>
+                        <div 
+                          className="relative shadow-lg"
+                          style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
                         >
-                          <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                            <Badge variant="secondary" className="bg-blue-600 text-white">
-                                <Edit className="w-3 h-3 mr-1"/> Edit
-                            </Badge>
-                          </div>
-                          {item.text !== item.originalText && (
-                            <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
-                          )}
+                          <img src={page.imageUrl} alt={`PDF page ${pageIndex + 1}`} className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />
+                          {page.textItems.map((item) => (
+                              <div
+                                  key={item.id}
+                                  className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
+                                  style={{
+                                      left: `${item.x}px`,
+                                      top: `${item.y}px`,
+                                      width: `${item.width}px`,
+                                      height: `${item.height}px`,
+                                  }}
+                                  onClick={() => openEditDialog(item)}
+                              >
+                                <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                  <Badge variant="secondary" className="bg-blue-600 text-white">
+                                      <Edit className="w-3 h-3 mr-1"/> Edit
+                                  </Badge>
+                                </div>
+                                {item.text !== item.originalText && (
+                                  <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
+                                )}
+                              </div>
+                          ))}
                         </div>
-                    ))}
-                 </div>
-              </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+              ))}
+            </div>
         </div>
       );
 
