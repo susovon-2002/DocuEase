@@ -2,6 +2,9 @@ import { tools } from '@/lib/tools';
 import ToolCard from '@/components/ToolCard';
 import { groupBy } from 'lodash';
 import VideoPlayer from '@/components/VideoPlayer';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card } from '@/components/ui/card';
+import { Tv } from 'lucide-react';
 
 export default function Home() {
   const groupedTools = groupBy(tools, 'category');
@@ -26,35 +29,44 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        <div className="lg:col-span-2 space-y-12">
-          {categoryOrder.map((category) => {
-            const categoryTools = groupedTools[category];
-            if (!categoryTools) return null;
+      <div className="space-y-12">
+        {categoryOrder.map((category) => {
+          const categoryTools = groupedTools[category];
+          if (!categoryTools) return null;
 
-            return (
-              <section key={category}>
-                <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
-                  {category}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {categoryTools.map((tool) => (
-                    <ToolCard key={tool.path} tool={tool} />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-        
-        <aside className="lg:col-span-1 space-y-8 sticky top-20 h-fit">
-           <section>
-            <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
-              Entertainment
-            </h2>
-            <VideoPlayer />
-          </section>
-        </aside>
+          return (
+            <section key={category}>
+              <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
+                {category}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {categoryTools.map((tool) => (
+                  <ToolCard key={tool.path} tool={tool} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      
+      <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="entertainment" className="border-none">
+             <Card className="shadow-2xl rounded-lg">
+                <AccordionTrigger className="w-full p-4 rounded-t-lg bg-background hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <Tv className="w-5 h-5" />
+                    <h2 className="text-lg font-semibold">
+                      Entertainment
+                    </h2>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <VideoPlayer />
+                </AccordionContent>
+             </Card>
+          </AccordionItem>
+        </Accordion>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UploadCloud, Link } from 'lucide-react';
@@ -32,11 +32,8 @@ export default function VideoPlayer() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Watch a Video</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="border-0 shadow-none">
+      <CardContent className="p-4">
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
@@ -47,10 +44,10 @@ export default function VideoPlayer() {
               className="flex-grow"
             />
             <Button onClick={handleLoadFromUrl} className="flex-shrink-0">
-              <Link className="mr-2 h-4 w-4" /> Load from URL
+              <Link className="mr-2 h-4 w-4" /> Load
             </Button>
           </div>
-          <div className="text-center text-muted-foreground">or</div>
+          <div className="text-center text-xs text-muted-foreground">or</div>
           <div>
             <Button onClick={handleUploadClick} variant="outline" className="w-full">
               <UploadCloud className="mr-2 h-4 w-4" /> Upload a Video
@@ -66,8 +63,8 @@ export default function VideoPlayer() {
         </div>
 
         {videoSrc && (
-          <div className="mt-6 rounded-lg overflow-hidden border">
-            <video key={videoSrc} controls className="w-full">
+          <div className="mt-4 rounded-lg overflow-hidden border aspect-video">
+            <video key={videoSrc} controls className="w-full h-full">
               <source src={videoSrc} />
               Your browser does not support the video tag.
             </video>
