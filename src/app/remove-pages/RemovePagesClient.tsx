@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, Wand2, ArrowRight } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, Wand2, ArrowRight, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
@@ -30,6 +31,7 @@ export function RemovePagesClient() {
   
   const [pagesToRemove, setPagesToRemove] = useState<Set<number>>(new Set());
   const [pagesToRemoveInput, setPagesToRemoveInput] = useState('');
+  const [textToSearch, setTextToSearch] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
@@ -162,6 +164,46 @@ export function RemovePagesClient() {
     setPagesToRemove(validPages);
     toast({ title: 'Selection Updated', description: `${validPages.size} pages have been selected for removal.` });
   };
+  
+  const handleSelectFromText = async () => {
+    if (!textToSearch.trim()) {
+      toast({ variant: 'destructive', title: 'Empty Search', description: 'Please enter text to search for.' });
+      return;
+    }
+    if (!originalFile) return;
+
+    setIsProcessing(true);
+    setProcessingMessage('Searching pages...');
+
+    try {
+      const fileBuffer = await originalFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
+      const pagesFound = new Set<number>();
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+
+        if (pageText.toLowerCase().includes(textToSearch.toLowerCase())) {
+          pagesFound.add(i);
+        }
+      }
+      
+      if(pagesFound.size > 0) {
+        setPagesToRemove(prev => new Set([...prev, ...pagesFound]));
+        toast({ title: 'Pages Found', description: `Selected ${pagesFound.size} pages containing "${textToSearch}".` });
+      } else {
+        toast({ title: 'No Pages Found', description: `No pages were found containing the specified text.` });
+      }
+
+    } catch (error) {
+       console.error(error);
+       toast({ variant: 'destructive', title: 'Search Failed', description: 'Could not search the PDF for text.' });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
 
 
   const handleRemove = async () => {
@@ -218,6 +260,7 @@ export function RemovePagesClient() {
     setAllPages([]);
     setPagesToRemove(new Set());
     setPagesToRemoveInput('');
+    setTextToSearch('');
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -280,25 +323,40 @@ export function RemovePagesClient() {
         <div className="w-full max-w-6xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Select Pages to Remove</h1>
-            <p className="text-muted-foreground mt-2">Click on pages to select them for removal, or use the input field below.</p>
+            <p className="text-muted-foreground mt-2">Click on pages to select them for removal, or use the input fields below.</p>
           </div>
           
            <Card className="mb-6">
             <CardHeader>
-                <CardTitle className="text-lg">Select Pages by Number</CardTitle>
+                <CardTitle className="text-lg">Smart Selection Tools</CardTitle>
             </CardHeader>
-            <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-4">
-                <label htmlFor="pageNumbers" className="font-medium flex-shrink-0">Pages to remove:</label>
-                <Input 
-                id="pageNumbers"
-                placeholder="e.g., 1, 5, 8-12"
-                value={pagesToRemoveInput}
-                onChange={(e) => setPagesToRemoveInput(e.target.value)}
-                className="flex-grow"
-                />
-                <Button onClick={handleSelectFromInput}>
-                Apply <ArrowRight className="ml-2 h-4 w-4"/>
-                </Button>
+            <CardContent className="p-4 grid md:grid-cols-2 gap-6">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <label htmlFor="pageNumbers" className="font-medium flex-shrink-0 text-sm">Pages to remove:</label>
+                    <Input 
+                        id="pageNumbers"
+                        placeholder="e.g., 1, 5, 8-12"
+                        value={pagesToRemoveInput}
+                        onChange={(e) => setPagesToRemoveInput(e.target.value)}
+                        className="flex-grow"
+                    />
+                    <Button onClick={handleSelectFromInput} variant="secondary">
+                        Select by Number <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Button>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                     <label htmlFor="pageText" className="font-medium flex-shrink-0 text-sm">Remove pages with text:</label>
+                    <Input 
+                        id="pageText"
+                        placeholder="e.g., Appendix"
+                        value={textToSearch}
+                        onChange={(e) => setTextToSearch(e.target.value)}
+                        className="flex-grow"
+                    />
+                    <Button onClick={handleSelectFromText} variant="secondary">
+                        Find & Select <Search className="ml-2 h-4 w-4"/>
+                    </Button>
+                </div>
             </CardContent>
            </Card>
 
