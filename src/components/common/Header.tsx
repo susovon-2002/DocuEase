@@ -39,7 +39,7 @@ const AuthContent = () => {
   };
 
   if (!isClient) {
-    // On the server, or on the initial client render, render a static placeholder.
+    // Render a static placeholder on the server and initial client render.
     return <div className="h-8 w-8 rounded-full bg-muted" />;
   }
   
