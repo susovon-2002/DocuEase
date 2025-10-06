@@ -4,12 +4,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Type } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -22,6 +19,7 @@ type TextItem = {
   width: number;
   height: number;
   dir: string;
+  fontName: string;
 };
 
 type PageData = {
@@ -34,8 +32,7 @@ type PageData = {
 
 type EditAction = {
   pageIndex: number;
-  type: 'text';
-  item: TextItem;
+  itemIndex: number;
   newText: string;
 };
 
@@ -48,11 +45,7 @@ export function EditPdfClient() {
   const [pagesData, setPagesData] = useState<PageData[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTextItem, setSelectedTextItem] = useState<TextItem | null>(null);
-  const [editText, setEditText] = useState('');
-
-  const [edits, setEdits] = useState<EditAction[]>([]);
+  const [edits, setEdits] = useState<Record<string, string>>({});
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
@@ -109,7 +102,7 @@ export function EditPdfClient() {
         if(!context) throw new Error('Could not get canvas context');
 
         await page.render({ canvasContext: context, viewport }).promise;
-        const imageUrl = canvas.toDataURL('image/jpeg');
+        const imageUrl = canvas.toDataURL('image/png');
 
         const textContent = await page.getTextContent();
         const textItems = textContent.items.map(item => item as TextItem);
@@ -136,31 +129,14 @@ export function EditPdfClient() {
     }
   };
 
-  const openEditModal = (item: TextItem) => {
-    setSelectedTextItem(item);
-    setEditText(item.str);
-    setIsEditModalOpen(true);
-  };
-  
-  const handleSaveEdit = () => {
-    if (!selectedTextItem) return;
-    
-    const newEdit: EditAction = {
-      type: 'text',
-      pageIndex: currentPageIndex,
-      item: selectedTextItem,
-      newText: editText,
-    };
-    
-    setEdits(prevEdits => [...prevEdits, newEdit]);
-    setIsEditModalOpen(false);
-    setSelectedTextItem(null);
-    setEditText('');
-    toast({ title: 'Edit Saved', description: 'Your change has been staged. Apply all edits to finalize.' });
+  const handleTextChange = (pageIndex: number, itemIndex: number, newText: string) => {
+    const key = `${pageIndex}-${itemIndex}`;
+    setEdits(prev => ({ ...prev, [key]: newText }));
   };
   
   const handleApplyEdits = async () => {
-      if (edits.length === 0) {
+      const editActions = Object.keys(edits).length;
+      if (editActions === 0) {
         toast({ variant: 'destructive', title: 'No Edits Made', description: 'Please make some changes before applying.' });
         return;
       }
@@ -170,26 +146,44 @@ export function EditPdfClient() {
       
       try {
         const pdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-        for (const edit of edits) {
-          const page = pdfDoc.getPage(edit.pageIndex);
-          const { width: pageWidth, height: pageHeight } = page.getSize();
-          const viewportScale = pagesData[edit.pageIndex].width / pageWidth;
-          
-          if(edit.type === 'text') {
-            const item = edit.item;
-            const fontSize = item.transform[3];
-            
-            const itemWidth = item.width * (fontSize / item.transform[3]) / viewportScale;
-            const itemHeight = item.height * (fontSize / item.transform[0]) / viewportScale;
-            
-            const x = item.transform[4] / viewportScale;
-            const y = pageHeight - (item.transform[5] / viewportScale) - (fontSize / viewportScale);
+        for (const key in edits) {
+            const [pageIndexStr, itemIndexStr] = key.split('-');
+            const pageIndex = parseInt(pageIndexStr, 10);
+            const itemIndex = parseInt(itemIndexStr, 10);
+            const newText = edits[key];
 
-            page.drawRectangle({ x, y: y + 2, width: itemWidth, height: itemHeight, color: rgb(1, 1, 1) });
-            page.drawText(edit.newText, { x, y, font, size: fontSize / viewportScale, color: rgb(0, 0, 0) });
-          }
+            const pageData = pagesData[pageIndex];
+            const item = pageData.textItems[itemIndex];
+            
+            const page = pdfDoc.getPage(pageIndex);
+            const { width: pageWidth, height: pageHeight } = page.getSize();
+            const viewportScale = pageData.width / pageWidth;
+
+            const [fontSize, , , fontHeight, x, y] = item.transform;
+            const itemWidthOnPdf = item.width / viewportScale;
+            
+            // pdf-lib's y-coordinate starts from the bottom, so we need to convert
+            const yInPdfCoords = pageHeight - (y / viewportScale);
+
+            // Cover the old text with a white rectangle
+            page.drawRectangle({
+                x: x / viewportScale,
+                y: yInPdfCoords - (fontHeight / viewportScale),
+                width: itemWidthOnPdf + 2, // a little extra to cover artifacts
+                height: (fontSize / viewportScale) + 2,
+                color: rgb(1, 1, 1), // white background
+            });
+            
+            // Draw the new text
+            page.drawText(newText, {
+                x: x / viewportScale,
+                y: yInPdfCoords,
+                font: helveticaFont,
+                size: (fontSize / viewportScale) * 0.95, // slight adjustment for font differences
+                color: rgb(0, 0, 0),
+            });
         }
         
         const pdfBytes = await pdfDoc.save();
@@ -214,7 +208,7 @@ export function EditPdfClient() {
     pagesData.forEach(p => URL.revokeObjectURL(p.imageUrl));
     setPagesData([]);
     setCurrentPageIndex(0);
-    setEdits([]);
+    setEdits({});
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -281,22 +275,6 @@ export function EditPdfClient() {
     case 'edit':
       return (
         <div className="w-full max-w-6xl mx-auto">
-          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Text</DialogTitle>
-              </DialogHeader>
-              <div className="py-4 space-y-2">
-                <Label htmlFor="editText">Text</Label>
-                <Input id="editText" value={editText} onChange={(e) => setEditText(e.target.value)} />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleSaveEdit}>Save Change</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
             <p className="text-muted-foreground mt-2">Click on any text block to modify it.</p>
@@ -313,9 +291,9 @@ export function EditPdfClient() {
                     Next
                 </Button>
               </div>
-              <Button onClick={handleApplyEdits} size="lg" disabled={edits.length === 0}>
+              <Button onClick={handleApplyEdits} size="lg" disabled={Object.keys(edits).length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" />
-                Apply All Edits ({edits.length})
+                Apply All Edits ({Object.keys(edits).length})
               </Button>
             </div>
             
@@ -325,24 +303,32 @@ export function EditPdfClient() {
                     className="relative mx-auto overflow-auto"
                     style={{ width: currentView?.width, height: currentView?.height, maxWidth: '100%' }}
                 >
-                    <img src={currentView?.imageUrl} alt={`Page ${currentPageIndex + 1}`} className="w-full h-auto" />
+                    <img src={currentView?.imageUrl} alt={`Page ${currentPageIndex + 1}`} className="w-full h-auto select-none" draggable={false} />
                     <div className="absolute top-0 left-0 w-full h-full">
                         {currentView?.textItems.map((item, index) => {
-                            const [fs, , , fh, x, y] = item.transform;
-                             const isEdited = edits.some(e => e.type === 'text' && e.pageIndex === currentPageIndex && e.item.str === item.str);
+                            const [fontSize, , , fontHeight, x, y] = item.transform;
+                            const key = `${currentPageIndex}-${index}`;
+                            const isEdited = key in edits;
+                            const value = isEdited ? edits[key] : item.str;
+
                             return (
-                                <div
-                                    key={`text-${index}`}
-                                    className={cn("absolute hover:bg-blue-500/30 cursor-pointer border border-dashed border-transparent hover:border-blue-500", isEdited && "bg-green-500/30")}
+                                <input
+                                    key={key}
+                                    type="text"
+                                    value={value}
+                                    onChange={(e) => handleTextChange(currentPageIndex, index, e.target.value)}
+                                    className="absolute bg-transparent border border-transparent hover:border-blue-500 focus:border-blue-500 focus:outline-none p-0"
                                     style={{
                                         left: `${x}px`,
-                                        top: `${y - item.height}px`,
+                                        top: `${y}px`,
                                         width: `${item.width}px`,
                                         height: `${item.height}px`,
+                                        fontFamily: 'sans-serif', // Use a common font
+                                        fontSize: `${fontSize}px`,
+                                        lineHeight: 1,
+                                        color: isEdited ? 'black' : 'transparent',
                                     }}
-                                    onClick={() => openEditModal(item)}
-                                >
-                                </div>
+                                />
                             )
                         })}
                     </div>
