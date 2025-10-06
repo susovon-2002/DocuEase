@@ -39,6 +39,7 @@ export default function VideoPlayer() {
       const url = URL.createObjectURL(file);
       setVideoSrc(url);
       setIsYoutube(false);
+      setUrlInput('');
     }
   };
 
