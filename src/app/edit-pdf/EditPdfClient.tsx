@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts, PDFFont, degrees, pdfDocEncoding } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Trash2, ArrowLeft, Bold, Italic, Underline, Strikethrough, Pilcrow } from 'lucide-react';
@@ -88,6 +88,7 @@ export function EditPdfClient() {
   const [pagesData, setPagesData] = useState<PageData[]>([]);
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -258,15 +259,13 @@ export function EditPdfClient() {
       
       try {
         const newPdfDoc = await PDFDocument.create();
+        const origPdf = await PDFDocument.load(await originalFile!.arrayBuffer());
         
         for (let i = 0; i < pagesData.length; i++) {
           const pageData = pagesData[i];
-          const [copiedPage] = await newPdfDoc.copyPages(await PDFDocument.load(await pageData.originalPage.render({ canvasContext: document.createElement('canvas').getContext('2d'), viewport: pageData.originalPage.getViewport({ scale: 1.0 }) }).promise.then(() => (pageData.originalPage as any).pdfManager.getData()), { ignoreEncryption: true }), [0]);
           
-          // A bit of a hacky way to get the original page into the new doc
           const { width, height } = pageData.originalPage.getViewport({ scale: 1.0 });
           const newPage = newPdfDoc.addPage([width, height]);
-          const origPdf = await PDFDocument.load(await originalFile!.arrayBuffer());
           const [embeddedPage] = await newPdfDoc.embedPdf(origPdf, [i]);
           newPage.drawPdf(embeddedPage, { x: 0, y: 0, width, height });
 
@@ -278,7 +277,6 @@ export function EditPdfClient() {
 
             if (item.type === 'text') {
               const font = await getFont(newPdfDoc, item);
-              const textWidth = font.widthOfTextAtSize(item.text, item.fontSize * scale);
               
               newPage.drawText(item.text, {
                   x: item.x * scale,
@@ -288,7 +286,6 @@ export function EditPdfClient() {
                   color: rgb(item.color.r, item.color.g, item.color.b),
                   lineHeight: item.fontSize * scale * 1.2,
                   rotate: degrees(-item.rotation),
-                  wordBreaks: [...item.text.split(''), ...pdfDocEncoding.symbols],
               });
               
             } else if (item.type === 'image') {
@@ -346,7 +343,10 @@ export function EditPdfClient() {
     setEditableItems([]);
     setSelectedItemId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (outputFile) URL.revokeObjectURL(URL.createObjectURL(outputFile.blob));
+    if (outputFile) {
+        const url = URL.createObjectURL(outputFile.blob);
+        URL.revokeObjectURL(url);
+    }
     setOutputFile(null);
   };
   
@@ -590,7 +590,7 @@ export function EditPdfClient() {
                 </div>
                 <Card className="mt-8">
                     <CardContent className="p-2">
-                        <iframe src={URL.createObjectURL(outputFile!.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
+                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
                     </CardContent>
                 </Card>
             </div>
