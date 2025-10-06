@@ -19,6 +19,18 @@
           "type": "string",
           "description": "User's full name."
         },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
+        "company": {
+          "type": "string",
+          "description": "User's company name."
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role at their company."
+        },
         "registrationDate": {
           "type": "string",
           "description": "Date and time the user registered.",
@@ -231,3 +243,4 @@
     "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, further isolating data and ensuring secure access.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents and tool usage records is based on the user ID in the path, eliminating the need for `get()` calls to parent documents.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used; access is determined by the user's UID and the path.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents and tool usage records within their own user path.\n5.  **Invariants:** The structure supports ownership integrity, as documents and tool usages are always associated with a specific user through the path.\n"
   }
 }
+    

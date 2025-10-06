@@ -2,23 +2,44 @@
 
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection } from 'firebase/firestore';
+import { collection, doc, setDoc } from 'firebase/firestore';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
 import { groupBy, countBy } from 'lodash';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { UserCircle, Award, Trophy, Star, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { AchievementBadge } from '@/components/AchievementBadge';
+
 
 export default function DashboardPage() {
-  const { user, isUserLoading, userError } = useUser();
+  const { user, isUserLoading: isAuthUserLoading, userError } = useUser();
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isProfileSaving, setProfileSaving] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCompany, setEditCompany] = useState('');
+  const [editRole, setEditRole] = useState('');
+  const [isEditProfileOpen, setEditProfileOpen] = useState(false);
+
+  const userProfileQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, `users/${user.uid}`);
+  }, [firestore, user]);
+  
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
 
   const toolUsagesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -35,10 +56,18 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (!isAuthUserLoading && !user) {
       router.push('/login');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isAuthUserLoading, router]);
+
+  useEffect(() => {
+    if (userProfile) {
+        setEditName(userProfile.name || '');
+        setEditCompany(userProfile.company || '');
+        setEditRole(userProfile.role || '');
+    }
+  }, [userProfile]);
 
   const handleLogout = async () => {
     try {
@@ -46,6 +75,24 @@ export default function DashboardPage() {
       router.push('/');
     } catch (error) {
       console.error('Error signing out: ', error);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userProfileQuery) return;
+    setProfileSaving(true);
+    try {
+      await setDoc(userProfileQuery, {
+        name: editName,
+        company: editCompany,
+        role: editRole,
+      }, { merge: true });
+      toast({ title: "Profile Updated", description: "Your profile has been saved successfully."});
+      setEditProfileOpen(false);
+    } catch(e) {
+      toast({ variant: "destructive", title: "Error", description: "Could not save profile." });
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -76,8 +123,22 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(b.usageTimestamp).getTime() - new Date(a.usageTimestamp).getTime())
       .slice(0, 5);
   }, [toolUsages]);
+
+  const achievements = useMemo(() => {
+    const earned = [];
+    const docCount = documents?.length || 0;
+    const toolCount = toolUsages?.length || 0;
+    
+    if (docCount >= 1) earned.push({ id: 'first-doc', icon: Award, title: 'First Document', description: 'Processed your first document!' });
+    if (docCount >= 10) earned.push({ id: 'ten-docs', icon: Trophy, title: 'Document Pro', description: 'Processed 10 documents!' });
+    if (docCount >= 50) earned.push({ id: 'fifty-docs', icon: Star, title: 'Document Master', description: 'Processed 50 documents!' });
+    if (toolCount >= 1) earned.push({ id: 'first-tool', icon: Award, title: 'Tool Explorer', description: 'Used your first tool!' });
+    if (toolCount >= 25) earned.push({ id: 'twenty-five-tools', icon: Trophy, title: 'Tool Specialist', description: 'Used tools 25 times!' });
+
+    return earned;
+  }, [documents, toolUsages]);
   
-  const isLoading = isUserLoading || toolUsagesLoading || documentsLoading;
+  const isLoading = isAuthUserLoading || toolUsagesLoading || documentsLoading || isUserProfileLoading;
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-12">Loading...</div>;
@@ -97,44 +158,122 @@ export default function DashboardPage() {
         <div className="text-left mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Welcome back, {user.email}!
+            Welcome back, {userProfile?.name || user.email}!
           </p>
         </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Documents Processed</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold">{documents?.length || 0}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Tools Used</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-4xl font-bold">{toolUsages?.length || 0}</p>
+                    </CardContent>
+                </Card>
+            </div>
+            <Card>
+              <CardHeader>
+                  <CardTitle>Documents Processed Over Time</CardTitle>
+                  <CardDescription>
+                      Weekly document processing count.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={documentsByWeekData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="week" tickFormatter={(tick) => format(new Date(tick), 'MMM d')} />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" name="Documents" />
+                      </LineChart>
+                  </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="space-y-8">
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Your Profile</CardTitle>
+                  <Dialog open={isEditProfileOpen} onOpenChange={setEditProfileOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon"><Edit className="w-4 h-4" /></Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Profile</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                          </div>
+                           <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input id="email" value={user.email || ''} disabled />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="company">Company</Label>
+                            <Input id="company" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="role">Role</Label>
+                            <Input id="role" value={editRole} onChange={(e) => setEditRole(e.target.value)} />
+                          </div>
+                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button onClick={handleSaveProfile} disabled={isProfileSaving}>
+                            {isProfileSaving ? 'Saving...' : 'Save'}
+                          </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center text-center">
+                    <Avatar className="w-24 h-24 mb-4">
+                        <AvatarImage src={userProfile?.photoURL || user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} />
+                        <AvatarFallback><UserCircle className="w-12 h-12" /></AvatarFallback>
+                    </Avatar>
+                    <h3 className="font-semibold text-lg">{userProfile?.name || user.email}</h3>
+                    <p className="text-muted-foreground text-sm">{userProfile?.role}{userProfile?.role && userProfile?.company ? ' at ' : ''}{userProfile?.company}</p>
+                    <p className="text-muted-foreground text-xs mt-2">{user.email}</p>
+                </CardContent>
+            </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
-                <CardHeader>
-                    <CardTitle>Documents Processed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">{documents?.length || 0}</p>
-                </CardContent>
+              <CardHeader>
+                  <CardTitle>Achievements</CardTitle>
+                  <CardDescription>Badges you've earned.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {achievements.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-4">
+                    {achievements.map(ach => (
+                      <AchievementBadge key={ach.id} icon={ach.icon} title={ach.title} description={ach.description} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No badges earned yet. Keep using the tools to unlock them!</p>
+                )}
+              </CardContent>
             </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tools Used</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">{toolUsages?.length || 0}</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Subscription</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Badge>Pro</Badge>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Account Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Badge variant="secondary">Active</Badge>
-                </CardContent>
-            </Card>
+          </div>
         </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
              <Card className="lg:col-span-1">
@@ -169,65 +308,40 @@ export default function DashboardPage() {
             </Card>
             <Card className="lg:col-span-1">
               <CardHeader>
-                  <CardTitle>Documents Processed Over Time</CardTitle>
+                  <CardTitle>Recent Activity</CardTitle>
                   <CardDescription>
-                      Weekly document processing count.
+                      Here are the latest actions you've performed.
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={documentsByWeekData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="week" tickFormatter={(tick) => format(new Date(tick), 'MMM d')} />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" name="Documents" />
-                      </LineChart>
-                  </ResponsiveContainer>
+                 <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Tool</TableHead>
+                              <TableHead className="text-right">Time</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {recentActivities.map(activity => (
+                              <TableRow key={activity.id}>
+                                  <TableCell>{activity.toolName}</TableCell>
+                                  <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
+                              </TableRow>
+                          ))}
+                      </TableBody>
+                  </Table>
               </CardContent>
             </Card>
         </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>
-                    Here are the latest actions you've performed.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-               <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Tool</TableHead>
-                            <TableHead className="text-right">Time</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {recentActivities.map(activity => (
-                            <TableRow key={activity.id}>
-                                <TableCell>{activity.toolName}</TableCell>
-                                <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-
-
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Your Account</CardTitle>
+            <CardTitle>Account Settings</CardTitle>
             <CardDescription>
-              Here's some information about your account.
+              Manage your account settings.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold">Email</h3>
-              <p className="text-muted-foreground">{user.email}</p>
-            </div>
             <div>
               <h3 className="font-semibold">User ID</h3>
               <p className="text-muted-foreground text-sm">{user.uid}</p>
@@ -241,3 +355,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+    
