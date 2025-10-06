@@ -1,0 +1,79 @@
+'use client';
+
+import { useState, useRef, ChangeEvent } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { UploadCloud, Link } from 'lucide-react';
+
+export default function VideoPlayer() {
+  const [videoSrc, setVideoSrc] = useState<string>('');
+  const [urlInput, setUrlInput] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setVideoSrc(url);
+    }
+  };
+
+  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setUrlInput(event.target.value);
+  };
+
+  const handleLoadFromUrl = () => {
+    setVideoSrc(urlInput);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Watch a Video</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="text"
+              placeholder="Enter video URL"
+              value={urlInput}
+              onChange={handleUrlChange}
+              className="flex-grow"
+            />
+            <Button onClick={handleLoadFromUrl} className="flex-shrink-0">
+              <Link className="mr-2 h-4 w-4" /> Load from URL
+            </Button>
+          </div>
+          <div className="text-center text-muted-foreground">or</div>
+          <div>
+            <Button onClick={handleUploadClick} variant="outline" className="w-full">
+              <UploadCloud className="mr-2 h-4 w-4" /> Upload a Video
+            </Button>
+            <input
+              type="file"
+              accept="video/*"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {videoSrc && (
+          <div className="mt-6 rounded-lg overflow-hidden border">
+            <video key={videoSrc} controls className="w-full">
+              <source src={videoSrc} />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

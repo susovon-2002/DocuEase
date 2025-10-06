@@ -1,6 +1,7 @@
 import { tools } from '@/lib/tools';
 import ToolCard from '@/components/ToolCard';
 import { groupBy } from 'lodash';
+import VideoPlayer from '@/components/VideoPlayer';
 
 export default function Home() {
   const groupedTools = groupBy(tools, 'category');
@@ -26,6 +27,13 @@ export default function Home() {
       </header>
 
       <div className="space-y-12">
+        <section>
+          <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
+            Entertainment
+          </h2>
+          <VideoPlayer />
+        </section>
+
         {categoryOrder.map((category) => {
           const categoryTools = groupedTools[category];
           if (!categoryTools) return null;
