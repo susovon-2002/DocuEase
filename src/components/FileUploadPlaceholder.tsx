@@ -3,6 +3,7 @@
 import { UploadCloud } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { useRef } from 'react';
 
 interface FileUploadPlaceholderProps {
   title: string;
@@ -10,6 +11,22 @@ interface FileUploadPlaceholderProps {
 }
 
 export function FileUploadPlaceholder({ title, description }: FileUploadPlaceholderProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelectClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // For now, just log the file names to the console.
+      // In a real implementation, you would handle the files here.
+      const fileNames = Array.from(files).map(file => file.name);
+      console.log('Selected files:', fileNames);
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
@@ -24,7 +41,14 @@ export function FileUploadPlaceholder({ title, description }: FileUploadPlacehol
             </div>
             <p className="text-lg font-medium">Drag & drop files here</p>
             <p className="text-muted-foreground">or</p>
-            <Button size="lg">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              multiple
+            />
+            <Button size="lg" onClick={handleFileSelectClick}>
               Select Files
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
