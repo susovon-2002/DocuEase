@@ -7,19 +7,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAuth, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, query, where, setDoc } from 'firebase/firestore';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
 import { groupBy, countBy } from 'lodash';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserCircle, Award, Trophy, Star, Edit } from 'lucide-react';
+import { UserCircle, Award, Trophy, Star, Edit, Rocket, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AchievementBadge } from '@/components/AchievementBadge';
+import Link from 'next/link';
 
 
 export default function DashboardPage() {
@@ -40,6 +41,13 @@ export default function DashboardPage() {
   }, [firestore, user]);
   
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
+  
+  const subscriptionQuery = useMemoFirebase(() => {
+    if (!firestore || !userProfile?.subscriptionId) return null;
+    return doc(firestore, 'subscriptions', userProfile.subscriptionId);
+  }, [firestore, userProfile?.subscriptionId]);
+
+  const { data: subscription, isLoading: isSubscriptionLoading } = useDoc(subscriptionQuery);
 
   const toolUsagesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -138,7 +146,7 @@ export default function DashboardPage() {
     return earned;
   }, [documents, toolUsages]);
   
-  const isLoading = isAuthUserLoading || toolUsagesLoading || documentsLoading || isUserProfileLoading;
+  const isLoading = isAuthUserLoading || toolUsagesLoading || documentsLoading || isUserProfileLoading || isSubscriptionLoading;
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-12">Loading...</div>;
@@ -161,6 +169,15 @@ export default function DashboardPage() {
             Welcome back, {userProfile?.name || user.email}!
           </p>
         </div>
+
+        <Card className="mb-8 bg-accent/20 border-accent/50">
+          <CardContent className="p-6 flex items-center justify-center">
+              <Rocket className="w-6 h-6 mr-4 text-accent-foreground" />
+              <p className="text-lg font-medium text-accent-foreground">
+                You saved 10 hours this month using DocuEase 🚀
+              </p>
+          </CardContent>
+        </Card>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2 space-y-8">
@@ -201,6 +218,23 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
               </CardContent>
             </Card>
+            {subscription?.planType !== 'Pro' && (
+              <Card className="bg-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center"><Zap className="w-5 h-5 mr-2 text-primary"/> Unlock Premium Tool</CardTitle>
+                  <CardDescription>Upgrade your plan to access our most powerful features.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="font-semibold text-lg mb-2">AI Cover Letter Generator</h3>
+                  <p className="text-muted-foreground mb-4">Let our AI create a professional cover letter from your resume in seconds. Impress employers and land your dream job faster.</p>
+                </CardContent>
+                <CardFooter>
+                  <Button asChild>
+                    <Link href="/pricing">Upgrade Now</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
           </div>
           <div className="space-y-8">
              <Card>
@@ -251,6 +285,36 @@ export default function DashboardPage() {
                     <h3 className="font-semibold text-lg">{userProfile?.name || user.email}</h3>
                     <p className="text-muted-foreground text-sm">{userProfile?.role}{userProfile?.role && userProfile?.company ? ' at ' : ''}{userProfile?.company}</p>
                     <p className="text-muted-foreground text-xs mt-2">{user.email}</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Subscription</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {subscription ? (
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Current Plan</span>
+                                <Badge variant={subscription.planType === 'Pro' ? 'default' : 'secondary'}>{subscription.planType}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Renews On</span>
+                                <span>{format(new Date(subscription.endDate), 'MMMM d, yyyy')}</span>
+                            </div>
+                             <Button asChild className="w-full mt-4">
+                                <Link href="/pricing">Manage Subscription</Link>
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="text-center">
+                            <p className="text-muted-foreground mb-4">You are on the free plan.</p>
+                             <Button asChild className="w-full">
+                                <Link href="/pricing">Upgrade to Pro</Link>
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
