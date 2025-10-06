@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -24,9 +26,10 @@ export function CompressPdfClient() {
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('recommended');
-  const [customQuality, setCustomQuality] = useState(75);
-  const [customDpi, setCustomDpi] = useState(150);
   
+  const [customSize, setCustomSize] = useState<number | string>('');
+  const [customUnit, setCustomUnit] = useState<'KB' | 'MB'>('KB');
+
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, originalSize: number, newSize: number } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,11 +94,33 @@ export function CompressPdfClient() {
         switch(compressionLevel) {
           case 'high':
             quality = 0.5;
-            scale = 1.0; // Lower scale for high compression
+            scale = 1.0; 
             break;
           case 'custom':
-            quality = customQuality / 100;
-            scale = customDpi / 72; // Assuming default PDF DPI is 72
+            const targetSizeInBytes = (customUnit === 'MB' ? Number(customSize) * 1024 * 1024 : Number(customSize) * 1024);
+            const originalSize = originalFile.size;
+            const ratio = targetSizeInBytes / originalSize;
+            
+            // This is a heuristic. It's not guaranteed to hit the target.
+            if (ratio > 0.8) {
+              quality = 0.9;
+              scale = 2.0;
+            } else if (ratio > 0.5) {
+              quality = 0.75;
+              scale = 1.5;
+            } else if (ratio > 0.2) {
+              quality = 0.6;
+              scale = 1.2;
+            } else {
+              quality = 0.5;
+              scale = 1.0;
+            }
+
+            if(targetSizeInBytes < 50 * 1024) { // less than 50KB
+                quality = 0.3;
+                scale = 0.8;
+            }
+            toast({ title: 'Custom Compression Note', description: 'The tool will attempt to reach your target size, but the final result may vary.' });
             break;
           case 'recommended':
           default:
@@ -248,35 +273,34 @@ export function CompressPdfClient() {
                         <div className="flex items-center gap-4">
                             <RadioGroupItem value="custom" id="level-custom" />
                             <div>
-                                <p className="font-semibold">Custom</p>
-                                <p className="text-sm text-muted-foreground">Choose your own resolution and quality.</p>
+                                <p className="font-semibold">Custom (Advanced)</p>
+                                <p className="text-sm text-muted-foreground">Attempt to reach a target file size.</p>
                             </div>
                         </div>
                          {compressionLevel === 'custom' && (
-                            <div className="w-full pt-4 pl-8 pr-2 grid grid-cols-2 gap-4">
+                            <div className="w-full pt-4 pl-8 pr-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="dpi">Resolution (DPI)</Label>
-                                    <Input 
-                                      id="dpi" 
-                                      type="number" 
-                                      value={customDpi} 
-                                      onChange={(e) => setCustomDpi(Math.max(10, parseInt(e.target.value) || 10))}
-                                      placeholder="e.g., 150"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Lower is smaller. 72 is standard for screens.</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="quality">Image Quality (%)</Label>
-                                    <Input 
-                                      id="quality" 
-                                      type="number" 
-                                      value={customQuality}
-                                      onChange={(e) => setCustomQuality(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-                                      max={100} 
-                                      min={1} 
-                                      placeholder="e.g., 75"
-                                    />
-                                    <p className="text-xs text-muted-foreground">1-100. Lower is smaller.</p>
+                                    <Label htmlFor="custom-size">Target file size (approx.)</Label>
+                                    <div className="flex gap-2">
+                                        <Input 
+                                          id="custom-size" 
+                                          type="number" 
+                                          value={customSize} 
+                                          onChange={(e) => setCustomSize(Math.max(1, parseInt(e.target.value) || 1))}
+                                          placeholder="e.g., 20"
+                                          className="w-full"
+                                        />
+                                        <Select value={customUnit} onValueChange={(v) => setCustomUnit(v as 'KB' | 'MB')}>
+                                            <SelectTrigger className="w-[80px]">
+                                                <SelectValue/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="KB">KB</SelectItem>
+                                                <SelectItem value="MB">MB</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Final size is an estimate and may vary.</p>
                                 </div>
                             </div>
                         )}
@@ -329,9 +353,13 @@ export function CompressPdfClient() {
                         Download Compressed PDF
                     </Button>
                 </div>
+                 <div className="flex justify-center mt-4">
+                    <Button onClick={handleGoBackToOptions} variant="link">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Options
+                    </Button>
+                </div>
             </div>
         )
   }
 }
-
-    
