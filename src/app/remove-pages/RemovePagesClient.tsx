@@ -4,14 +4,18 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, Wand2, ArrowRight, Search } from 'lucide-react';
+import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, ArrowRight, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { PageThumbnail } from '../merge-pdf/PageThumbnail';
 import { cn } from '@/lib/utils';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -37,6 +41,11 @@ export function RemovePagesClient() {
   const [textToSearch, setTextToSearch] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
+
+  const [foundPagesByText, setFoundPagesByText] = useState<number[]>([]);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [pagesToSelectFromSearch, setPagesToSelectFromSearch] = useState<Set<number>>(new Set());
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -181,7 +190,7 @@ export function RemovePagesClient() {
     try {
       const fileBuffer = await originalFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-      const pagesFound = new Set<number>();
+      const pagesFound: number[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -189,13 +198,14 @@ export function RemovePagesClient() {
         const pageText = textContent.items.map((item: any) => item.str).join(' ');
 
         if (pageText.toLowerCase().includes(textToSearch.toLowerCase())) {
-          pagesFound.add(i);
+          pagesFound.push(i);
         }
       }
       
-      if(pagesFound.size > 0) {
-        setPagesToRemove(prev => new Set([...prev, ...pagesFound]));
-        toast({ title: 'Pages Found', description: `Selected ${pagesFound.size} pages containing "${textToSearch}".` });
+      if(pagesFound.length > 0) {
+        setFoundPagesByText(pagesFound);
+        setPagesToSelectFromSearch(new Set());
+        setIsReviewDialogOpen(true);
       } else {
         toast({ title: 'No Pages Found', description: `No pages were found containing the specified text.` });
       }
@@ -208,6 +218,26 @@ export function RemovePagesClient() {
     }
   };
 
+  const handleReviewDialogConfirm = () => {
+    setPagesToRemove(prev => new Set([...prev, ...pagesToSelectFromSearch]));
+    setIsReviewDialogOpen(false);
+    toast({
+      title: 'Selection Updated',
+      description: `${pagesToSelectFromSearch.size} pages were added to the removal list.`
+    });
+  };
+
+  const togglePageInDialog = (pageNumber: number) => {
+    setPagesToSelectFromSearch(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(pageNumber)) {
+            newSet.delete(pageNumber);
+        } else {
+            newSet.add(pageNumber);
+        }
+        return newSet;
+    });
+  };
 
   const handleRemove = async () => {
     if (pagesToRemove.size === 0) {
@@ -328,6 +358,33 @@ export function RemovePagesClient() {
             <h1 className="text-3xl font-bold">Select Pages to Remove</h1>
             <p className="text-muted-foreground mt-2">Click on pages to select them for removal, or use the input fields below.</p>
           </div>
+
+          <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Review Found Pages</DialogTitle>
+                    <p className="text-sm text-muted-foreground">Select the pages you want to add to the removal list.</p>
+                </DialogHeader>
+                <ScrollArea className="h-72 w-full rounded-md border p-4">
+                    <div className="space-y-2">
+                        {foundPagesByText.map(pageNumber => (
+                            <div key={pageNumber} className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id={`check-page-${pageNumber}`}
+                                    checked={pagesToSelectFromSearch.has(pageNumber)}
+                                    onCheckedChange={() => togglePageInDialog(pageNumber)}
+                                />
+                                <Label htmlFor={`check-page-${pageNumber}`}>Page {pageNumber}</Label>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleReviewDialogConfirm}>Add to Selection</Button>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
           
            <Card className="mb-6">
             <CardHeader>
@@ -348,7 +405,7 @@ export function RemovePagesClient() {
                     </Button>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-2">
-                     <label htmlFor="pageText" className="font-medium flex-shrink-0 text-sm">Remove pages with text:</label>
+                     <label htmlFor="pageText" className="font-medium flex-shrink-0 text-sm">Find pages with text:</label>
                     <Input 
                         id="pageText"
                         placeholder="e.g., Appendix"
@@ -357,7 +414,7 @@ export function RemovePagesClient() {
                         className="flex-grow"
                     />
                     <Button onClick={handleSelectFromText} variant="secondary">
-                        Find & Select <Search className="ml-2 h-4 w-4"/>
+                        Find Pages <Search className="ml-2 h-4 w-4"/>
                     </Button>
                 </div>
             </CardContent>
