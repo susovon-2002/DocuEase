@@ -9,12 +9,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CompressStep = 'upload' | 'options' | 'download';
-type CompressionLevel = 'recommended' | 'high';
+type CompressionLevel = 'recommended' | 'high' | 'custom';
 
 export function CompressPdfClient() {
   const [step, setStep] = useState<CompressStep>('upload');
@@ -23,6 +24,7 @@ export function CompressPdfClient() {
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('recommended');
+  const [customQuality, setCustomQuality] = useState(75);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, originalSize: number, newSize: number } | null>(null);
 
@@ -81,7 +83,20 @@ export function CompressPdfClient() {
         const sourcePdf = await loadingTask.promise;
         
         const newPdfDoc = await PDFDocument.create();
-        const quality = compressionLevel === 'recommended' ? 0.75 : 0.5;
+        
+        let quality;
+        switch(compressionLevel) {
+          case 'high':
+            quality = 0.5;
+            break;
+          case 'custom':
+            quality = customQuality / 100;
+            break;
+          case 'recommended':
+          default:
+            quality = 0.75;
+            break;
+        }
 
         for (let i = 1; i <= sourcePdf.numPages; i++) {
             setProcessingMessage(`Processing page ${i} of ${sourcePdf.numPages}...`);
@@ -98,7 +113,6 @@ export function CompressPdfClient() {
 
             await page.render({ canvasContext: context, viewport }).promise;
             
-            // The actual image re-compression happens here
             const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
             const jpegImage = await newPdfDoc.embedJpg(jpegDataUrl);
             
@@ -109,7 +123,6 @@ export function CompressPdfClient() {
                 width: viewport.width,
                 height: viewport.height,
             });
-             // Clean up canvas to free memory
             canvas.width = 0;
             canvas.height = 0;
         }
@@ -210,7 +223,7 @@ export function CompressPdfClient() {
                     <p className="text-sm font-medium text-foreground truncate">{originalFile?.name}</p>
                     <p className="text-sm text-muted-foreground">Original size: {formatBytes(originalFile?.size || 0)}</p>
                 </div>
-                 <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-4">
+                 <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-1">
                     <Label htmlFor="level-recommended" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
                       <RadioGroupItem value="recommended" id="level-recommended" />
                       <div>
@@ -224,6 +237,33 @@ export function CompressPdfClient() {
                         <p className="font-semibold">High compression</p>
                         <p className="text-sm text-muted-foreground">Lower quality, maximum compression.</p>
                       </div>
+                    </Label>
+                    <Label htmlFor="level-custom" className="flex flex-col items-start gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                        <div className="flex items-center gap-4">
+                            <RadioGroupItem value="custom" id="level-custom" />
+                            <div>
+                                <p className="font-semibold">Custom</p>
+                                <p className="text-sm text-muted-foreground">Choose your own image quality.</p>
+                            </div>
+                        </div>
+                         {compressionLevel === 'custom' && (
+                            <div className="w-full pt-4 pl-8 pr-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-sm text-muted-foreground">Image Quality</span>
+                                    <span className="text-sm font-medium">{customQuality}%</span>
+                                </div>
+                                <Slider
+                                    value={[customQuality]}
+                                    onValueChange={(v) => setCustomQuality(v[0])}
+                                    max={100}
+                                    step={1}
+                                />
+                                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                    <span>Low</span>
+                                    <span>High</span>
+                                </div>
+                            </div>
+                        )}
                     </Label>
                 </RadioGroup>
             </CardContent>
