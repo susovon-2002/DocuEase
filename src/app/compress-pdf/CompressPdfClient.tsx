@@ -31,6 +31,15 @@ export function CompressPdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
@@ -148,15 +157,6 @@ export function CompressPdfClient() {
     URL.revokeObjectURL(url);
   };
   
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  }
-  
   if (isProcessing) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-20">
@@ -206,7 +206,10 @@ export function CompressPdfClient() {
           </div>
           <Card>
             <CardContent className="p-6">
-                 <p className="mb-2 text-sm text-muted-foreground">File: <span className="font-medium text-foreground">{originalFile?.name}</span></p>
+                <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
+                    <p className="text-sm font-medium text-foreground truncate">{originalFile?.name}</p>
+                    <p className="text-sm text-muted-foreground">Original size: {formatBytes(originalFile?.size || 0)}</p>
+                </div>
                  <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-4">
                     <Label htmlFor="level-recommended" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
                       <RadioGroupItem value="recommended" id="level-recommended" />
@@ -274,5 +277,3 @@ export function CompressPdfClient() {
         )
   }
 }
-
-    
