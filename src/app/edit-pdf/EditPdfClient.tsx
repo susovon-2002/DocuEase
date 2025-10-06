@@ -98,18 +98,26 @@ export function EditPdfClient() {
         setPageDimensions({ width: viewport.width, height: viewport.height, scale });
         
         const textContent = await page.getTextContent();
+        
         const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
             const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-            const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
             
+            const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
+            const angle = Math.atan2(tx[1], tx[0]);
+
+            let width = item.width * viewport.scale;
+            if (Math.abs(angle) > 0.01) {
+              width = item.width * viewport.scale;
+            }
+
             return {
                 id: `text-${Date.now()}-${index}`,
                 text: item.str,
                 originalText: item.str,
                 x: tx[4],
                 y: tx[5] - fontHeight,
-                width: item.width,
-                height: item.height,
+                width: width,
+                height: item.height * viewport.scale,
                 fontSize: fontHeight,
                 fontFamily: item.fontName,
                 transform: item.transform,
