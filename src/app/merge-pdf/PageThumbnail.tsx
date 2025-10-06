@@ -15,16 +15,16 @@ export function PageThumbnail({ pdfBytes, pageNumber }: PageThumbnailProps) {
   useEffect(() => {
     const renderPage = async () => {
       if (!canvasRef.current) return;
-
+      const canvas = canvasRef.current;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1); // It's always page 1 of the single-page PDF
 
         const viewport = page.getViewport({ scale: 0.5 });
-        const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-        if (!context) return;
         
         canvas.height = viewport.height;
         canvas.width = viewport.width;
@@ -39,11 +39,8 @@ export function PageThumbnail({ pdfBytes, pageNumber }: PageThumbnailProps) {
       } catch (error) {
         console.error("Error rendering page thumbnail:", error);
         // Optionally draw an error state on the canvas
-        const context = canvasRef.current?.getContext("2d");
-        if(context) {
-            context.fillStyle = "red";
-            context.fillRect(0,0, context.canvas.width, context.canvas.height);
-        }
+        context.fillStyle = "red";
+        context.fillRect(0,0, context.canvas.width, context.canvas.height);
       }
     };
 

@@ -193,7 +193,7 @@ export function MergePdfClient() {
   const handleDownload = () => {
     if(!finalPdfUrl) return;
     const a = document.createElement('a');
-a.href = finalPdfUrl;
+    a.href = finalPdfUrl;
     a.download = 'merged.pdf';
     document.body.appendChild(a);
     a.click();
