@@ -26,31 +26,35 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="space-y-12">
-        <section>
-          <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
-            Entertainment
-          </h2>
-          <VideoPlayer />
-        </section>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-12">
+          {categoryOrder.map((category) => {
+            const categoryTools = groupedTools[category];
+            if (!categoryTools) return null;
 
-        {categoryOrder.map((category) => {
-          const categoryTools = groupedTools[category];
-          if (!categoryTools) return null;
-
-          return (
-            <section key={category}>
-              <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
-                {category}
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {categoryTools.map((tool) => (
-                  <ToolCard key={tool.path} tool={tool} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+            return (
+              <section key={category}>
+                <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
+                  {category}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {categoryTools.map((tool) => (
+                    <ToolCard key={tool.path} tool={tool} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        
+        <aside className="lg:col-span-1 space-y-8 sticky top-20 h-fit">
+           <section>
+            <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
+              Entertainment
+            </h2>
+            <VideoPlayer />
+          </section>
+        </aside>
       </div>
     </div>
   );
