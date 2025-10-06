@@ -84,15 +84,12 @@ export function EditPdfClient() {
     
     try {
         const fileBuffer = await originalFile.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(fileBuffer);
-        const page = pdfDoc.getPage(0); // For simplicity, editing the first page.
-        const { width, height } = page.getSize();
-
+        
         // This is a bit of a trick: render the original page to an image to use as a background
         const pdfjsLib = await import('pdfjs-dist');
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
         const pdf = await pdfjsLib.getDocument({ data: fileBuffer.slice(0) }).promise;
-        const canvasPage = await pdf.getPage(1);
+        const canvasPage = await pdf.getPage(1); // For simplicity, editing the first page.
         const viewport = canvasPage.getViewport({ scale: 2.0 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
@@ -157,6 +154,7 @@ export function EditPdfClient() {
         setOverlays(prev => [...prev, newImage]);
     };
     reader.readAsArrayBuffer(file);
+    if(event.target) event.target.value = '';
   };
   
   const updateOverlay = (id: number, changes: Partial<OverlayItem>) => {
@@ -191,8 +189,6 @@ export function EditPdfClient() {
                     font: helveticaFont,
                     size: overlay.fontSize * scaleX,
                     color: rgb(0, 0, 0),
-                    lineHeight: overlay.fontSize * 1.2 * scaleY,
-                    maxWidth: overlay.width * scaleX,
                 });
             } else if (overlay.type === 'image') {
                 const image = overlay.fileType === 'png' 
