@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -25,6 +25,7 @@ export function CompressPdfClient() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('recommended');
   const [customQuality, setCustomQuality] = useState(75);
+  const [customDpi, setCustomDpi] = useState(150);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, originalSize: number, newSize: number } | null>(null);
 
@@ -84,17 +85,22 @@ export function CompressPdfClient() {
         
         const newPdfDoc = await PDFDocument.create();
         
-        let quality;
+        let quality: number;
+        let scale: number;
+
         switch(compressionLevel) {
           case 'high':
             quality = 0.5;
+            scale = 1.0; // Lower scale for high compression
             break;
           case 'custom':
             quality = customQuality / 100;
+            scale = customDpi / 72; // Assuming default PDF DPI is 72
             break;
           case 'recommended':
           default:
             quality = 0.75;
+            scale = 1.5;
             break;
         }
 
@@ -102,7 +108,7 @@ export function CompressPdfClient() {
             setProcessingMessage(`Processing page ${i} of ${sourcePdf.numPages}...`);
             
             const page = await sourcePdf.getPage(i);
-            const viewport = page.getViewport({ scale: 1.0 });
+            const viewport = page.getViewport({ scale });
 
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
@@ -243,24 +249,34 @@ export function CompressPdfClient() {
                             <RadioGroupItem value="custom" id="level-custom" />
                             <div>
                                 <p className="font-semibold">Custom</p>
-                                <p className="text-sm text-muted-foreground">Choose your own image quality.</p>
+                                <p className="text-sm text-muted-foreground">Choose your own resolution and quality.</p>
                             </div>
                         </div>
                          {compressionLevel === 'custom' && (
-                            <div className="w-full pt-4 pl-8 pr-2">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-sm text-muted-foreground">Image Quality</span>
-                                    <span className="text-sm font-medium">{customQuality}%</span>
+                            <div className="w-full pt-4 pl-8 pr-2 grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="dpi">Resolution (DPI)</Label>
+                                    <Input 
+                                      id="dpi" 
+                                      type="number" 
+                                      value={customDpi} 
+                                      onChange={(e) => setCustomDpi(Math.max(10, parseInt(e.target.value) || 10))}
+                                      placeholder="e.g., 150"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Lower is smaller. 72 is standard for screens.</p>
                                 </div>
-                                <Slider
-                                    value={[customQuality]}
-                                    onValueChange={(v) => setCustomQuality(v[0])}
-                                    max={100}
-                                    step={1}
-                                />
-                                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                    <span>Low</span>
-                                    <span>High</span>
+                                <div className="space-y-2">
+                                    <Label htmlFor="quality">Image Quality (%)</Label>
+                                    <Input 
+                                      id="quality" 
+                                      type="number" 
+                                      value={customQuality}
+                                      onChange={(e) => setCustomQuality(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                                      max={100} 
+                                      min={1} 
+                                      placeholder="e.g., 75"
+                                    />
+                                    <p className="text-xs text-muted-foreground">1-100. Lower is smaller.</p>
                                 </div>
                             </div>
                         )}
@@ -317,3 +333,5 @@ export function CompressPdfClient() {
         )
   }
 }
+
+    
