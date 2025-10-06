@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from "pdfjs-dist";
 import { Button } from '@/components/ui/button';
 import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -10,13 +9,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { PageThumbnail } from './PageThumbnail';
-
-// Set up the worker for pdfjs just once
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 
 type PageObject = {
   id: number;
   pdfBytes: Uint8Array;
+  thumbnailUrl: string;
 };
 
 type MergeStep = 'select_files' | 'reorder_pages' | 'preview_final';
@@ -24,6 +22,7 @@ type MergeStep = 'select_files' | 'reorder_pages' | 'preview_final';
 
 export function MergePdfClient() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('Processing...');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [draggedFileIndex, setDraggedFileIndex] = useState<number | null>(null);
   const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
@@ -114,6 +113,7 @@ export function MergePdfClient() {
       return;
     }
     setIsProcessing(true);
+    setProcessingMessage('Merging files...');
 
     try {
       const mergedPdf = await PDFDocument.create();
@@ -124,6 +124,11 @@ export function MergePdfClient() {
         copiedPages.forEach(page => mergedPdf.addPage(page));
       }
 
+      setProcessingMessage('Generating thumbnails...');
+      
+      const mergedPdfBytes = await mergedPdf.save();
+      const imageUrls = await renderPdfPagesToImageUrls(mergedPdfBytes);
+
       const pageObjects: PageObject[] = [];
       const pageCount = mergedPdf.getPageCount();
       for (let i = 0; i < pageCount; i++) {
@@ -131,8 +136,13 @@ export function MergePdfClient() {
         const [copiedPage] = await singlePagePdf.copyPages(mergedPdf, [i]);
         singlePagePdf.addPage(copiedPage);
         const pdfBytes = await singlePagePdf.save();
-        pageObjects.push({ id: Date.now() + i, pdfBytes });
+        pageObjects.push({ 
+            id: Date.now() + i, 
+            pdfBytes,
+            thumbnailUrl: imageUrls[i]
+        });
       }
+
       setPages(pageObjects);
       setStep('reorder_pages');
       toast({
@@ -153,6 +163,7 @@ export function MergePdfClient() {
   
   const handleFinalizePdf = async () => {
     setIsProcessing(true);
+    setProcessingMessage('Finalizing PDF...');
     try {
       const finalPdf = await PDFDocument.create();
       for (const pageObject of pages) {
@@ -185,6 +196,7 @@ export function MergePdfClient() {
     if(finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
     setFinalPdfUrl(null);
     setSelectedFiles([]);
+    pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl)); // Clean up blob URLs
     setPages([]);
     setStep('select_files');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -237,7 +249,7 @@ export function MergePdfClient() {
           <Button onClick={() => setStep('select_files')} variant="outline">Back</Button>
           <Button onClick={handleFinalizePdf} size="lg" disabled={isProcessing}>
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ChevronsRight className="mr-2 h-4 w-4" />}
-            Generate Final PDF
+            {isProcessing ? processingMessage : 'Generate Final PDF'}
           </Button>
         </div>
         <div 
@@ -254,7 +266,7 @@ export function MergePdfClient() {
               onDragEnd={handlePageDragEnd}
               onDragOver={(e) => e.preventDefault()}
             >
-              <PageThumbnail pdfBytes={page.pdfBytes} pageNumber={index + 1} />
+              <PageThumbnail thumbnailUrl={page.thumbnailUrl} pageNumber={index + 1} />
             </div>
           ))}
         </div>
@@ -333,7 +345,7 @@ export function MergePdfClient() {
                   {isProcessing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      {processingMessage}
                     </>
                   ) : (
                     <>
