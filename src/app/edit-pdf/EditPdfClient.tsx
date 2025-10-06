@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -549,9 +550,9 @@ export function EditPdfClient() {
                                 {item.text}
                               </div>
                               <div className="absolute -top-6 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none">
-                                <span className="bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded-md flex items-center">
+                                <Badge variant="secondary" className="bg-blue-600 text-white">
                                     <Edit className="w-3 h-3 mr-1"/> Edit
-                                </span>
+                                </Badge>
                               </div>
                             </div>
                            )
