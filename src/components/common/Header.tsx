@@ -38,7 +38,13 @@ const AuthContent = () => {
     }
   };
 
-  if (!isClient || isUserLoading) {
+  if (!isClient) {
+    // On the server, or on the initial client render, render a static placeholder.
+    return <div className="h-8 w-8 rounded-full bg-muted" />;
+  }
+  
+  if (isUserLoading) {
+    // Once on the client, we can show a more specific loading state.
     return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
   }
   
