@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { EditPdfClient } from './EditPdfClient';
 
 export default function EditPdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="Edit PDF"
-        description="Modify text, images, and links directly in your PDF. A simple and effective online editor."
-      />
+      <EditPdfClient />
     </div>
   );
 }
