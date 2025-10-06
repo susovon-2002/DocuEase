@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { PDFDocument, PDFImage } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+
+// Configure the pdf.js worker.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CompressStep = 'upload' | 'options' | 'download';
 type CompressionLevel = 'recommended' | 'high';
@@ -64,40 +68,44 @@ export function CompressPdfClient() {
 
     try {
         const fileBuffer = await originalFile.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(fileBuffer, { 
-            // This can sometimes help with weirdly structured PDFs but may not be necessary
-            // updateMetadata: false 
-        });
+        const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
+        const sourcePdf = await loadingTask.promise;
         
-        const imageQuality = compressionLevel === 'recommended' ? 0.75 : 0.5;
+        const newPdfDoc = await PDFDocument.create();
+        const quality = compressionLevel === 'recommended' ? 0.75 : 0.5;
 
-        // This is a complex operation. We will try to get all images and re-compress them.
-        const pages = pdfDoc.getPages();
-        for(const page of pages) {
-            const imageNames = page.node.Resources().get(PDFImage.key);
-            if(imageNames) {
-                for (const name of imageNames.keys()) {
-                    try {
-                        const image = pdfDoc.context.lookup(name, PDFImage);
-                        if(image instanceof PDFImage) {
-                           const embededImage = await image.embed(pdfDoc, {jpeg: { quality: imageQuality }});
-                           page.node.Resources().set(name, embededImage.ref);
-                        }
-                    } catch(e) {
-                         // This can fail if the image format is not supported for re-compression, e.g. some masks or weird formats.
-                         // We will log and continue.
-                         console.warn("Could not re-compress an image:", e);
-                    }
-                }
-            }
+        for (let i = 1; i <= sourcePdf.numPages; i++) {
+            setProcessingMessage(`Processing page ${i} of ${sourcePdf.numPages}...`);
+            
+            const page = await sourcePdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.0 });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error("Could not get canvas context");
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: context, viewport }).promise;
+            
+            // The actual image re-compression happens here
+            const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
+            const jpegImage = await newPdfDoc.embedJpg(jpegDataUrl);
+            
+            const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+            newPage.drawImage(jpegImage, {
+                x: 0,
+                y: 0,
+                width: viewport.width,
+                height: viewport.height,
+            });
+             // Clean up canvas to free memory
+            canvas.width = 0;
+            canvas.height = 0;
         }
-        
-        pdfDoc.removeCreator();
-        pdfDoc.removeProducer();
-        pdfDoc.removeCreationDate();
-        pdfDoc.removeModificationDate();
 
-        const pdfBytes = await pdfDoc.save();
+        const pdfBytes = await newPdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         
         const originalSize = originalFile.size;
@@ -266,3 +274,5 @@ export function CompressPdfClient() {
         )
   }
 }
+
+    
