@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, PlayCircle } from 'lucide-react';
+import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -28,7 +28,6 @@ const AuthContent = () => {
     setIsClient(true);
   }, []);
 
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -38,14 +37,10 @@ const AuthContent = () => {
     }
   };
 
-  if (!isClient) {
-    // Render a static placeholder on the server and initial client render.
+  if (!isClient || isUserLoading) {
+    // Render a static placeholder on the server and during initial client load/auth check.
+    // This MUST be identical to prevent hydration errors.
     return <div className="h-8 w-8 rounded-full bg-muted" />;
-  }
-  
-  if (isUserLoading) {
-    // Once on the client, we can show a more specific loading state.
-    return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
   }
   
   if (user) {
