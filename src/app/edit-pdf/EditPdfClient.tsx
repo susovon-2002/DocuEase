@@ -1,29 +1,26 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts, PDFFont, Line, cmyk } from 'pdf-lib';
+import { useState, useRef, useEffect } from 'react';
+import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Edit, Bold, Italic, Palette, Highlighter, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Edit, Bold, Italic, Palette, Highlighter, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
-type EditStep = 'upload' | 'edit' | 'download';
+type EditStep = 'upload' | 'edit';
 
 type PageData = {
-  imageUrl: string;
   dimensions: { width: number; height: number; scale: number; };
   textItems: TextItem[];
 }
@@ -36,7 +33,6 @@ type TextItem = {
   width: number;
   height: number;
   text: string;
-  originalText: string;
   fontFamily: string;
   fontSize: number;
   transform: number[];
@@ -75,7 +71,6 @@ export function EditPdfClient() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [pagesData, setPagesData] = useState<PageData[]>([]);
   
-  const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<TextItem | null>(null);
   const [editedText, setEditedText] = useState('');
@@ -138,36 +133,20 @@ export function EditPdfClient() {
           
           const scale = 1.5;
           const viewport = page.getViewport({ scale });
-
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const context = canvas.getContext('2d');
-          if(!context) throw new Error('Canvas context not available');
-          await page.render({ canvasContext: context, viewport }).promise;
-          const imageUrl = canvas.toDataURL('image/png');
           
           const textContent = await page.getTextContent();
           
           const extractedTextItems: TextItem[] = textContent.items.map((item: any, index) => {
               const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-              
               const fontHeight = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
-              const angle = Math.atan2(tx[1], tx[0]);
-
-              let width = item.width * viewport.scale;
-              if (Math.abs(angle) > 0.01) {
-                width = item.width * viewport.scale;
-              }
-
+              
               return {
                   id: `text-p${i}-${Date.now()}-${index}`,
                   pageIndex: i - 1,
                   text: item.str,
-                  originalText: item.str,
                   x: tx[4],
-                  y: tx[5] - fontHeight,
-                  width: width,
+                  y: viewport.height - tx[5] - fontHeight,
+                  width: item.width * viewport.scale,
                   height: item.height * viewport.scale,
                   fontSize: fontHeight,
                   fontFamily: item.fontName.includes('Bold') ? item.fontName.replace('Bold','') : item.fontName,
@@ -183,7 +162,6 @@ export function EditPdfClient() {
           });
 
           processedPages.push({
-            imageUrl,
             dimensions: { width: viewport.width, height: viewport.height, scale },
             textItems: extractedTextItems
           });
@@ -191,7 +169,7 @@ export function EditPdfClient() {
         
         setPagesData(processedPages);
         setStep('edit');
-        toast({ title: 'PDF Loaded', description: 'Click on a text block in the right panel to edit it.' });
+        toast({ title: 'PDF Loaded', description: 'Click on a text block to edit it.' });
 
     } catch (error) {
       console.error(error);
@@ -222,22 +200,23 @@ export function EditPdfClient() {
   const handleSaveTextChange = () => {
     if (!currentItem) return;
 
-    const newPagesData = [...pagesData];
-    const pageData = newPagesData[currentItem.pageIndex];
-    const itemIndex = pageData.textItems.findIndex(item => item.id === currentItem.id);
-    
-    if (itemIndex > -1) {
-        pageData.textItems[itemIndex] = { 
-            ...pageData.textItems[itemIndex], 
-            text: editedText,
-            ...editedStyle,
-        };
-        setPagesData(newPagesData);
-    }
+    setPagesData(prevPagesData => {
+      const newPagesData = [...prevPagesData];
+      const pageData = newPagesData[currentItem.pageIndex];
+      const itemIndex = pageData.textItems.findIndex(item => item.id === currentItem.id);
+      
+      if (itemIndex > -1) {
+          pageData.textItems[itemIndex] = { 
+              ...pageData.textItems[itemIndex], 
+              text: editedText,
+              ...editedStyle,
+          };
+      }
+      return newPagesData;
+    });
 
     setIsEditDialogOpen(false);
     setCurrentItem(null);
-    toast({ title: 'Text Updated', description: 'Your change has been staged. Apply all changes to finalize.'});
   };
 
   const getFont = async (pdfDoc: PDFDocument, fontFamily: string, isBold: boolean, isItalic: boolean): Promise<PDFFont> => {
@@ -264,137 +243,99 @@ export function EditPdfClient() {
       }
   }
 
-  const handleApplyEdits = async () => {
-      const editedItems = pagesData.flatMap(p => p.textItems).filter(item => 
-        item.text !== item.originalText || item.highlightColor !== null || item.isBold || item.isItalic || item.isUnderline || item.isStrikethrough || item.alignment !== 'left'
-      );
-
-      if (editedItems.length === 0) {
-        toast({ title: 'No Edits Made', description: 'Change some text before applying edits.' });
-        return;
-      }
-      
+  const handleDownload = async () => {
       setIsProcessing(true);
-      setProcessingMessage("Applying changes...");
+      setProcessingMessage("Generating PDF...");
       
       try {
-        const pdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
+        const newPdfDoc = await PDFDocument.create();
         
-        for (const item of editedItems) {
-            const page = pdfDoc.getPage(item.pageIndex);
-            const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
-            const pageDimensions = pagesData[item.pageIndex].dimensions;
-            
-            const pdf_x_orig = item.x / pageDimensions.scale;
-            const pdf_y_orig = pdfPageHeight - (item.y / pageDimensions.scale) - (item.fontSize / pageDimensions.scale);
-            const pdf_width_orig = item.width / pageDimensions.scale;
-            const pdf_height_orig = item.height / pageDimensions.scale;
-            const pdf_fontSize = item.fontSize / pageDimensions.scale;
-            
-            // Erase original text by drawing a white box over it
-            page.drawRectangle({
-                x: pdf_x_orig - 2,
-                y: pdf_y_orig - (pdf_height_orig * 0.2),
-                width: pdf_width_orig + 4,
-                height: pdf_height_orig * 1.4,
-                color: rgb(1, 1, 1),
-            });
+        for (const pageData of pagesData) {
+            const { width, height, scale } = pageData.dimensions;
+            const newPage = newPdfDoc.addPage([width / scale, height / scale]);
 
-             const font = await getFont(pdfDoc, item.fontFamily, item.isBold, item.isItalic);
-             const textWidth = font.widthOfTextAtSize(item.text, pdf_fontSize);
-             
-             let pdf_x = pdf_x_orig;
+            for (const item of pageData.textItems) {
+                const font = await getFont(newPdfDoc, item.fontFamily, item.isBold, item.isItalic);
+                const textWidth = font.widthOfTextAtSize(item.text, item.fontSize / scale);
 
-             if (item.alignment === 'center') {
-                pdf_x = pdf_x_orig + (pdf_width_orig - textWidth) / 2;
-             } else if (item.alignment === 'right') {
-                pdf_x = pdf_x_orig + pdf_width_orig - textWidth;
-             }
-             
-            // Add highlight if exists
-            if (item.highlightColor) {
-                page.drawRectangle({
-                    x: pdf_x_orig,
-                    y: pdf_y_orig - (pdf_height_orig * 0.2),
-                    width: pdf_width_orig,
-                    height: pdf_height_orig * 1.2,
-                    color: rgb(item.highlightColor.r, item.highlightColor.g, item.highlightColor.b),
-                    opacity: item.highlightColor.a,
-                });
-            }
-            
-            // Draw new text
-            page.drawText(item.text, {
-                x: pdf_x,
-                y: pdf_y_orig,
-                font: font,
-                size: pdf_fontSize,
-                color: rgb(item.color.r, item.color.g, item.color.b),
-            });
-
-            // Add decorations
-            const lineThickness = pdf_fontSize / 15;
-            if (item.isUnderline) {
-                page.drawLine({
-                    start: { x: pdf_x, y: pdf_y_orig - lineThickness * 2 },
-                    end: { x: pdf_x + textWidth, y: pdf_y_orig - lineThickness * 2 },
-                    thickness: lineThickness,
+                let x_pos = item.x / scale;
+                if (item.alignment === 'center') {
+                    x_pos = (item.x + item.width / 2 - textWidth / 2) / scale;
+                } else if (item.alignment === 'right') {
+                    x_pos = (item.x + item.width - textWidth) / scale;
+                }
+                
+                // Add highlight if exists
+                if (item.highlightColor) {
+                    newPage.drawRectangle({
+                        x: item.x / scale,
+                        y: (height - item.y - item.height) / scale,
+                        width: item.width / scale,
+                        height: item.height / scale,
+                        color: rgb(item.highlightColor.r, item.highlightColor.g, item.highlightColor.b),
+                        opacity: item.highlightColor.a,
+                    });
+                }
+                
+                // Draw new text
+                newPage.drawText(item.text, {
+                    x: x_pos,
+                    y: (height - item.y - item.fontSize) / scale,
+                    font: font,
+                    size: item.fontSize / scale,
                     color: rgb(item.color.r, item.color.g, item.color.b),
                 });
-            }
-            if (item.isStrikethrough) {
-                 page.drawLine({
-                    start: { x: pdf_x, y: pdf_y_orig + pdf_height_orig / 2.5 },
-                    end: { x: pdf_x + textWidth, y: pdf_y_orig + pdf_height_orig / 2.5 },
-                    thickness: lineThickness,
-                    color: rgb(item.color.r, item.color.g, item.color.b),
-                });
+
+                // Add decorations
+                const lineThickness = (item.fontSize / scale) / 15;
+                if (item.isUnderline) {
+                    newPage.drawLine({
+                        start: { x: x_pos, y: ((height - item.y - item.fontSize) / scale) - lineThickness * 2 },
+                        end: { x: x_pos + textWidth, y: ((height - item.y - item.fontSize) / scale) - lineThickness * 2 },
+                        thickness: lineThickness,
+                        color: rgb(item.color.r, item.color.g, item.color.b),
+                    });
+                }
+                if (item.isStrikethrough) {
+                     newPage.drawLine({
+                        start: { x: x_pos, y: ((height - item.y - item.fontSize) / scale) + (item.height / scale) / 2.5 },
+                        end: { x: x_pos + textWidth, y: ((height - item.y - item.fontSize) / scale) + (item.height / scale) / 2.5 },
+                        thickness: lineThickness,
+                        color: rgb(item.color.r, item.color.g, item.color.b),
+                    });
+                }
             }
         }
         
-        const pdfBytes = await pdfDoc.save();
+        const pdfBytes = await newPdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${originalFile!.name.replace('.pdf', '')}_edited.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
         
-        setOutputFile({ name: `${originalFile!.name.replace('.pdf', '')}_edited.pdf`, blob });
-        setStep('download');
-        toast({ title: "Edits Applied", description: "Your document has been updated." });
+        toast({ title: "Download Started", description: "Your edited PDF is being downloaded." });
 
       } catch (error) {
         console.error(error);
-        toast({ variant: "destructive", title: "Failed to Apply Edits", description: "Could not save changes to the PDF." });
+        toast({ variant: "destructive", title: "Failed to Generate PDF", description: "Could not save changes." });
       } finally {
         setIsProcessing(false);
       }
   };
 
-
   const handleStartOver = () => {
     setStep('upload');
     setOriginalFile(null);
-    pagesData.forEach(p => URL.revokeObjectURL(p.imageUrl));
     setPagesData([]);
-    setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
-  const handleGoBackToEdit = () => {
-    setOutputFile(null);
-    setStep('edit');
-  };
-
-  const handleDownloadFile = () => {
-    if (!outputFile) return;
-    const url = URL.createObjectURL(outputFile.blob);
-    const a = document.createElement('a');
-a.href = url;
-    a.download = outputFile.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  
-  if (isProcessing) {
+  if (isProcessing && step !== 'edit') {
     return (
       <div className="flex flex-col items-center justify-center text-center py-20">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -547,115 +488,80 @@ a.href = url;
 
           <div className="text-center mb-4">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Click on any highlighted text block to modify its content and style.</p>
+            <p className="text-muted-foreground mt-2">Click on any text block to modify its content and style.</p>
           </div>
           
            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-4 p-4 bg-card border rounded-lg shadow-sm sticky top-0 z-10">
-              <Button onClick={handleStartOver} variant="outline">Start Over</Button>
-              <Button onClick={handleApplyEdits} size="lg">
-                <Wand2 className="mr-2 h-4 w-4" />
-                Apply All Changes & Preview
+              <Button onClick={handleStartOver} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Start Over
+              </Button>
+              <Button onClick={handleDownload} size="lg" disabled={isProcessing}>
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                {isProcessing ? processingMessage : 'Download Edited PDF'}
               </Button>
             </div>
             
-            <div className="grid grid-cols-2 gap-8 px-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-center mb-4">Original</h2>
-                  <ScrollArea className="h-[calc(100vh-200px)] border rounded-lg">
-                    <div className="p-4 space-y-4">
-                      {pagesData.map((page, pageIndex) => (
-                        <div key={`original-page-${pageIndex}`}>
-                            <img src={page.imageUrl} alt={`Original PDF page ${pageIndex + 1}`} className="w-full h-auto shadow-lg" draggable={false} />
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+            <div className="max-w-4xl mx-auto">
+              <ScrollArea className="h-[calc(100vh-250px)] border rounded-lg bg-secondary/50">
+                <div className="p-4 sm:p-8 space-y-8 flex flex-col items-center">
+                  {pagesData.map((page, pageIndex) => (
+                      <div 
+                        key={`editable-page-${pageIndex}`}
+                        className="relative shadow-lg bg-white"
+                        style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
+                      >
+                        {page.textItems.map((item) => {
+                          const textWidth = item.width;
+                          let xPos = 0;
+                          if (item.alignment === 'center') {
+                              xPos = (item.width - textWidth) / 2;
+                          } else if (item.alignment === 'right') {
+                              xPos = item.width - textWidth;
+                          }
+                          return (
+                            <div
+                                key={item.id}
+                                className="absolute border border-dashed border-transparent hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
+                                style={{
+                                    left: `${item.x}px`,
+                                    top: `${item.y}px`,
+                                    width: `${item.width}px`,
+                                    height: `${item.height}px`,
+                                }}
+                                onClick={() => openEditDialog(item)}
+                            >
+                              <div 
+                                  className="absolute flex items-center w-full h-full"
+                                  style={{
+                                      fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'), // pdf.js internal font names
+                                      fontSize: `${item.fontSize}px`,
+                                      fontWeight: item.isBold ? 'bold' : 'normal',
+                                      fontStyle: item.isItalic ? 'italic' : 'normal',
+                                      textDecoration: `${item.isUnderline ? 'underline' : ''} ${item.isStrikethrough ? 'line-through' : ''}`.trim(),
+                                      color: `rgb(${item.color.r * 255}, ${item.color.g * 255}, ${item.color.b * 255})`,
+                                      backgroundColor: item.highlightColor ? `rgba(${item.highlightColor.r * 255}, ${item.highlightColor.g * 255}, ${item.highlightColor.b * 255}, ${item.highlightColor.a})` : 'transparent',
+                                      justifyContent: item.alignment === 'left' ? 'flex-start' : item.alignment === 'center' ? 'center' : 'flex-end',
+                                      paddingLeft: '2px',
+                                      paddingRight: '2px',
+                                  }}
+                              >
+                                {item.text}
+                              </div>
+                              <div className="absolute -top-6 right-0 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none">
+                                <span className="bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded-md flex items-center">
+                                    <Edit className="w-3 h-3 mr-1"/> Edit
+                                </span>
+                              </div>
+                            </div>
+                           )
+                        })}
+                      </div>
+                    ))}
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-center mb-4">Editor</h2>
-                   <ScrollArea className="h-[calc(100vh-200px)] border rounded-lg">
-                    <div className="p-4 space-y-4">
-                      {pagesData.map((page, pageIndex) => (
-                         <div 
-                           key={`editable-page-${pageIndex}`}
-                           className="relative shadow-lg"
-                           style={{ width: page.dimensions.width, height: page.dimensions.height, flexShrink: 0 }}
-                         >
-                           <img src={page.imageUrl} alt={`PDF page ${pageIndex + 1}`} className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />
-                           {page.textItems.map((item) => (
-                               <div
-                                   key={item.id}
-                                   className="absolute border border-dashed border-transparent hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
-                                   style={{
-                                       left: `${item.x}px`,
-                                       top: `${item.y}px`,
-                                       width: `${item.width}px`,
-                                       height: `${item.height}px`,
-                                   }}
-                                   onClick={() => openEditDialog(item)}
-                               >
-                                  <div 
-                                     className="absolute flex items-center justify-start w-full h-full"
-                                     style={{
-                                        fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'),
-                                        fontSize: `${item.fontSize}px`,
-                                        fontWeight: item.isBold ? 'bold' : 'normal',
-                                        fontStyle: item.isItalic ? 'italic' : 'normal',
-                                        textDecoration: `${item.isUnderline ? 'underline' : ''} ${item.isStrikethrough ? 'line-through' : ''}`.trim(),
-                                        textAlign: item.alignment,
-                                        color: `rgb(${item.color.r * 255}, ${item.color.g * 255}, ${item.color.b * 255})`,
-                                        backgroundColor: item.highlightColor ? `rgba(${item.highlightColor.r * 255}, ${item.highlightColor.g * 255}, ${item.highlightColor.b * 255}, ${item.highlightColor.a})` : 'transparent'
-                                     }}
-                                  >
-                                    {item.text}
-                                  </div>
-                                 <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                   <Badge variant="secondary" className="bg-blue-600 text-white">
-                                       <Edit className="w-3 h-3 mr-1"/> Edit
-                                   </Badge>
-                                 </div>
-                               </div>
-                           ))}
-                         </div>
-                       ))}
-                    </div>
-                  </ScrollArea>
-                </div>
+              </ScrollArea>
             </div>
         </div>
       );
-
-    case 'download':
-        return (
-            <div className="w-full max-w-4xl mx-auto text-center">
-                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Edits Complete!</h1>
-                    <p className="text-muted-foreground mt-2">Your edited document is ready. Review the preview below before downloading.</p>
-                </div>
-                <div className="flex justify-center gap-4">
-                     <Button onClick={handleGoBackToEdit} variant="outline">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Editor
-                    </Button>
-                    <Button onClick={handleDownloadFile} size="lg">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download PDF
-                    </Button>
-                </div>
-                 <div className="flex justify-center mt-4">
-                     <Button onClick={handleStartOver} variant="link">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Edit Another File
-                    </Button>
-                </div>
-                {outputFile && (
-                  <Card className="mt-8">
-                      <CardContent className="p-2">
-                          <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Edited PDF Preview" />
-                      </CardContent>
-                  </Card>
-                )}
-            </div>
-        )
   }
 }
