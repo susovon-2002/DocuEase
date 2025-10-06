@@ -1,22 +1,20 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { PDFDocument, rgb, StandardFonts, PDFImage } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, MousePointerSquare, Type, Image as ImageIcon } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Type } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type EditStep = 'upload' | 'edit' | 'download';
-type EditMode = 'text' | 'image';
 
 type TextItem = {
   str: string;
@@ -26,38 +24,23 @@ type TextItem = {
   dir: string;
 };
 
-type ImageItem = {
-  transform: number[];
-  width: number;
-  height: number;
-  // We don't store image data here, just its location
-};
-
 type PageData = {
   pageIndex: number;
   width: number;
   height: number;
   imageUrl: string;
   textItems: TextItem[];
-  imageItems: ImageItem[];
 };
 
 type EditAction = {
   pageIndex: number;
-} & ({
   type: 'text';
   item: TextItem;
   newText: string;
-} | {
-  type: 'image';
-  item: ImageItem;
-  newImageBytes: ArrayBuffer;
-  newImageType: 'png' | 'jpeg';
-});
+};
 
 export function EditPdfClient() {
   const [step, setStep] = useState<EditStep>('upload');
-  const [editMode, setEditMode] = useState<EditMode>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
@@ -68,21 +51,15 @@ export function EditPdfClient() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTextItem, setSelectedTextItem] = useState<TextItem | null>(null);
   const [editText, setEditText] = useState('');
-  const [selectedImageItem, setSelectedImageItem] = useState<ImageItem | null>(null);
 
   const [edits, setEdits] = useState<EditAction[]>([]);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
-  const handleImageSelectClick = (item: ImageItem) => {
-    setSelectedImageItem(item);
-    imageInputRef.current?.click();
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -136,23 +113,6 @@ export function EditPdfClient() {
 
         const textContent = await page.getTextContent();
         const textItems = textContent.items.map(item => item as TextItem);
-
-        // Detect images by parsing operator list (simplified)
-        const imageItems: ImageItem[] = [];
-        const operatorList = await page.getOperatorList();
-        for (const op of operatorList.fnArray) {
-            if (op === pdfjsLib.OPS.paintImageXObject) {
-                const opIndex = operatorList.fnArray.indexOf(op);
-                const imageName = operatorList.argsArray[opIndex][0];
-                const img = await page.commonObjs.get(imageName);
-                
-                if(img) {
-                    const currentT = context.getTransform();
-                    const transform = [currentT.a, currentT.b, currentT.c, currentT.d, currentT.e, currentT.f];
-                    imageItems.push({ width: img.width, height: img.height, transform });
-                }
-            }
-        }
         
         allPagesData.push({
           pageIndex: i - 1,
@@ -160,13 +120,12 @@ export function EditPdfClient() {
           height: viewport.height,
           imageUrl,
           textItems,
-          imageItems,
         });
       }
       
       setPagesData(allPagesData);
       setStep('edit');
-      toast({ title: 'PDF Loaded', description: 'Click on text or images to start editing.' });
+      toast({ title: 'PDF Loaded', description: 'Click on text to start editing.' });
 
     } catch (error) {
       console.error(error);
@@ -183,33 +142,6 @@ export function EditPdfClient() {
     setIsEditModalOpen(true);
   };
   
-  const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !selectedImageItem) return;
-
-    if (!file.type.startsWith('image/')) {
-        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please select an image file (PNG or JPG).' });
-        return;
-    }
-
-    const newImageBytes = await file.arrayBuffer();
-    const newEdit: EditAction = {
-      type: 'image',
-      pageIndex: currentPageIndex,
-      item: selectedImageItem,
-      newImageBytes,
-      newImageType: file.type === 'image/png' ? 'png' : 'jpeg',
-    };
-    
-    setEdits(prevEdits => [...prevEdits, newEdit]);
-    toast({ title: 'Image Staged', description: 'The image replacement has been staged. Apply edits to finalize.' });
-
-    // Reset
-    setSelectedImageItem(null);
-    if(imageInputRef.current) imageInputRef.current.value = "";
-  };
-
-
   const handleSaveEdit = () => {
     if (!selectedTextItem) return;
     
@@ -257,20 +189,6 @@ export function EditPdfClient() {
 
             page.drawRectangle({ x, y: y + 2, width: itemWidth, height: itemHeight, color: rgb(1, 1, 1) });
             page.drawText(edit.newText, { x, y, font, size: fontSize / viewportScale, color: rgb(0, 0, 0) });
-          } else if (edit.type === 'image') {
-              const { item, newImageBytes, newImageType } = edit;
-              const x = item.transform[4] / viewportScale;
-              const y = pageHeight - (item.transform[5] / viewportScale) - (item.height / viewportScale);
-
-              let newImage: PDFImage;
-              if (newImageType === 'png') {
-                  newImage = await pdfDoc.embedPng(newImageBytes);
-              } else {
-                  newImage = await pdfDoc.embedJpg(newImageBytes);
-              }
-
-              page.drawRectangle({ x, y, width: item.width / viewportScale, height: item.height/ viewportScale, color: rgb(1,1,1) });
-              page.drawImage(newImage, { x, y, width: item.width / viewportScale, height: item.height / viewportScale });
           }
         }
         
@@ -378,25 +296,11 @@ export function EditPdfClient() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-           <input
-                type="file"
-                ref={imageInputRef}
-                onChange={handleImageFileChange}
-                className="hidden"
-                accept="image/png,image/jpeg"
-            />
-
-          <div className="text-center mb-4">
+          
+          <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Select an editing mode, then click on any element to modify it.</p>
+            <p className="text-muted-foreground mt-2">Click on any text block to modify it.</p>
           </div>
-
-          <Tabs value={editMode} onValueChange={(v) => setEditMode(v as EditMode)} className="w-full max-w-sm mx-auto mb-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="text"><Type className="mr-2 h-4 w-4" />Text Mode</TabsTrigger>
-              <TabsTrigger value="image"><ImageIcon className="mr-2 h-4 w-4" />Image Mode</TabsTrigger>
-            </TabsList>
-          </Tabs>
           
            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 mb-8">
               <Button onClick={handleStartOver} variant="outline">Start Over</Button>
@@ -423,7 +327,7 @@ export function EditPdfClient() {
                 >
                     <img src={currentView?.imageUrl} alt={`Page ${currentPageIndex + 1}`} className="w-full h-auto" />
                     <div className="absolute top-0 left-0 w-full h-full">
-                        {editMode === 'text' && currentView?.textItems.map((item, index) => {
+                        {currentView?.textItems.map((item, index) => {
                             const [fs, , , fh, x, y] = item.transform;
                              const isEdited = edits.some(e => e.type === 'text' && e.pageIndex === currentPageIndex && e.item.str === item.str);
                             return (
@@ -440,26 +344,6 @@ export function EditPdfClient() {
                                 >
                                 </div>
                             )
-                        })}
-                        {editMode === 'image' && currentView?.imageItems.map((item, index) => {
-                             const [fs, , , fh, x, y] = item.transform;
-                             const isEdited = edits.some(e => e.type === 'image' && e.pageIndex === currentPageIndex && e.item.transform.toString() === item.transform.toString());
-                             return (
-                                <div
-                                    key={`image-${index}`}
-                                    className={cn("absolute hover:bg-purple-500/30 cursor-pointer border border-dashed border-transparent hover:border-purple-500", isEdited && "bg-green-500/30")}
-                                    style={{
-                                        left: `${x}px`,
-                                        top: `${y}px`,
-                                        width: `${item.width}px`,
-                                        height: `${item.height}px`,
-                                        transform: `scale(${fs}, ${fh})`,
-                                        transformOrigin: 'top left',
-                                    }}
-                                    onClick={() => handleImageSelectClick(item)}
-                                >
-                                </div>
-                             )
                         })}
                     </div>
                  </div>
