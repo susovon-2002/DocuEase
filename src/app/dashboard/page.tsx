@@ -2,16 +2,37 @@
 
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { collection } from 'firebase/firestore';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+import { groupBy, countBy } from 'lodash';
 
 export default function DashboardPage() {
   const { user, isUserLoading, userError } = useUser();
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
+
+  const toolUsagesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, `users/${user.uid}/toolUsages`);
+  }, [firestore, user]);
+
+  const documentsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, `users/${user.uid}/documents`);
+  }, [firestore, user]);
+
+  const { data: toolUsages, isLoading: toolUsagesLoading } = useCollection(toolUsagesQuery);
+  const { data: documents, isLoading: documentsLoading } = useCollection(documentsQuery);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -28,7 +49,22 @@ export default function DashboardPage() {
     }
   };
 
-  if (isUserLoading) {
+  const chartData = useMemo(() => {
+    if (!toolUsages) return [];
+    const counts = countBy(toolUsages, 'toolName');
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [toolUsages]);
+
+  const recentActivities = useMemo(() => {
+    if (!toolUsages) return [];
+    return [...toolUsages]
+      .sort((a, b) => new Date(b.usageTimestamp).getTime() - new Date(a.usageTimestamp).getTime())
+      .slice(0, 5);
+  }, [toolUsages]);
+  
+  const isLoading = isUserLoading || toolUsagesLoading || documentsLoading;
+
+  if (isLoading) {
     return <div className="container mx-auto px-4 py-12">Loading...</div>;
   }
 
@@ -42,14 +78,98 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-12">
-      <div className="w-full max-w-4xl mx-auto">
-        <div className="text-center mb-8">
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="text-left mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Welcome back, {user.email}!
           </p>
         </div>
-        <Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Documents Processed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{documents?.length || 0}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Tools Used</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{toolUsages?.length || 0}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Subscription</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Badge>Pro</Badge>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Account Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Badge variant="secondary">Active</Badge>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="lg:col-span-1">
+                <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>
+                        Here are the latest actions you've performed.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tool</TableHead>
+                                <TableHead className="text-right">Time</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {recentActivities.map(activity => (
+                                <TableRow key={activity.id}>
+                                    <TableCell>{activity.toolName}</TableCell>
+                                    <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+             <Card className="lg:col-span-1">
+                <CardHeader>
+                    <CardTitle>Tool Usage Breakdown</CardTitle>
+                     <CardDescription>
+                        A look at your most used tools.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="value" fill="hsl(var(--primary))" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
+
+        <Card className="mt-8">
           <CardHeader>
             <CardTitle>Your Account</CardTitle>
             <CardDescription>

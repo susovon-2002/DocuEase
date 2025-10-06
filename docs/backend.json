@@ -125,10 +125,6 @@
           "type": "string",
           "description": "Unique identifier for the tool usage record."
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ToolUsage)"
-        },
         "documentId": {
           "type": "string",
           "description": "Reference to Document. (Relationship: Document 1:N ToolUsage)"
@@ -145,7 +141,6 @@
       },
       "required": [
         "id",
-        "userId",
         "documentId",
         "toolName",
         "usageTimestamp"
