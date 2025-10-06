@@ -12,16 +12,28 @@ function getYouTubeEmbedUrl(url: string): string | null {
   if (!YOUTUBE_REGEX.test(url)) return null;
 
   let videoId = '';
-  if (url.includes('youtu.be/')) {
-    videoId = url.split('youtu.be/')[1].split('?')[0];
-  } else if (url.includes('youtube.com/watch?v=')) {
-    videoId = new URL(url).searchParams.get('v') || '';
-  } else if (url.includes('youtube.com/embed/')) {
-    videoId = url.split('/embed/')[1].split('?')[0];
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'youtu.be') {
+      videoId = urlObj.pathname.slice(1);
+    } else if (urlObj.hostname.includes('youtube.com')) {
+      if (urlObj.pathname.includes('/embed/')) {
+        videoId = urlObj.pathname.split('/embed/')[1];
+      } else {
+        videoId = urlObj.searchParams.get('v') || '';
+      }
+    }
+  } catch (e) {
+    // Fallback for non-URL formats
+    if (url.includes('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1].split('?')[0];
+    }
   }
 
+
   if (videoId) {
-    return `https://www.youtube.com/embed/${videoId}`;
+    const cleanVideoId = videoId.split('?')[0].split('&')[0];
+    return `https://www.youtube.com/embed/${cleanVideoId}`;
   }
   return null;
 }
@@ -53,6 +65,9 @@ export default function VideoPlayer() {
       setVideoSrc(embedUrl);
       setIsYoutube(true);
     } else {
+      // For any other URL, try to play it directly.
+      // This works for direct video files (.mp4, etc.)
+      // but not for sharing pages like Terabox.
       setVideoSrc(urlInput);
       setIsYoutube(false);
     }
@@ -69,7 +84,7 @@ export default function VideoPlayer() {
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
               type="text"
-              placeholder="Enter video URL"
+              placeholder="Enter video URL (YouTube or direct link)"
               value={urlInput}
               onChange={handleUrlChange}
               className="flex-grow"
@@ -106,9 +121,9 @@ export default function VideoPlayer() {
                 allowFullScreen
               ></iframe>
             ) : (
-              <video key={videoSrc} controls autoPlay className="w-full h-full">
+              <video key={videoSrc} controls autoPlay className="w-full h-full bg-black">
                 <source src={videoSrc} />
-                Your browser does not support the video tag.
+                Your browser does not support the video tag or the URL is not a direct video link.
               </video>
             )}
           </div>
