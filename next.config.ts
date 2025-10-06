@@ -30,6 +30,18 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    // Required for pdf.js to work
+    if (!isServer) {
+        config.resolve.fallback = {
+            "fs": false,
+            "path": false,
+            "os": false
+        }
+    }
+    config.externals.push('canvas');
+    return config;
+  }
 };
 
 export default nextConfig;

@@ -2,38 +2,33 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Wand2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+import { Rnd } from 'react-rnd';
 
 type EditStep = 'upload' | 'edit' | 'download';
 
-type TextItem = {
-  str: string;
-  transform: number[];
+type OverlayItem = {
+  id: number;
+  type: 'text';
+  x: number;
+  y: number;
   width: number;
   height: number;
-  dir: string;
-  fontName: string;
-};
-
-type PageData = {
-  pageIndex: number;
+  text: string;
+  fontSize: number;
+} | {
+  id: number;
+  type: 'image';
+  x: number;
+  y: number;
   width: number;
   height: number;
-  imageUrl: string;
-  textItems: TextItem[];
-};
-
-type EditAction = {
-  pageIndex: number;
-  itemIndex: number;
-  newText: string;
+  imageBytes: ArrayBuffer;
+  fileType: 'png' | 'jpeg';
 };
 
 export function EditPdfClient() {
@@ -42,14 +37,16 @@ export function EditPdfClient() {
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [pagesData, setPagesData] = useState<PageData[]>([]);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
+  const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0 });
 
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [overlays, setOverlays] = useState<OverlayItem[]>([]);
+  const [selectedOverlay, setSelectedOverlay] = useState<number | null>(null);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
@@ -72,10 +69,10 @@ export function EditPdfClient() {
       toast({ variant: 'destructive', title: 'Invalid file type', description: 'Only PDF files are supported for dropping.' });
     }
   };
-
+  
   useEffect(() => {
     if (originalFile) {
-      processOriginalFile();
+        processOriginalFile();
     }
   }, [originalFile]);
 
@@ -86,39 +83,39 @@ export function EditPdfClient() {
     setProcessingMessage('Analyzing PDF...');
     
     try {
-      const fileBuffer = await originalFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-      const allPagesData: PageData[] = [];
+        const fileBuffer = await originalFile.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(fileBuffer);
+        const page = pdfDoc.getPage(0); // For simplicity, editing the first page.
+        const { width, height } = page.getSize();
+        setPageDimensions({ width, height });
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 });
-
+        // We're not using pdf.js anymore to simplify, just pdf-lib to get dimensions and then apply overlays
+        // This avoids the complex text layer detection and focuses on adding new content.
+        // For rendering the background, we can create a temporary image from the page.
+        
+        const newPdf = await PDFDocument.create();
+        const [copiedPage] = await newPdf.copyPages(pdfDoc, [0]);
+        newPdf.addPage(copiedPage);
+        const tempPdfBytes = await newPdf.save();
+        
+        // This is a bit of a trick: render the original page to an image to use as a background
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const pdf = await pdfjsLib.getDocument({ data: tempPdfBytes }).promise;
+        const canvasPage = await pdf.getPage(1);
+        const viewport = canvasPage.getViewport({ scale: 2.0 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const context = canvas.getContext('2d');
-        if(!context) throw new Error('Could not get canvas context');
+        if(!context) throw new Error('Canvas context not available');
+        await canvasPage.render({ canvasContext: context, viewport }).promise;
+        setPageImageUrl(canvas.toDataURL('image/png'));
 
-        await page.render({ canvasContext: context, viewport }).promise;
-        const imageUrl = canvas.toDataURL('image/png');
+        setPageDimensions({ width: viewport.width, height: viewport.height });
 
-        const textContent = await page.getTextContent();
-        const textItems = textContent.items.map(item => item as TextItem);
-        
-        allPagesData.push({
-          pageIndex: i - 1,
-          width: viewport.width,
-          height: viewport.height,
-          imageUrl,
-          textItems,
-        });
-      }
-      
-      setPagesData(allPagesData);
-      setStep('edit');
-      toast({ title: 'PDF Loaded', description: 'Click on text to start editing.' });
+        setStep('edit');
+        toast({ title: 'PDF Loaded', description: 'You can now add text or images to the first page.' });
 
     } catch (error) {
       console.error(error);
@@ -129,15 +126,57 @@ export function EditPdfClient() {
     }
   };
 
-  const handleTextChange = (pageIndex: number, itemIndex: number, newText: string) => {
-    const key = `${pageIndex}-${itemIndex}`;
-    setEdits(prev => ({ ...prev, [key]: newText }));
+
+  const addText = () => {
+    const newText: OverlayItem = {
+      id: Date.now(),
+      type: 'text',
+      x: 50,
+      y: 50,
+      width: 150,
+      height: 30,
+      text: 'New Text',
+      fontSize: 16
+    };
+    setOverlays(prev => [...prev, newText]);
+  };
+
+  const addImage = () => {
+    imageInputRef.current?.click();
   };
   
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const imageBytes = e.target?.result as ArrayBuffer;
+        if (!imageBytes) return;
+
+        const newImage: OverlayItem = {
+            id: Date.now(),
+            type: 'image',
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 150,
+            imageBytes,
+            fileType: file.type === 'image/png' ? 'png' : 'jpeg'
+        };
+        setOverlays(prev => [...prev, newImage]);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  
+  const updateOverlay = (id: number, changes: Partial<OverlayItem>) => {
+    setOverlays(prev => prev.map(o => o.id === id ? { ...o, ...changes } : o));
+  };
+
+
   const handleApplyEdits = async () => {
-      const editActions = Object.keys(edits).length;
-      if (editActions === 0) {
-        toast({ variant: 'destructive', title: 'No Edits Made', description: 'Please make some changes before applying.' });
+      if (overlays.length === 0) {
+        toast({ title: 'No Edits Made', description: 'Add text or images before applying changes.' });
         return;
       }
       
@@ -146,44 +185,35 @@ export function EditPdfClient() {
       
       try {
         const pdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
+        const page = pdfDoc.getPage(0);
+        const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
+        
+        const scaleX = pdfPageWidth / pageDimensions.width;
+        const scaleY = pdfPageHeight / pageDimensions.height;
+
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        
+        for (const overlay of overlays) {
+            if (overlay.type === 'text') {
+                page.drawText(overlay.text, {
+                    x: overlay.x * scaleX,
+                    y: pdfPageHeight - ((overlay.y + overlay.height) * scaleY),
+                    font: helveticaFont,
+                    size: overlay.fontSize * scaleX,
+                    color: rgb(0, 0, 0),
+                });
+            } else if (overlay.type === 'image') {
+                const image = overlay.fileType === 'png' 
+                    ? await pdfDoc.embedPng(overlay.imageBytes)
+                    : await pdfDoc.embedJpg(overlay.imageBytes);
 
-        for (const key in edits) {
-            const [pageIndexStr, itemIndexStr] = key.split('-');
-            const pageIndex = parseInt(pageIndexStr, 10);
-            const itemIndex = parseInt(itemIndexStr, 10);
-            const newText = edits[key];
-
-            const pageData = pagesData[pageIndex];
-            const item = pageData.textItems[itemIndex];
-            
-            const page = pdfDoc.getPage(pageIndex);
-            const { width: pageWidth, height: pageHeight } = page.getSize();
-            const viewportScale = pageData.width / pageWidth;
-
-            const [fontSize, , , fontHeight, x, y] = item.transform;
-            const itemWidthOnPdf = item.width / viewportScale;
-            
-            // pdf-lib's y-coordinate starts from the bottom, so we need to convert
-            const yInPdfCoords = pageHeight - (y / viewportScale);
-
-            // Cover the old text with a white rectangle
-            page.drawRectangle({
-                x: x / viewportScale,
-                y: yInPdfCoords - (fontHeight / viewportScale),
-                width: itemWidthOnPdf + 2, // a little extra to cover artifacts
-                height: (fontSize / viewportScale) + 2,
-                color: rgb(1, 1, 1), // white background
-            });
-            
-            // Draw the new text
-            page.drawText(newText, {
-                x: x / viewportScale,
-                y: yInPdfCoords,
-                font: helveticaFont,
-                size: (fontSize / viewportScale) * 0.95, // slight adjustment for font differences
-                color: rgb(0, 0, 0),
-            });
+                page.drawImage(image, {
+                    x: overlay.x * scaleX,
+                    y: pdfPageHeight - ((overlay.y + overlay.height) * scaleY),
+                    width: overlay.width * scaleX,
+                    height: overlay.height * scaleY,
+                });
+            }
         }
         
         const pdfBytes = await pdfDoc.save();
@@ -205,10 +235,10 @@ export function EditPdfClient() {
   const handleStartOver = () => {
     setStep('upload');
     setOriginalFile(null);
-    pagesData.forEach(p => URL.revokeObjectURL(p.imageUrl));
-    setPagesData([]);
-    setCurrentPageIndex(0);
-    setEdits({});
+    if(pageImageUrl) URL.revokeObjectURL(pageImageUrl);
+    setPageImageUrl(null);
+    setPageDimensions({ width: 0, height: 0 });
+    setOverlays([]);
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -230,7 +260,6 @@ export function EditPdfClient() {
     URL.revokeObjectURL(url);
   };
   
-  const currentView = pagesData[currentPageIndex];
   
   if (isProcessing) {
     return (
@@ -248,7 +277,7 @@ export function EditPdfClient() {
         <div className="w-full max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Edit PDF</h1>
-            <p className="text-muted-foreground mt-2">Modify text, images, and links directly in your PDF. A simple and effective online editor.</p>
+            <p className="text-muted-foreground mt-2">Add new text and images to your PDF. For now, editing is limited to the first page.</p>
           </div>
           <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10 text-center">
@@ -274,64 +303,69 @@ export function EditPdfClient() {
     
     case 'edit':
       return (
-        <div className="w-full max-w-6xl mx-auto">
-          <div className="text-center mb-8">
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="text-center mb-4">
             <h1 className="text-3xl font-bold">Edit Your Document</h1>
-            <p className="text-muted-foreground mt-2">Click on any text block to modify it.</p>
+            <p className="text-muted-foreground mt-2">Add new elements and drag them into position.</p>
           </div>
           
-           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 mb-8">
+           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-4 p-4 bg-card border rounded-lg shadow-sm sticky top-0 z-10">
               <Button onClick={handleStartOver} variant="outline">Start Over</Button>
               <div className="flex items-center gap-2">
-                 <Button onClick={() => setCurrentPageIndex(p => Math.max(0, p - 1))} disabled={currentPageIndex === 0}>
-                    Previous
-                </Button>
-                <span className="text-sm font-medium">Page {currentPageIndex + 1} of {pagesData.length}</span>
-                 <Button onClick={() => setCurrentPageIndex(p => Math.min(pagesData.length - 1, p + 1))} disabled={currentPageIndex === pagesData.length - 1}>
-                    Next
-                </Button>
+                 <Button onClick={addText}><Type className="mr-2 h-4 w-4" /> Add Text</Button>
+                 <Button onClick={addImage}><ImageIcon className="mr-2 h-4 w-4" /> Add Image</Button>
+                  <input
+                    type="file"
+                    ref={imageInputRef}
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    accept="image/png, image/jpeg"
+                />
               </div>
-              <Button onClick={handleApplyEdits} size="lg" disabled={Object.keys(edits).length === 0}>
+              <Button onClick={handleApplyEdits} size="lg" disabled={overlays.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" />
-                Apply All Edits ({Object.keys(edits).length})
+                Apply Changes
               </Button>
             </div>
             
             <Card>
-              <CardContent className="p-2">
+              <CardContent className="p-2 flex justify-center items-start overflow-auto">
                  <div 
-                    className="relative mx-auto overflow-auto"
-                    style={{ width: currentView?.width, height: currentView?.height, maxWidth: '100%' }}
-                >
-                    <img src={currentView?.imageUrl} alt={`Page ${currentPageIndex + 1}`} className="w-full h-auto select-none" draggable={false} />
-                    <div className="absolute top-0 left-0 w-full h-full">
-                        {currentView?.textItems.map((item, index) => {
-                            const [fontSize, , , fontHeight, x, y] = item.transform;
-                            const key = `${currentPageIndex}-${index}`;
-                            const isEdited = key in edits;
-                            const value = isEdited ? edits[key] : item.str;
-
-                            return (
-                                <input
-                                    key={key}
-                                    type="text"
-                                    value={value}
-                                    onChange={(e) => handleTextChange(currentPageIndex, index, e.target.value)}
-                                    className="absolute bg-transparent border border-transparent hover:border-blue-500 focus:border-blue-500 focus:outline-none p-0"
-                                    style={{
-                                        left: `${x}px`,
-                                        top: `${y}px`,
-                                        width: `${item.width}px`,
-                                        height: `${item.height}px`,
-                                        fontFamily: 'sans-serif', // Use a common font
-                                        fontSize: `${fontSize}px`,
-                                        lineHeight: 1,
-                                        color: isEdited ? 'black' : 'transparent',
-                                    }}
+                    className="relative shadow-lg"
+                    style={{ width: pageDimensions.width, height: pageDimensions.height, flexShrink: 0 }}
+                 >
+                    {pageImageUrl && <img src={pageImageUrl} alt="PDF page background" className="absolute top-0 left-0 w-full h-full select-none" draggable={false} />}
+                    {overlays.map((overlay, index) => (
+                        <Rnd
+                          key={overlay.id}
+                          size={{ width: overlay.width, height: overlay.height }}
+                          position={{ x: overlay.x, y: overlay.y }}
+                          onDragStop={(e, d) => updateOverlay(overlay.id, { x: d.x, y: d.y })}
+                          onResizeStop={(e, direction, ref, delta, position) => {
+                            updateOverlay(overlay.id, {
+                              width: parseInt(ref.style.width, 10),
+                              height: parseInt(ref.style.height, 10),
+                              ...position,
+                            });
+                          }}
+                          onClick={() => setSelectedOverlay(overlay.id)}
+                          className={cn(
+                            'border border-dashed',
+                            selectedOverlay === overlay.id ? 'border-primary' : 'border-transparent'
+                          )}
+                        >
+                            {overlay.type === 'text' ? (
+                                <textarea
+                                    value={overlay.text}
+                                    onChange={(e) => updateOverlay(overlay.id, { text: e.target.value })}
+                                    style={{ fontSize: overlay.fontSize }}
+                                    className="w-full h-full bg-transparent resize-none focus:outline-none p-1"
                                 />
-                            )
-                        })}
-                    </div>
+                            ) : (
+                                <img src={URL.createObjectURL(new Blob([overlay.imageBytes]))} alt="user content" className="w-full h-full object-cover" />
+                            )}
+                        </Rnd>
+                    ))}
                  </div>
               </CardContent>
             </Card>
