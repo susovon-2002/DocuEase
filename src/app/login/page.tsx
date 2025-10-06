@@ -31,6 +31,10 @@ export default function LoginPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const onSubmit = async (data: FormValues) => {
@@ -64,67 +68,69 @@ export default function LoginPage() {
   return (
     <div className="container mx-auto px-4 py-12 flex justify-center items-center">
       <Card className="w-full max-w-md">
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle>{isSignUp ? 'Create an Account' : 'Sign In'}</CardTitle>
-            <CardDescription>
-              {isSignUp ? 'Enter your details to create an account.' : 'Enter your credentials to access your account.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="name@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Please wait
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {isSignUp ? 'Sign Up' : 'Sign In'}
-                </>
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm"
-            >
-              {isSignUp
-                ? 'Already have an account? Sign In'
-                : "Don't have an account? Sign Up"}
-            </Button>
-          </CardFooter>
-        </form>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>{isSignUp ? 'Create an Account' : 'Sign In'}</CardTitle>
+              <CardDescription>
+                {isSignUp ? 'Enter your details to create an account.' : 'Enter your credentials to access your account.'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="name@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Please wait
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    {isSignUp ? 'Sign Up' : 'Sign In'}
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm"
+              >
+                {isSignUp
+                  ? 'Already have an account? Sign In'
+                  : "Don't have an account? Sign Up"}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
     </div>
   );
