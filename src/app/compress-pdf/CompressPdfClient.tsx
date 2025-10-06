@@ -99,29 +99,29 @@ export function CompressPdfClient() {
                 scale = 2.0;
             } else if (compressionRatio > 0.5) {
                 quality = 0.8;
-                scale = 1.5;
+                scale = 1.8;
             } else if (compressionRatio > 0.2) {
                 quality = 0.6;
-                scale = 1.0;
+                scale = 1.5;
             } else {
                 quality = 0.4;
-                scale = 0.8;
+                scale = 1.2;
             }
 
         } else {
             switch(compressionLevel) {
               case 'extreme':
                 quality = 0.5;
-                scale = 1.0; 
+                scale = 1.5; 
                 break;
               case 'less':
                 quality = 0.9;
-                scale = 2.0;
+                scale = 2.5;
                 break;
               case 'recommended':
               default:
                 quality = 0.75;
-                scale = 1.5;
+                scale = 2.0;
                 break;
             }
         }
@@ -139,6 +139,11 @@ export function CompressPdfClient() {
 
             canvas.width = viewport.width;
             canvas.height = viewport.height;
+            
+            // Set a white background for the canvas
+            context.fillStyle = 'white';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
 
             await page.render({ canvasContext: context, viewport }).promise;
             
@@ -361,5 +366,3 @@ export function CompressPdfClient() {
         )
   }
 }
-
-    
