@@ -1,9 +1,9 @@
 'use client';
 
-import { UploadCloud, File as FileIcon, X, Loader2 } from 'lucide-react';
+import { UploadCloud, File as FileIcon, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Badge } from './ui/badge';
 
 interface FileUploadPlaceholderProps {
@@ -63,6 +63,15 @@ export function FileUploadPlaceholder({
       onUpload(selectedFiles);
     }
   };
+
+  useEffect(() => {
+    if (onUpload && selectedFiles.length > 0) {
+       // If there's an onUpload but no explicit button, maybe auto-upload?
+       // For now, let's just pass the files if an onUpload is present
+       // onUpload(selectedFiles);
+    }
+  }, [selectedFiles, onUpload]);
+
 
   return (
     <div className="w-full max-w-4xl mx-auto">
