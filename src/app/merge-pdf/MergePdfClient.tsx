@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, File as FileIcon, X, UploadCloud, GripVertical } from 'lucide-react';
+import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ export function MergePdfClient() {
   const [isMerging, setIsMerging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -94,6 +95,11 @@ export function MergePdfClient() {
     }
 
     setIsMerging(true);
+    if(previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+
 
     try {
       const mergedPdf = await PDFDocument.create();
@@ -118,21 +124,13 @@ export function MergePdfClient() {
       }
 
       const mergedPdfBytes = await mergedPdf.save();
-
-      // Trigger download
       const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'merged.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setPreviewUrl(url);
 
       toast({
         title: 'Merge Successful',
-        description: 'Your PDF has been merged and downloaded.',
+        description: 'Your PDF has been merged. You can now preview and download it.',
       });
     } catch (error) {
       console.error(error);
@@ -146,6 +144,53 @@ export function MergePdfClient() {
       setIsMerging(false);
     }
   };
+
+  const handleStartOver = () => {
+    if(previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
+
+  const handleDownload = () => {
+    if(!previewUrl) return;
+    const a = document.createElement('a');
+    a.href = previewUrl;
+    a.download = 'merged.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  if (previewUrl) {
+    return (
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Preview Your Merged PDF</h1>
+            <p className="text-muted-foreground mt-2">Review the document below. If it looks good, download it.</p>
+        </div>
+        <div className="flex justify-center gap-4 mb-8">
+           <Button onClick={handleStartOver} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Start Over
+            </Button>
+            <Button onClick={handleDownload} size="lg">
+              <Download className="mr-2 h-4 w-4" />
+              Download Merged PDF
+            </Button>
+        </div>
+        <Card>
+          <CardContent className="p-2">
+            <iframe src={previewUrl} className="w-full h-[70vh] border-0" title="Merged PDF Preview" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
      <div className="w-full max-w-4xl mx-auto">
@@ -227,7 +272,7 @@ export function MergePdfClient() {
                       Merging...
                     </>
                   ) : (
-                    'Merge PDF'
+                    'Merge & Preview'
                   )}
                 </Button>
               </div>
