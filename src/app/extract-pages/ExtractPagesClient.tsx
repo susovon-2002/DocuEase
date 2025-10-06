@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Copy, CheckSquare } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Copy, CheckSquare, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
@@ -208,6 +208,11 @@ export function ExtractPagesClient() {
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+  
+  const handleGoBackToSelect = () => {
+    setOutputFile(null);
+    setStep('select');
+  };
 
   const handleDownloadFile = () => {
     if (!outputFile) return;
@@ -335,9 +340,9 @@ export function ExtractPagesClient() {
                     <p className="text-muted-foreground mt-2">Your new document is ready. Download it below.</p>
                 </div>
                 <div className="flex justify-center gap-4">
-                    <Button onClick={handleStartOver} variant="outline">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Start Over
+                    <Button onClick={handleGoBackToSelect} variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
                     </Button>
                     <Button onClick={handleDownloadFile} size="lg">
                         <Download className="mr-2 h-4 w-4" />
