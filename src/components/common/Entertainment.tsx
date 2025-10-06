@@ -5,7 +5,7 @@ import { Tv } from 'lucide-react';
 
 export default function Entertainment() {
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
+    <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm">
         <Accordion type="single" collapsible>
           <AccordionItem value="entertainment" className="border-none">
              <Card className="shadow-2xl rounded-lg">
