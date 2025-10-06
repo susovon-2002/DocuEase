@@ -3,13 +3,14 @@
 import { useState, useRef, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight } from 'lucide-react';
+import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { PageThumbnail } from './PageThumbnail';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
+import { Input } from '@/components/ui/input';
 
 type PageObject = {
   id: number;
@@ -30,6 +31,8 @@ export function MergePdfClient() {
   const [pages, setPages] = useState<PageObject[]>([]);
   const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
   const [step, setStep] = useState<MergeStep>('select_files');
+  const [pageOrderInput, setPageOrderInput] = useState('');
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -144,6 +147,7 @@ export function MergePdfClient() {
       }
 
       setPages(pageObjects);
+      setPageOrderInput(Array.from({ length: pageObjects.length }, (_, i) => i + 1).join(', '));
       setStep('reorder_pages');
       toast({
         title: 'Files Merged',
@@ -198,6 +202,7 @@ export function MergePdfClient() {
     setSelectedFiles([]);
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl)); // Clean up blob URLs
     setPages([]);
+    setPageOrderInput('');
     setStep('select_files');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -211,6 +216,52 @@ export function MergePdfClient() {
     a.click();
     document.body.removeChild(a);
   }
+
+  const handleReorderFromInput = () => {
+    const newOrder = pageOrderInput.split(/,| /).filter(n => n.trim() !== '').map(n => parseInt(n.trim(), 10));
+
+    if (newOrder.some(isNaN)) {
+      toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please enter only comma-separated numbers.' });
+      return;
+    }
+
+    if (newOrder.length !== pages.length) {
+      toast({ variant: 'destructive', title: 'Incorrect Page Count', description: `Please provide exactly ${pages.length} page numbers.`});
+      return;
+    }
+
+    const newOrderSet = new Set(newOrder);
+    if (newOrderSet.size !== pages.length) {
+      toast({ variant: 'destructive', title: 'Duplicate Page Numbers', description: 'Each page number must be unique.' });
+      return;
+    }
+
+    const maxPage = Math.max(...newOrder);
+    if (maxPage > pages.length) {
+      toast({ variant: 'destructive', title: 'Invalid Page Number', description: `The maximum page number is ${pages.length}.` });
+      return;
+    }
+
+    const reorderedPages: PageObject[] = [];
+    let isValid = true;
+    for (const pageNum of newOrder) {
+      const pageIndex = pageNum - 1;
+      if (pageIndex >= 0 && pageIndex < pages.length) {
+        reorderedPages.push(pages[pageIndex]);
+      } else {
+        isValid = false;
+        break;
+      }
+    }
+
+    if(isValid && reorderedPages.length === pages.length) {
+        setPages(reorderedPages);
+        toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
+    } else {
+        toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
+    }
+  };
+
 
   if (step === 'preview_final') {
     return (
@@ -243,8 +294,25 @@ export function MergePdfClient() {
       <div className="w-full max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Organize Your Pages</h1>
-          <p className="text-muted-foreground mt-2">Drag and drop the pages to set your desired order, then generate the final PDF.</p>
+          <p className="text-muted-foreground mt-2">Drag and drop the pages to set your desired order, or use the input below.</p>
         </div>
+        
+        <Card className="mb-6">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-4">
+            <label htmlFor="pageOrder" className="font-medium flex-shrink-0">Page Order:</label>
+            <Input 
+              id="pageOrder"
+              placeholder="e.g., 1, 3, 2, 4"
+              value={pageOrderInput}
+              onChange={(e) => setPageOrderInput(e.target.value)}
+              className="flex-grow"
+            />
+            <Button onClick={handleReorderFromInput}>
+              Apply Order <ArrowRight className="ml-2 h-4 w-4"/>
+            </Button>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-center gap-4 mb-8">
           <Button onClick={() => setStep('select_files')} variant="outline">Back</Button>
           <Button onClick={handleFinalizePdf} size="lg" disabled={isProcessing}>
