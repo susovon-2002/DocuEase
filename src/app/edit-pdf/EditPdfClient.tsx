@@ -136,7 +136,7 @@ export function EditPdfClient() {
           setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
           
-          const scale = 1.5; // Use a slightly smaller scale for side-by-side view
+          const scale = 1.5;
           const viewport = page.getViewport({ scale });
 
           const canvas = document.createElement('canvas');
@@ -585,7 +585,7 @@ a.href = url;
                            {page.textItems.map((item) => (
                                <div
                                    key={item.id}
-                                   className="absolute border border-dashed border-blue-400/50 hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
+                                   className="absolute border border-dashed border-transparent hover:border-blue-600 hover:bg-blue-400/20 cursor-pointer group/item"
                                    style={{
                                        left: `${item.x}px`,
                                        top: `${item.y}px`,
@@ -594,14 +594,26 @@ a.href = url;
                                    }}
                                    onClick={() => openEditDialog(item)}
                                >
+                                  <div 
+                                     className="absolute flex items-center justify-start w-full h-full"
+                                     style={{
+                                        fontFamily: item.fontFamily.replace('g_d0_f', 'Helvetica'),
+                                        fontSize: `${item.fontSize}px`,
+                                        fontWeight: item.isBold ? 'bold' : 'normal',
+                                        fontStyle: item.isItalic ? 'italic' : 'normal',
+                                        textDecoration: `${item.isUnderline ? 'underline' : ''} ${item.isStrikethrough ? 'line-through' : ''}`.trim(),
+                                        textAlign: item.alignment,
+                                        color: `rgb(${item.color.r * 255}, ${item.color.g * 255}, ${item.color.b * 255})`,
+                                        backgroundColor: item.highlightColor ? `rgba(${item.highlightColor.r * 255}, ${item.highlightColor.g * 255}, ${item.highlightColor.b * 255}, ${item.highlightColor.a})` : 'transparent'
+                                     }}
+                                  >
+                                    {item.text}
+                                  </div>
                                  <div className="absolute -top-6 -right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                    <Badge variant="secondary" className="bg-blue-600 text-white">
                                        <Edit className="w-3 h-3 mr-1"/> Edit
                                    </Badge>
                                  </div>
-                                 {item.text !== item.originalText && (
-                                   <div className="absolute top-0 left-0 w-full h-full bg-green-500/20 ring-2 ring-green-600 rounded-sm" />
-                                 )}
                                </div>
                            ))}
                          </div>
