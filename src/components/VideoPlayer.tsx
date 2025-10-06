@@ -65,9 +65,6 @@ export default function VideoPlayer() {
       setVideoSrc(embedUrl);
       setIsYoutube(true);
     } else {
-      // For any other URL, try to play it directly.
-      // This works for direct video files (.mp4, etc.)
-      // but not for sharing pages like Terabox.
       setVideoSrc(urlInput);
       setIsYoutube(false);
     }
