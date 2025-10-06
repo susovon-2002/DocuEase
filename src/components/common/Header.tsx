@@ -22,6 +22,11 @@ const AuthContent = () => {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -32,7 +37,7 @@ const AuthContent = () => {
     }
   };
 
-  if (isUserLoading) {
+  if (!isClient || isUserLoading) {
     return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
   }
 
@@ -87,13 +92,6 @@ const AuthContent = () => {
 
 
 const Header = () => {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
@@ -112,7 +110,7 @@ const Header = () => {
             <Link href="/entertainment">Entertainment</Link>
           </Button>
           
-          {isClient ? <AuthContent /> : <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}
+          <AuthContent />
 
         </div>
       </div>
