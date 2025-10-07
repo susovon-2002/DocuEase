@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { OptimizePdfClient } from './OptimizePdfClient';
 
 export default function OptimizePdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="Optimize PDF"
-        description="Optimize your PDF for fast web viewing, ensuring a smooth experience for your readers."
-      />
+      <OptimizePdfClient />
     </div>
   );
 }
