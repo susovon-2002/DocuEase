@@ -108,9 +108,6 @@ const Header = () => {
           <Button asChild variant="ghost">
             <Link href="/pricing">Pricing</Link>
           </Button>
-          <Link href="/entertainment" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-            Entertainment
-          </Link>
           
           <AuthContent />
 
