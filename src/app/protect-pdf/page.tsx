@@ -1,12 +1,10 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+
+import { ProtectPdfClient } from './ProtectPdfClient';
 
 export default function ProtectPdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="Protect PDF"
-        description="Encrypt your PDF with a password to prevent unauthorized access."
-      />
+      <ProtectPdfClient />
     </div>
   );
 }
