@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -18,13 +18,19 @@ type PageObject = {
   thumbnailUrl: string;
 };
 
+type FileObject = {
+  id: number;
+  file: File;
+  thumbnailUrl: string;
+}
+
 type MergeStep = 'select_files' | 'reorder_pages' | 'preview_final';
 
 
 export function MergePdfClient() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileObject[]>([]);
   const [draggedFileIndex, setDraggedFileIndex] = useState<number | null>(null);
   const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
   
@@ -41,18 +47,38 @@ export function MergePdfClient() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files).filter(file => file.type === 'application/pdf');
-      if (newFiles.length !== files.length) {
+  const processNewFiles = async (files: File[]) => {
+    const newFileObjects: FileObject[] = [];
+    for (const file of files) {
+      if (file.type !== 'application/pdf') {
         toast({
           variant: 'destructive',
           title: 'Invalid file type',
-          description: 'Only PDF files are supported.',
+          description: `${file.name} is not a PDF.`,
         });
+        continue;
       }
-      setSelectedFiles(prevFiles => [...prevFiles, ...newFiles]);
+      
+      try {
+        const fileBuffer = await file.arrayBuffer();
+        const [thumbnailUrl] = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
+        newFileObjects.push({
+          id: Date.now() + Math.random(),
+          file,
+          thumbnailUrl,
+        });
+      } catch (e) {
+        console.error("Failed to process file for thumbnail", e);
+        toast({ variant: 'destructive', title: 'Could not preview file', description: `Error processing ${file.name}.` });
+      }
+    }
+    setSelectedFiles(prev => [...prev, ...newFileObjects]);
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      processNewFiles(Array.from(files));
     }
   };
   
@@ -60,27 +86,24 @@ export function MergePdfClient() {
     event.preventDefault();
     const files = event.dataTransfer.files;
     if (files && files.length > 0) {
-      const newFiles = Array.from(files).filter(file => file.type === 'application/pdf');
-       if (newFiles.length !== files.length) {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid file type',
-          description: 'Only PDF files are supported for dropping.',
-        });
-      }
-      setSelectedFiles((prevFiles) => [...prevFiles, ...newFiles]);
+      processNewFiles(Array.from(files));
     }
   };
 
   const handleClearFiles = () => {
+    selectedFiles.forEach(f => URL.revokeObjectURL(f.thumbnailUrl));
     setSelectedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (id: number) => {
+    const fileToRemove = selectedFiles.find(f => f.id === id);
+    if (fileToRemove) {
+      URL.revokeObjectURL(fileToRemove.thumbnailUrl);
+    }
+    setSelectedFiles(prev => prev.filter(f => f.id !== id));
   };
   
   const handleFileDragStart = (index: number) => setDraggedFileIndex(index);
@@ -120,8 +143,8 @@ export function MergePdfClient() {
 
     try {
       const mergedPdf = await PDFDocument.create();
-      for (const file of selectedFiles) {
-        const fileBuffer = await file.arrayBuffer();
+      for (const fileObject of selectedFiles) {
+        const fileBuffer = await fileObject.file.arrayBuffer();
         const pdf = await PDFDocument.load(fileBuffer);
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
         copiedPages.forEach(page => mergedPdf.addPage(page));
@@ -199,12 +222,11 @@ export function MergePdfClient() {
   const handleStartOver = () => {
     if(finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
     setFinalPdfUrl(null);
-    setSelectedFiles([]);
+    handleClearFiles();
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl)); // Clean up blob URLs
     setPages([]);
     setPageOrderInput('');
     setStep('select_files');
-    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   const handleGoBackToReorder = () => {
@@ -365,7 +387,7 @@ export function MergePdfClient() {
         <p className="text-muted-foreground mt-2">Combine multiple PDF documents into one. Rearrange and organize files as you like.</p>
       </div>
       <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-        <CardContent className="p-10 text-center">
+        <CardContent className="p-10">
           {selectedFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="bg-secondary p-4 rounded-full">
@@ -388,15 +410,18 @@ export function MergePdfClient() {
             </div>
           ) : (
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Selected Files</h3>
-              <p className="text-sm text-muted-foreground">Drag and drop to reorder files.</p>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {selectedFiles.map((file, index) => (
+              <h3 className="text-lg font-medium text-center">Selected Files</h3>
+              <p className="text-sm text-muted-foreground text-center">Drag and drop to reorder files.</p>
+              <div
+                onDragOver={e => e.preventDefault()}
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2"
+              >
+                {selectedFiles.map((fileObj, index) => (
                   <div
-                    key={file.name + index}
+                    key={fileObj.id}
                     className={cn(
-                      "flex items-center justify-between p-2 rounded-md bg-muted/50 cursor-grab",
-                      draggedFileIndex === index && "bg-primary/20 opacity-50"
+                      "relative group rounded-md shadow-md cursor-grab",
+                      draggedFileIndex === index && "opacity-50"
                     )}
                     draggable
                     onDragStart={() => handleFileDragStart(index)}
@@ -404,26 +429,19 @@ export function MergePdfClient() {
                     onDragEnd={handleFileDragEnd}
                     onDragOver={(e) => e.preventDefault()}
                   >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                      <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm truncate">{file.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{Math.round(file.size / 1024)} KB</Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleRemoveFile(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <PageThumbnail thumbnailUrl={fileObj.thumbnailUrl} pageNumber={index + 1} fileName={fileObj.file.name} />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveFile(fileObj.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-center gap-4 mt-4">
+              <div className="flex justify-center gap-4 mt-6">
                  <Button onClick={handleFileSelectClick} variant="outline">Add More Files</Button>
                  <Button size="lg" disabled={isProcessing} onClick={handleInitialMerge}>
                   {isProcessing ? (
