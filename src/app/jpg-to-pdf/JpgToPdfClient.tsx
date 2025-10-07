@@ -194,22 +194,11 @@ export function JpgToPdfClient() {
     
     case 'download':
         return (
-            <div className="w-full max-w-xl mx-auto text-center">
+            <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Conversion Complete!</h1>
                     <p className="text-muted-foreground mt-2">Your images have been successfully converted to a PDF.</p>
                 </div>
-                <Card className="mb-8">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
-                        <div className="flex items-center gap-3">
-                          <FileImage className="h-8 w-8 text-primary" />
-                          <span className="text-lg font-medium truncate">{outputFile?.name}</span>
-                        </div>
-                        <Badge variant="default">{outputFile?.blob.size ? Math.round(outputFile.blob.size / 1024) : '0'} KB</Badge>
-                      </div>
-                    </CardContent>
-                </Card>
                 <div className="flex justify-center gap-4">
                     <Button onClick={handleStartOver} variant="outline">
                         <RefreshCw className="mr-2 h-4 w-4" />
@@ -220,6 +209,11 @@ export function JpgToPdfClient() {
                         Download PDF
                     </Button>
                 </div>
+                <Card className="mt-8">
+                    <CardContent className="p-2">
+                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
+                    </CardContent>
+                </Card>
             </div>
         )
   }

@@ -304,16 +304,11 @@ export function AddPageNumbersClient() {
 
     case 'download':
         return (
-            <div className="w-full max-w-2xl mx-auto text-center">
+            <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Process Complete!</h1>
                     <p className="text-muted-foreground mt-2">Your numbered PDF is ready to download.</p>
                 </div>
-                <Card className="mb-8">
-                    <CardContent className="p-2">
-                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
-                    </CardContent>
-                </Card>
                 <div className="flex justify-center gap-4">
                     <Button onClick={handleStartOver} variant="outline">
                         <RefreshCw className="mr-2 h-4 w-4" />
@@ -330,6 +325,11 @@ export function AddPageNumbersClient() {
                         Back to Options
                     </Button>
                 </div>
+                 <Card className="mt-8">
+                    <CardContent className="p-2">
+                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
+                    </CardContent>
+                </Card>
             </div>
         )
   }
