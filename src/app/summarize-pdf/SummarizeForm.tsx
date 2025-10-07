@@ -85,94 +85,96 @@ export default function SummarizeForm() {
   return (
     <>
       <Card>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle>Upload Your Document</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <FormField
-              control={form.control}
-              name="pdfFile"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="relative flex items-center w-full h-12 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer hover:bg-accent/50 transition-colors font-normal group">
-                    <UploadCloud className="w-5 h-5 mr-3 text-muted-foreground transition-colors group-hover:text-accent-foreground" />
-                    <span className="text-muted-foreground flex-1 truncate transition-colors group-hover:text-accent-foreground">
-                      {fileName || "Select a PDF file (max 5MB)"}
-                    </span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="application/pdf"
-                      className="sr-only"
-                      ref={field.ref}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      onChange={(e) => {
-                        field.onChange(e.target.files);
-                        setFileName(e.target.files?.[0]?.name || '');
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>Upload Your Document</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="pdfFile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="relative flex items-center w-full h-12 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer hover:bg-accent/50 transition-colors font-normal group">
+                      <UploadCloud className="w-5 h-5 mr-3 text-muted-foreground transition-colors group-hover:text-accent-foreground" />
+                      <span className="text-muted-foreground flex-1 truncate transition-colors group-hover:text-accent-foreground">
+                        {fileName || "Select a PDF file (max 5MB)"}
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        className="sr-only"
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        onChange={(e) => {
+                          field.onChange(e.target.files);
+                          setFileName(e.target.files?.[0]?.name || '');
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="length"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Summary Length</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6"
-                    >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="short" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Short</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="medium" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Medium</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="long" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Long</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isLoading} size="lg">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Summarizing...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Summary
-                </>
-              )}
-            </Button>
-          </CardFooter>
-        </form>
+              <FormField
+                control={form.control}
+                name="length"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Summary Length</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="short" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Short</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="medium" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Medium</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="long" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Long</FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={isLoading} size="lg">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Summarizing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Summary
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
 
       {summary && (
