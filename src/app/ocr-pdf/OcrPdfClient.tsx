@@ -64,8 +64,8 @@ export function OcrPdfClient() {
       const font = await newPdfDoc.embedFont(StandardFonts.Helvetica);
 
       // Render original pages as images to preserve layout
-      const pageImageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
-      const originalPdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
+      const pageImageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer.slice(0)));
+      const originalPdfDoc = await PDFDocument.load(fileBuffer.slice(0), { ignoreEncryption: true });
 
       for (let i = 0; i < originalPdfDoc.getPageCount(); i++) {
         const originalPage = originalPdfDoc.getPage(i);
