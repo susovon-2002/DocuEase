@@ -394,7 +394,7 @@ export function SplitPdfClient() {
 
                 <Card className="mb-8">
                     <CardContent className="p-6 space-y-4">
-                        <h3 className="font-semibold text-lg">Your Files</h3>
+                        <h3 className="font-semibold text-lg">Your Files ({outputFiles.length})</h3>
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-lg p-2">
                             {outputFiles.map((file, index) => (
                                 <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
@@ -413,16 +413,27 @@ export function SplitPdfClient() {
                 </Card>
 
                 <div className="flex justify-center gap-4">
-                    <Button onClick={handleGoBackToOptions} variant="outline">
+                     <Button onClick={handleGoBackToOptions} variant="outline">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back
                     </Button>
-                    {outputFiles.length > 1 && (
+                    {outputFiles.length > 1 ? (
                         <Button onClick={handleDownloadAllAsZip} size="lg">
                             <Download className="mr-2 h-4 w-4" />
                             Download All (.zip)
                         </Button>
+                    ) : (
+                       <Button onClick={() => handleDownloadFile(outputFiles[0])} size="lg">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download PDF
+                        </Button>
                     )}
+                </div>
+                 <div className="flex justify-center mt-4">
+                    <Button onClick={handleStartOver} variant="link">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Split Another File
+                    </Button>
                 </div>
             </div>
         )

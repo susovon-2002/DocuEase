@@ -349,9 +349,15 @@ export function ExtractPagesClient() {
                         Download PDF
                     </Button>
                 </div>
+                 <div className="flex justify-center mt-4">
+                    <Button onClick={handleStartOver} variant="link">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Extract Another
+                    </Button>
+                </div>
                 <Card className="mt-8">
                     <CardContent className="p-2">
-                        <iframe src={URL.createObjectURL(outputFile!.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
+                       {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
                     </CardContent>
                 </Card>
             </div>

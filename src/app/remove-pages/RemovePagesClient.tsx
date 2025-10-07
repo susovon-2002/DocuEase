@@ -482,7 +482,7 @@ export function RemovePagesClient() {
                 </div>
                 <Card className="mt-8">
                     <CardContent className="p-2">
-                        <iframe src={URL.createObjectURL(outputFile!.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
+                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
                     </CardContent>
                 </Card>
             </div>
