@@ -1,4 +1,6 @@
+'use server';
 import { config } from 'dotenv';
 config();
 
 import '@/ai/flows/summarize-pdf.ts';
+import '@/ai/flows/ocr-pdf.ts';

@@ -84,7 +84,7 @@ export const tools: Tool[] = [
     description: 'Make scanned text searchable and selectable.',
     icon: ScanText,
     path: '/ocr-pdf',
-    category: 'Optimize PDF',
+    category: 'AI Tools',
   },
   {
     title: 'Optimize PDF',

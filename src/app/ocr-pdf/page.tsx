@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { OcrPdfClient } from './OcrPdfClient';
 
 export default function OcrPdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="OCR PDF"
-        description="Recognize text in your scanned PDFs to make them searchable and editable."
-      />
+      <OcrPdfClient />
     </div>
   );
 }
