@@ -275,85 +275,96 @@ export function AddWatermarkClient() {
     
     case 'options':
       return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Watermark Options</h1>
             <p className="text-muted-foreground mt-2">Customize your watermark's appearance and position.</p>
           </div>
-          <Tabs value={watermarkType} onValueChange={(v) => setWatermarkType(v as WatermarkType)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="text"><Type className="mr-2 h-4 w-4" />Add Text</TabsTrigger>
-              <TabsTrigger value="image"><ImageIcon className="mr-2 h-4 w-4" />Add Image</TabsTrigger>
-            </TabsList>
-            <TabsContent value="text" className="mt-6">
-                <Card>
-                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2 space-y-2">
-                        <Label htmlFor="text-content">Text</Label>
-                        <Input id="text-content" value={text} onChange={(e) => setText(e.target.value)} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="text-color">Color</Label>
-                        <Input id="text-color" type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="h-10 p-1" />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="font-size">Font Size</Label>
-                        <Input id="font-size" type="number" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value, 10))} />
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1 space-y-6">
+              <Tabs value={watermarkType} onValueChange={(v) => setWatermarkType(v as WatermarkType)} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="text"><Type className="mr-2 h-4 w-4" />Add Text</TabsTrigger>
+                  <TabsTrigger value="image"><ImageIcon className="mr-2 h-4 w-4" />Add Image</TabsTrigger>
+                </TabsList>
+                <TabsContent value="text" className="mt-6">
+                    <Card>
+                      <CardContent className="p-6 grid grid-cols-1 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="text-content">Text</Label>
+                            <Input id="text-content" value={text} onChange={(e) => setText(e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="text-color">Color</Label>
+                            <Input id="text-color" type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="h-10 p-1" />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="font-size">Font Size</Label>
+                            <Input id="font-size" type="number" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value, 10))} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="image" className="mt-6">
+                     <Card>
+                      <CardContent className="p-6 space-y-4">
+                         <div>
+                             <Label>Image File</Label>
+                             <input type="file" ref={imageInputRef} onChange={handleImageFileChange} className="hidden" accept="image/png, image/jpeg" />
+                             <Button onClick={handleImageSelectClick} variant="outline" className="w-full mt-2">
+                               {imageFile ? <span className="truncate">{imageFile.name}</span> : 'Select Image'}
+                             </Button>
+                         </div>
+                      </CardContent>
+                    </Card>
+                </TabsContent>
+              </Tabs>
+              
+               <Card>
+                  <CardContent className="p-6 grid grid-cols-1 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="position">Position</Label>
+                        <Select value={position} onValueChange={(v) => setPosition(v as Position)}>
+                            <SelectTrigger id="position">
+                                <SelectValue placeholder="Select position" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="center">Center</SelectItem>
+                                <SelectItem value="tiled">Tiled</SelectItem>
+                                <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                                <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                                <SelectItem value="top-right">Top Right</SelectItem>
+                                <SelectItem value="top-left">Top Left</SelectItem>
+                            </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="rotation">Rotation ({rotation}°)</Label>
+                        <Slider id="rotation" min={-180} max={180} step={1} value={[rotation]} onValueChange={(v) => setRotation(v[0])} />
+                      </div>
+                       <div className="space-y-2">
+                        <Label htmlFor="opacity">Transparency ({Math.round(opacity * 100)}%)</Label>
+                        <Slider id="opacity" min={0} max={1} step={0.1} value={[opacity]} onValueChange={(v) => setOpacity(v[0])} />
+                      </div>
                   </CardContent>
                 </Card>
-            </TabsContent>
-            <TabsContent value="image" className="mt-6">
-                 <Card>
-                  <CardContent className="p-6 space-y-4">
-                     <div>
-                         <Label>Image File</Label>
-                         <input type="file" ref={imageInputRef} onChange={handleImageFileChange} className="hidden" accept="image/png, image/jpeg" />
-                         <Button onClick={handleImageSelectClick} variant="outline" className="w-full mt-2">
-                           {imageFile ? <span className="truncate">{imageFile.name}</span> : 'Select Image'}
-                         </Button>
-                     </div>
-                  </CardContent>
-                </Card>
-            </TabsContent>
-          </Tabs>
-          
-           <Card className="mt-6">
-              <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="position">Position</Label>
-                    <Select value={position} onValueChange={(v) => setPosition(v as Position)}>
-                        <SelectTrigger id="position">
-                            <SelectValue placeholder="Select position" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="center">Center</SelectItem>
-                            <SelectItem value="tiled">Tiled</SelectItem>
-                            <SelectItem value="bottom-right">Bottom Right</SelectItem>
-                            <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                            <SelectItem value="top-right">Top Right</SelectItem>
-                            <SelectItem value="top-left">Top Left</SelectItem>
-                        </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="rotation">Rotation ({rotation}°)</Label>
-                    <Slider id="rotation" min={-180} max={180} step={1} value={[rotation]} onValueChange={(v) => setRotation(v[0])} />
-                  </div>
-                   <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="opacity">Transparency ({Math.round(opacity * 100)}%)</Label>
-                    <Slider id="opacity" min={0} max={1} step={0.1} value={[opacity]} onValueChange={(v) => setOpacity(v[0])} />
-                  </div>
-              </CardContent>
-            </Card>
 
-           <div className="flex justify-center gap-4 mt-8">
-              <Button onClick={handleStartOver} variant="outline">Back</Button>
-              <Button onClick={handleAddWatermark} size="lg">
-                <Wand2 className="mr-2 h-4 w-4" />
-                Add Watermark
-              </Button>
+               <div className="flex flex-col gap-4">
+                  <Button onClick={handleAddWatermark} size="lg">
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Add Watermark
+                  </Button>
+                  <Button onClick={handleStartOver} variant="outline">Back</Button>
+                </div>
             </div>
+            <div className="md:col-span-2">
+                <Card>
+                    <CardContent className="p-2">
+                        {originalFile && <iframe src={URL.createObjectURL(originalFile)} className="w-full h-[80vh] border-0" title="Original PDF Preview" />}
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
         </div>
       );
 

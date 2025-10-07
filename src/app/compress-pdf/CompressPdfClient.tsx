@@ -218,49 +218,60 @@ export function CompressPdfClient() {
     
     case 'options':
       return (
-        <div className="w-full max-w-xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Compression Options</h1>
             <p className="text-muted-foreground mt-2">Choose how much you want to compress your file.</p>
           </div>
-          <Card>
-            <CardContent className="p-6">
-                <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
-                    <p className="text-sm font-medium text-foreground truncate">{originalFile?.name}</p>
-                    <p className="text-sm text-muted-foreground">Original size: {formatBytes(originalFile?.size || 0)}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-1">
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
+                            <p className="text-sm font-medium text-foreground truncate">{originalFile?.name}</p>
+                            <p className="text-sm text-muted-foreground">Original size: {formatBytes(originalFile?.size || 0)}</p>
+                        </div>
+                         <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-1">
+                            <Label htmlFor="level-extreme" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                              <RadioGroupItem value="extreme" id="level-extreme" />
+                              <div>
+                                <p className="font-semibold">Extreme compression</p>
+                                <p className="text-sm text-muted-foreground">Lowest quality, smallest size.</p>
+                              </div>
+                            </Label>
+                            <Label htmlFor="level-recommended" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                              <RadioGroupItem value="recommended" id="level-recommended" />
+                              <div>
+                                <p className="font-semibold">Recommended compression</p>
+                                <p className="text-sm text-muted-foreground">Good quality, good compression.</p>
+                              </div>
+                            </Label>
+                            <Label htmlFor="level-less" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+                              <RadioGroupItem value="less" id="level-less" />
+                              <div>
+                                <p className="font-semibold">Less compression</p>
+                                <p className="text-sm text-muted-foreground">Highest quality, larger size.</p>
+                              </div>
+                            </Label>
+                        </RadioGroup>
+                    </CardContent>
+                </Card>
+                <div className="flex flex-col gap-4 mt-8">
+                    <Button onClick={handleCompress} size="lg">
+                        <Wand2 className="mr-2 h-4 w-4" />
+                        Compress PDF
+                    </Button>
+                    <Button onClick={handleStartOver} variant="outline">Back</Button>
                 </div>
-                 <RadioGroup value={compressionLevel} onValueChange={(v: string) => setCompressionLevel(v as CompressionLevel)} className="space-y-1">
-                    <Label htmlFor="level-extreme" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                      <RadioGroupItem value="extreme" id="level-extreme" />
-                      <div>
-                        <p className="font-semibold">Extreme compression</p>
-                        <p className="text-sm text-muted-foreground">Lowest quality, smallest size.</p>
-                      </div>
-                    </Label>
-                    <Label htmlFor="level-recommended" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                      <RadioGroupItem value="recommended" id="level-recommended" />
-                      <div>
-                        <p className="font-semibold">Recommended compression</p>
-                        <p className="text-sm text-muted-foreground">Good quality, good compression.</p>
-                      </div>
-                    </Label>
-                    <Label htmlFor="level-less" className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                      <RadioGroupItem value="less" id="level-less" />
-                      <div>
-                        <p className="font-semibold">Less compression</p>
-                        <p className="text-sm text-muted-foreground">Highest quality, larger size.</p>
-                      </div>
-                    </Label>
-                </RadioGroup>
-            </CardContent>
-          </Card>
-           <div className="flex justify-center gap-4 mt-8">
-              <Button onClick={handleStartOver} variant="outline">Back</Button>
-              <Button onClick={handleCompress} size="lg">
-                <Wand2 className="mr-2 h-4 w-4" />
-                Compress PDF
-              </Button>
             </div>
+            <div className="md:col-span-2">
+                 <Card>
+                    <CardContent className="p-2">
+                       {originalFile && <iframe src={URL.createObjectURL(originalFile)} className="w-full h-[80vh] border-0" title="Original PDF Preview" />}
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
         </div>
       );
 

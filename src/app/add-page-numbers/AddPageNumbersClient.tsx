@@ -240,65 +240,76 @@ export function AddPageNumbersClient() {
     
     case 'options':
       return (
-        <div className="w-full max-w-xl mx-auto">
-          <div className="text-center mb-8">
+        <div className="w-full max-w-7xl mx-auto">
+           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Numbering Options</h1>
-            <p className="text-muted-foreground mt-2">Customize how your page numbers appear.</p>
+            <p className="text-muted-foreground mt-2">Customize how your page numbers appear and preview the document.</p>
           </div>
-          <Card>
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label htmlFor="position">Position</Label>
-                    <Select value={position} onValueChange={(v) => setPosition(v as Position)}>
-                        <SelectTrigger id="position">
-                            <SelectValue placeholder="Select position" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="bottom-center">Bottom Center</SelectItem>
-                            <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                            <SelectItem value="bottom-right">Bottom Right</SelectItem>
-                            <SelectItem value="top-center">Top Center</SelectItem>
-                            <SelectItem value="top-left">Top Left</SelectItem>
-                            <SelectItem value="top-right">Top Right</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="format">Format</Label>
-                    <Input id="format" value={format} onChange={(e) => setFormat(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Use {`{page}`} and {`{totalPages}`}.</p>
-                </div>
-                <div className="space-y-2">
-                    <Label>Page range</Label>
-                     <div className="flex items-center gap-2">
-                        <Input 
-                            type="number"
-                            placeholder="From"
-                            value={startPage}
-                            onChange={e => setStartPage(e.target.value)}
-                            min="1"
-                            max={totalPages}
-                        />
-                        <span>to</span>
-                        <Input
-                            type="number"
-                            placeholder="To"
-                            value={endPage}
-                            onChange={e => setEndPage(e.target.value)}
-                            min="1"
-                            max={totalPages}
-                        />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1">
+              <Card>
+                <CardContent className="p-6 grid grid-cols-1 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="position">Position</Label>
+                        <Select value={position} onValueChange={(v) => setPosition(v as Position)}>
+                            <SelectTrigger id="position">
+                                <SelectValue placeholder="Select position" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="bottom-center">Bottom Center</SelectItem>
+                                <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                                <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                                <SelectItem value="top-center">Top Center</SelectItem>
+                                <SelectItem value="top-left">Top Left</SelectItem>
+                                <SelectItem value="top-right">Top Right</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="format">Format</Label>
+                        <Input id="format" value={format} onChange={(e) => setFormat(e.target.value)} />
+                        <p className="text-xs text-muted-foreground">Use {`{page}`} and {`{totalPages}`}.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Page range</Label>
+                         <div className="flex items-center gap-2">
+                            <Input 
+                                type="number"
+                                placeholder="From"
+                                value={startPage}
+                                onChange={e => setStartPage(e.target.value)}
+                                min="1"
+                                max={totalPages}
+                            />
+                            <span>to</span>
+                            <Input
+                                type="number"
+                                placeholder="To"
+                                value={endPage}
+                                onChange={e => setEndPage(e.target.value)}
+                                min="1"
+                                max={totalPages}
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+              </Card>
+              <div className="flex flex-col gap-4 mt-8">
+                  <Button onClick={handleAddNumbers} size="lg">
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Add Page Numbers
+                  </Button>
+                  <Button onClick={handleStartOver} variant="outline">Back</Button>
                 </div>
-            </CardContent>
-          </Card>
-           <div className="flex justify-center gap-4 mt-8">
-              <Button onClick={handleStartOver} variant="outline">Back</Button>
-              <Button onClick={handleAddNumbers} size="lg">
-                <Wand2 className="mr-2 h-4 w-4" />
-                Add Page Numbers
-              </Button>
             </div>
+            <div className="md:col-span-2">
+                <Card>
+                    <CardContent className="p-2">
+                       {originalFile && <iframe src={URL.createObjectURL(originalFile)} className="w-full h-[80vh] border-0" title="Original PDF Preview" />}
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
         </div>
       );
 
