@@ -9,14 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Configure the pdf.js worker.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CompressStep = 'upload' | 'options' | 'download';
-type CompressionLevel = 'extreme' | 'recommended' | 'less' | 'custom';
+type CompressionLevel = 'extreme' | 'recommended' | 'less';
 
 export function CompressPdfClient() {
   const [step, setStep] = useState<CompressStep>('upload');
@@ -28,9 +26,6 @@ export function CompressPdfClient() {
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, originalSize: number, newSize: number } | null>(null);
   
-  const [targetSize, setTargetSize] = useState('');
-  const [targetUnit, setTargetUnit] = useState<'KB' | 'MB'>('MB');
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -90,42 +85,21 @@ export function CompressPdfClient() {
         let quality: number;
         let scale: number;
 
-        if (compressionLevel === 'custom') {
-            const sizeInBytes = (targetUnit === 'MB' ? parseFloat(targetSize) * 1024 * 1024 : parseFloat(targetSize) * 1024);
-            const compressionRatio = sizeInBytes / originalFile.size;
-
-            if (compressionRatio >= 1) {
-                quality = 0.95;
-                scale = 2.0;
-            } else if (compressionRatio > 0.5) {
-                quality = 0.8;
-                scale = 1.8;
-            } else if (compressionRatio > 0.2) {
-                quality = 0.6;
-                scale = 1.5;
-            } else {
-                quality = 0.4;
-                scale = 1.2;
-            }
-
-        } else {
-            switch(compressionLevel) {
-              case 'extreme':
-                quality = 0.5;
-                scale = 1.5; 
-                break;
-              case 'less':
-                quality = 0.9;
-                scale = 2.5;
-                break;
-              case 'recommended':
-              default:
-                quality = 0.75;
-                scale = 2.0;
-                break;
-            }
+        switch(compressionLevel) {
+          case 'extreme':
+            quality = 0.5;
+            scale = 1.5; 
+            break;
+          case 'less':
+            quality = 0.9;
+            scale = 2.5;
+            break;
+          case 'recommended':
+          default:
+            quality = 0.75;
+            scale = 2.0;
+            break;
         }
-
 
         for (let i = 1; i <= sourcePdf.numPages; i++) {
             setProcessingMessage(`Processing page ${i} of ${sourcePdf.numPages}...`);
@@ -140,10 +114,8 @@ export function CompressPdfClient() {
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             
-            // Set a white background for the canvas
             context.fillStyle = 'white';
             context.fillRect(0, 0, canvas.width, canvas.height);
-
 
             await page.render({ canvasContext: context, viewport }).promise;
             
@@ -278,35 +250,6 @@ export function CompressPdfClient() {
                         <p className="font-semibold">Less compression</p>
                         <p className="text-sm text-muted-foreground">Highest quality, larger size.</p>
                       </div>
-                    </Label>
-                     <Label htmlFor="level-custom" className="flex flex-col items-start gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                        <div className="flex items-center gap-4">
-                            <RadioGroupItem value="custom" id="level-custom" />
-                            <div>
-                                <p className="font-semibold">Custom compression</p>
-                                <p className="text-sm text-muted-foreground">Set a target file size (estimation).</p>
-                            </div>
-                        </div>
-                        {compressionLevel === 'custom' && (
-                            <div className="flex items-center gap-2 w-full pl-8 pt-2">
-                                <Input 
-                                    type="number" 
-                                    placeholder="e.g., 2" 
-                                    value={targetSize}
-                                    onChange={e => setTargetSize(e.target.value)}
-                                    className="w-full"
-                                />
-                                <Select value={targetUnit} onValueChange={(v: 'KB' | 'MB') => setTargetUnit(v)}>
-                                    <SelectTrigger className="w-[80px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="KB">KB</SelectItem>
-                                        <SelectItem value="MB">MB</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
                     </Label>
                 </RadioGroup>
             </CardContent>
