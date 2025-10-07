@@ -104,13 +104,13 @@ const Header = () => {
           </Link>
         </div>
 
-        <div className="flex flex-1 items-center justify-end space-x-2">
+        <div className="flex flex-1 items-center justify-end space-x-4">
           <Button asChild variant="ghost">
             <Link href="/pricing">Pricing</Link>
           </Button>
-          <Button asChild variant="ghost">
-            <Link href="/entertainment">Entertainment</Link>
-          </Button>
+          <Link href="/entertainment" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+            Entertainment
+          </Link>
           
           <AuthContent />
 
