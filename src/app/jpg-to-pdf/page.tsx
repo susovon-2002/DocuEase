@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { JpgToPdfClient } from './JpgToPdfClient';
 
 export default function JpgToPdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="JPG to PDF"
-        description="Combine one or more JPG images into a single, easy-to-share PDF file."
-      />
+      <JpgToPdfClient />
     </div>
   );
 }
