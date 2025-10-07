@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { AddWatermarkClient } from './AddWatermarkClient';
 
 export default function AddWatermarkPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="Add Watermark"
-        description="Stamp an image or text over your PDF in seconds. Choose the typography, transparency, and position."
-      />
+      <AddWatermarkClient />
     </div>
   );
 }
