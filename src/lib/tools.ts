@@ -98,7 +98,7 @@ export const tools: Tool[] = [
     description: 'Convert scanner output to a PDF file.',
     icon: ScanLine,
     path: '/scan-to-pdf',
-    category: 'Optimize PDF',
+    category: 'Convert to PDF',
   },
   // Convert to PDF
   {

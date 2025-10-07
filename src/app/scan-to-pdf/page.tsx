@@ -1,12 +1,9 @@
-import { FileUploadPlaceholder } from '@/components/FileUploadPlaceholder';
+import { ScanToPdfClient } from './ScanToPdfClient';
 
 export default function ScanToPdfPage() {
   return (
     <div className="py-12">
-      <FileUploadPlaceholder
-        title="Scan to PDF"
-        description="Convert your physical documents into digital PDF files using your scanner."
-      />
+      <ScanToPdfClient />
     </div>
   );
 }
