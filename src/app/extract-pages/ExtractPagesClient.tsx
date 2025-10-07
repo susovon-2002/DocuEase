@@ -269,7 +269,7 @@ export function ExtractPagesClient() {
     
     case 'select':
       return (
-        <div className="w-full max-w-6xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Select Pages to Extract</h1>
             <p className="text-muted-foreground mt-2">Click on pages to select them for extraction, or use the input below.</p>
@@ -294,41 +294,56 @@ export function ExtractPagesClient() {
             </CardContent>
            </Card>
 
-           <div className="flex justify-center gap-4 mt-8 mb-8">
-              <Button onClick={handleStartOver} variant="outline">Back</Button>
-              <Button onClick={handleExtract} size="lg" disabled={pagesToExtract.size === 0}>
-                <Copy className="mr-2 h-4 w-4" />
-                Extract Pages ({pagesToExtract.size})
-              </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <div className="sticky top-24">
+                    <h3 className="text-lg font-semibold mb-2 text-center">Page Selector</h3>
+                     <p className="text-sm text-muted-foreground mb-4 text-center">{pagesToExtract.size} of {allPages.length} pages selected.</p>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="grid grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto">
+                          {allPages.map(page => (
+                            <div
+                              key={page.id}
+                              className="relative"
+                              onClick={() => handleTogglePageSelection(page.pageNumber)}
+                            >
+                              <div
+                                className={cn(
+                                  "rounded-md shadow-md cursor-pointer transition-all border-2 border-transparent",
+                                  pagesToExtract.has(page.pageNumber) && "border-primary ring-2 ring-primary"
+                                )}
+                              >
+                                <PageThumbnail thumbnailUrl={page.thumbnailUrl} pageNumber={page.pageNumber} />
+                              </div>
+                              <div className={cn(
+                                "absolute top-1 left-1 w-5 h-5 bg-white rounded-full flex items-center justify-center border transition-opacity",
+                                pagesToExtract.has(page.pageNumber) ? "opacity-100" : "opacity-0"
+                              )}>
+                                <CheckSquare className="w-3 h-3 text-primary"/>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <div className="flex flex-col gap-4 mt-4">
+                        <Button onClick={handleExtract} size="lg" disabled={pagesToExtract.size === 0}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Extract Pages ({pagesToExtract.size})
+                        </Button>
+                        <Button onClick={handleStartOver} variant="outline">Back</Button>
+                    </div>
+                </div>
+              </div>
+              <div className="lg:col-span-2">
+                <Card>
+                    <CardContent className="p-2">
+                       {originalFile && <iframe src={URL.createObjectURL(originalFile)} className="w-full h-[80vh] border-0" title="Original PDF Preview" />}
+                    </CardContent>
+                </Card>
+              </div>
             </div>
-            <Card>
-              <CardContent className="p-6">
-                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4 rounded-lg border max-h-[60vh] overflow-y-auto">
-                    {allPages.map(page => (
-                      <div
-                        key={page.id}
-                        className="relative"
-                        onClick={() => handleTogglePageSelection(page.pageNumber)}
-                      >
-                         <div
-                          className={cn(
-                            "rounded-md shadow-md cursor-pointer transition-all border-2 border-transparent",
-                            pagesToExtract.has(page.pageNumber) && "border-primary ring-2 ring-primary"
-                          )}
-                        >
-                          <PageThumbnail thumbnailUrl={page.thumbnailUrl} pageNumber={page.pageNumber} />
-                        </div>
-                        <div className={cn(
-                          "absolute top-2 left-2 w-6 h-6 bg-white rounded-full flex items-center justify-center border transition-opacity",
-                          pagesToExtract.has(page.pageNumber) ? "opacity-100" : "opacity-0"
-                        )}>
-                            <CheckSquare className="w-4 h-4 text-primary"/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-              </CardContent>
-            </Card>
         </div>
       );
 
