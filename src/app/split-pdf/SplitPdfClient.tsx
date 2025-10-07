@@ -165,11 +165,11 @@ export function SplitPdfClient() {
         toast({ title: 'PDF Split Successfully!', description: 'Your new documents are ready for download.' });
       } else {
         toast({ variant: 'destructive', title: 'No pages selected', description: 'Please define ranges or select pages to split.' });
+        setIsProcessing(false);
       }
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Splitting Failed', description: error.message || 'An unexpected error occurred.' });
-    } finally {
       setIsProcessing(false);
     }
   };
