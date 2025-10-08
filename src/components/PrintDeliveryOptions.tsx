@@ -71,7 +71,7 @@ export function PrintDeliveryOptions() {
   const [paperType, setPaperType] = useState('photo');
   const [deliveryOption, setDeliveryOption] = useState('standard');
   
-  const [bwPages, setBwPages] = useState('');
+  const [bwPages, setBwPages] = useState('0');
   const [colorPages, setColorPages] = useState('');
   const [totalDocPages, setTotalDocPages] = useState(0);
 
