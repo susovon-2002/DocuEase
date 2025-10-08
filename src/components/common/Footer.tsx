@@ -22,7 +22,7 @@ const Footer = () => {
              <div key={category}>
                 <h3 className="font-semibold mb-4">{category}</h3>
                 <ul className="space-y-2">
-                    {categoryTools.slice(0, 4).map(tool => (
+                    {categoryTools.map(tool => (
                         <li key={tool.path}>
                             <Link href={tool.path} className="text-sm text-muted-foreground hover:text-primary">
                                 {tool.title}
