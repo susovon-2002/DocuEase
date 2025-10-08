@@ -83,24 +83,30 @@ export function PrintDeliveryOptions() {
   const { toast } = useToast();
 
   const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    if(file.type !== 'application/pdf') {
-        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload a PDF document.' });
-        return;
+    let totalPages = 0;
+    for (const file of Array.from(files)) {
+        if(file.type !== 'application/pdf') {
+            toast({ variant: 'destructive', title: 'Invalid File', description: `${file.name} is not a PDF.` });
+            continue;
+        }
+        
+        try {
+            const fileBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
+            totalPages += pdf.numPages;
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
+        }
     }
     
-    try {
-        const fileBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-        setTotalDocPages(pdf.numPages);
+    if (totalPages > 0) {
+        setTotalDocPages(currentTotal => currentTotal + totalPages);
         setDocPrintType('color'); // Default to color
-        setDocQuantity('1'); // Reset quantity
-        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages.` });
-    } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error Reading PDF', description: 'Could not process the uploaded document.' });
+        toast({ title: 'Documents Loaded', description: `Added ${totalPages} pages.` });
     }
   };
   
@@ -187,9 +193,9 @@ export function PrintDeliveryOptions() {
             <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                  <div className="md:col-span-2">
-                    <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf"/>
+                    <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf" multiple />
                     <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
-                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Calculate
+                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Document(s)
                     </Button>
                  </div>
                  <div className="space-y-2">
@@ -349,3 +355,5 @@ export function PrintDeliveryOptions() {
     </Card>
   );
 }
+
+    
