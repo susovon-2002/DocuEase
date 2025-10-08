@@ -6,6 +6,16 @@ import { ArrowRight, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+const popularToolPaths = [
+  '/merge-pdf',
+  '/remove-pages',
+  '/jpg-to-pdf',
+  '/scan-to-pdf',
+  '/pdf-to-jpg',
+];
+
+const popularTools = tools.filter(tool => popularToolPaths.includes(tool.path));
+
 
 export default function Home() {
   return (
@@ -63,11 +73,11 @@ export default function Home() {
       <section className="py-20 bg-secondary/50" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">Explore All Our PDF Tools</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">Explore Most Popular Tools</h2>
             <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {tools.map((tool) => (
+            {popularTools.map((tool) => (
               <ToolCard key={tool.path} tool={tool} />
             ))}
           </div>
