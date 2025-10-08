@@ -58,9 +58,15 @@ export default function DashboardPage() {
     if (!user) return null;
     return collection(firestore, `users/${user.uid}/documents`);
   }, [firestore, user]);
+  
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, `users/${user.uid}/orders`);
+  }, [firestore, user]);
 
   const { data: toolUsages, isLoading: toolUsagesLoading } = useCollection(toolUsagesQuery);
   const { data: documents, isLoading: documentsLoading } = useCollection(documentsQuery);
+  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
 
   useEffect(() => {
@@ -131,6 +137,12 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(b.usageTimestamp).getTime() - new Date(a.usageTimestamp).getTime())
       .slice(0, 5);
   }, [toolUsages]);
+  
+  const sortedOrders = useMemo(() => {
+    if (!orders) return [];
+    return [...orders].sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+  }, [orders]);
+
 
   const achievements = useMemo(() => {
     const earned = [];
@@ -146,7 +158,23 @@ export default function DashboardPage() {
     return earned;
   }, [documents, toolUsages]);
   
-  const isLoading = isAuthUserLoading || toolUsagesLoading || documentsLoading || isUserProfileLoading || isSubscriptionLoading;
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return 'default';
+      case 'shipped':
+        return 'secondary';
+      case 'pending':
+      case 'processing':
+        return 'outline';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+  
+  const isLoading = isAuthUserLoading || toolUsagesLoading || documentsLoading || isUserProfileLoading || isSubscriptionLoading || ordersLoading;
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-12">Loading...</div>;
@@ -218,6 +246,47 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
               </CardContent>
             </Card>
+            
+             <Card>
+              <CardHeader>
+                <CardTitle>Order History</CardTitle>
+                <CardDescription>
+                  Your recent print and delivery orders.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {sortedOrders && sortedOrders.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium truncate max-w-[100px]">{order.id}</TableCell>
+                          <TableCell>{format(new Date(order.orderDate), 'PP')}</TableCell>
+                          <TableCell>{order.orderType}</TableCell>
+                          <TableCell>₹{order.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                             <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-muted-foreground text-center">You have no orders yet.</p>
+                )}
+              </CardContent>
+            </Card>
+
+
             {subscription?.planType !== 'Pro' && (
               <Card className="bg-primary/10 border-primary/20">
                 <CardHeader>
@@ -418,3 +487,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+

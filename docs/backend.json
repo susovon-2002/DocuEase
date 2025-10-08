@@ -157,6 +157,66 @@
         "toolName",
         "usageTimestamp"
       ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a user's order for a print delivery service.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who placed the order."
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "The date and time the order was placed.",
+          "format": "date-time"
+        },
+        "orderType": {
+          "type": "string",
+          "description": "The type of order.",
+          "enum": [
+            "Document",
+            "Photo"
+          ]
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount of the order."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the order.",
+          "enum": [
+            "Pending",
+            "Processing",
+            "Shipped",
+            "Delivered",
+            "Cancelled"
+          ]
+        },
+        "itemCount": {
+          "type": "number",
+          "description": "The number of items in the order."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the order contents."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "orderDate",
+        "orderType",
+        "totalAmount",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -238,9 +298,28 @@
             }
           ]
         }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores a user's print delivery orders. Path-based ownership ensures only the user can access their own orders.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "orderId",
+              "description": "The unique identifier of the order."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, further isolating data and ensuring secure access.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents and tool usage records is based on the user ID in the path, eliminating the need for `get()` calls to parent documents.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used; access is determined by the user's UID and the path.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents and tool usage records within their own user path.\n5.  **Invariants:** The structure supports ownership integrity, as documents and tool usages are always associated with a specific user through the path.\n"
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, further isolating data and ensuring secure access.\n- `/users/{userId}/orders/{orderId}`: A user's orders are stored as a subcollection, ensuring clear ownership and secure, path-based access control.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents, orders, and tool usage records is based on the user ID in the path, eliminating the need for `get()` calls to parent documents.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used; access is determined by the user's UID and the path.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents, tool usage records, and orders within their own user path.\n5.  **Invariants:** The structure supports ownership integrity, as documents, orders, and tool usages are always associated with a specific user through the path.\n"
   }
 }
-    
