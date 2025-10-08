@@ -36,8 +36,9 @@ import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PagePreviewDialog } from "@/components/PagePreviewDialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
+import { doc, serverTimestamp } from 'firebase/firestore';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -113,6 +114,7 @@ type PhotoInvoiceDetails = {
 
 function PrintDeliveryContent() {
   const { user } = useUser();
+  const firestore = useFirestore();
   // Photo State
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
@@ -431,7 +433,7 @@ function PrintDeliveryContent() {
 
 
   const handleProceedToPay = async (orderType: 'Document' | 'Photo', amount: number) => {
-    if (!user) {
+    if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Not Logged In', description: 'Please log in to proceed with payment.' });
       return;
     }
@@ -439,6 +441,7 @@ function PrintDeliveryContent() {
 
     let orderItems: any[] = [];
     let deliveryAddress: any = {};
+    const merchantTransactionId = `M${Date.now()}`;
 
     if (orderType === 'Document') {
         orderItems = uploadedDocs.flatMap(doc => 
@@ -460,8 +463,19 @@ function PrintDeliveryContent() {
         deliveryAddress = photoDeliveryAddress;
     }
 
-
     try {
+      // Store the details for the callback in a temporary document (client-side)
+      const pendingPaymentRef = doc(firestore, 'pendingPayments', merchantTransactionId);
+      setDocumentNonBlocking(pendingPaymentRef, {
+          userId: user.uid,
+          orderType,
+          deliveryAddress,
+          items: orderItems,
+          amount,
+          createdAt: serverTimestamp(),
+          status: 'PENDING'
+      }, { merge: true });
+
       const response = await fetch('/api/create-phonepe-payment', {
         method: 'POST',
         headers: {
@@ -469,10 +483,9 @@ function PrintDeliveryContent() {
         },
         body: JSON.stringify({ 
             amount, 
-            userId: user.uid, 
-            orderType,
+            userId: user.uid,
+            merchantTransactionId,
             deliveryAddress,
-            items: orderItems,
         }),
       });
 

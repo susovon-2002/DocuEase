@@ -1,11 +1,22 @@
-
 import { NextResponse } from 'next/server';
-import { doc, setDoc, collection, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
-import { getAuthenticatedAppForUser } from '@/lib/firebase-admin';
+import { doc, setDoc, collection, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 import sha256 from 'crypto-js/sha256';
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
+
+// Initialize Firebase Admin SDK
+const getDb = () => {
+    if (getApps().length) {
+        return getFirestore(getApp());
+    } else {
+        const app = initializeApp(firebaseConfig);
+        return getFirestore(app);
+    }
+};
 
 export async function POST(request: Request) {
   try {
@@ -29,7 +40,7 @@ export async function POST(request: Request) {
     const { merchantTransactionId } = response.data;
     const { code, data: paymentData } = response;
     
-    const { firestore } = await getAuthenticatedAppForUser();
+    const firestore = getDb();
     
     // Retrieve the stored order details from Firestore
     const pendingPaymentRef = doc(firestore, 'pendingPayments', merchantTransactionId);
@@ -62,10 +73,10 @@ export async function POST(request: Request) {
         }
       });
       // Update the temporary doc so client-side polling can confirm success.
-      await setDoc(pendingPaymentRef, { status: 'SUCCESS' }, { merge: true });
+      await updateDoc(pendingPaymentRef, { status: 'SUCCESS' });
     } else {
       // Update temp doc to reflect failure
-      await setDoc(pendingPaymentRef, { status: 'FAILED', reason: code }, { merge: true });
+      await updateDoc(pendingPaymentRef, { status: 'FAILED', reason: code });
     }
     
     // Server-to-server callback should just return a success response to PhonePe
