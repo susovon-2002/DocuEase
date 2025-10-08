@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import {
@@ -214,7 +213,7 @@ export default function PrintDeliveryPage() {
         const reader = new FileReader();
         reader.onload = (e) => {
           const imgUrl = e.target?.result as string;
-          if (newPhotos.length === 0 && files.length === 1) { // Auto-size with first image
+          if (uploadedPhotos.length === 0 && newPhotos.length === 0 && files.length === 1) { // Auto-size with first image
               const img = new Image();
               img.onload = () => {
                   const widthCm = (img.width / DPI) * 2.54;
