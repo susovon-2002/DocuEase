@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,16 @@ import { PagePreviewDialog } from "@/components/PagePreviewDialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -100,6 +110,11 @@ type PhotoInvoiceDetails = {
     pricePerPhoto: number;
 };
 
+type PaymentDetails = {
+  orderType: 'Document' | 'Photo' | null;
+  amount: number;
+}
+
 
 export default function PrintDeliveryPage() {
   // Photo State
@@ -123,6 +138,10 @@ export default function PrintDeliveryPage() {
 
   // General State
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ orderType: null, amount: 0 });
+
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -545,6 +564,37 @@ export default function PrintDeliveryPage() {
     );
   };
 
+  const handleProceedToPay = (orderType: 'Document' | 'Photo', amount: number) => {
+    setPaymentDetails({ orderType, amount });
+    setPaymentDialogOpen(true);
+  };
+
+  const handleConfirmPayment = () => {
+    setIsPaying(true);
+    // Simulate API call
+    setTimeout(() => {
+        setIsPaying(false);
+        setPaymentDialogOpen(false);
+        toast({
+            title: "Payment Successful!",
+            description: `Your order for ${paymentDetails.orderType} printing has been placed.`,
+        });
+        // Reset the relevant form
+        if (paymentDetails.orderType === 'Document') {
+            setUploadedDocs([]);
+            setBwPages('0');
+            setColorPages('0');
+            setDocQuantity('1');
+            setDocDeliveryAddress(initialAddressState);
+        } else {
+            setPhotoWidth('3.5');
+            setPhotoHeight('4.5');
+            setPhotoQuantity('20');
+            setPhotoDeliveryAddress(initialAddressState);
+        }
+    }, 2000);
+  };
+
   
   const renderAddressForm = (
     type: 'doc' | 'photo',
@@ -588,6 +638,35 @@ export default function PrintDeliveryPage() {
           }
         }}
       />
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Confirm Payment</DialogTitle>
+                  <DialogDescription>
+                      You are about to pay for your {paymentDetails.orderType} printing order.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 text-center">
+                  <p className="text-muted-foreground">Total Amount</p>
+                  <p className="text-4xl font-bold">Rs. {paymentDetails.amount.toFixed(2)}</p>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" disabled={isPaying}>Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleConfirmPayment} disabled={isPaying}>
+                      {isPaying ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Confirm Payment'
+                      )}
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
       <Card className="max-w-4xl mx-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
@@ -769,7 +848,7 @@ export default function PrintDeliveryPage() {
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={documentOrderTotal <= 0 || !isDocAddressComplete}>
+                        <Button size="lg" disabled={documentOrderTotal <= 0 || !isDocAddressComplete} onClick={() => handleProceedToPay('Document', documentOrderTotal)}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay Rs. {documentOrderTotal.toFixed(2)}
                         </Button>
@@ -884,7 +963,7 @@ export default function PrintDeliveryPage() {
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={photoOrderTotal <= 0 || !isPhotoAddressComplete}>
+                        <Button size="lg" disabled={photoOrderTotal <= 0 || !isPhotoAddressComplete} onClick={() => handleProceedToPay('Photo', photoOrderTotal)}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay Rs. {photoOrderTotal.toFixed(2)}
                         </Button>
