@@ -344,20 +344,26 @@ export default function PrintDeliveryPage() {
 
     // Watermark
     const watermarkText = 'DocuEase';
-    const watermarkFontSize = 100;
+    const watermarkFontSize = 80;
     const watermarkFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const textWidth = watermarkFont.widthOfTextAtSize(watermarkText, watermarkFontSize);
-    const textHeight = watermarkFont.heightAtSize(watermarkFontSize);
     
-    page.drawText(watermarkText, {
-        x: width / 2 - textWidth / 2,
-        y: height / 2 - textHeight / 2,
-        font: watermarkFont,
-        size: watermarkFontSize,
-        color: rgb(0.85, 0.85, 0.85),
-        opacity: 0.2,
-        rotate: degrees(-45),
-    });
+    const drawWatermark = (x: number, y: number) => {
+        page.drawText(watermarkText, {
+            x,
+            y,
+            font: watermarkFont,
+            size: watermarkFontSize,
+            color: rgb(0.85, 0.85, 0.85),
+            opacity: 0.2,
+            rotate: degrees(-45),
+        });
+    }
+
+    drawWatermark(width * 0.1 - textWidth / 2, height * 0.6);
+    drawWatermark(width * 0.7 - textWidth / 2, height * 0.8);
+    drawWatermark(width * 0.2 - textWidth / 2, height * 0.15);
+    drawWatermark(width * 0.6 - textWidth / 2, height * 0.3);
 
 
     // Header
