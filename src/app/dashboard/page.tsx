@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
 import { groupBy, countBy } from 'lodash';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserCircle, Award, Trophy, Star, Edit, Rocket, Zap } from 'lucide-react';
+import { UserCircle, Award, Trophy, Star, Edit, Rocket, Zap, Activity, FileStack, Wrench, Package, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,7 +119,7 @@ export default function DashboardPage() {
   const documentsByWeekData = useMemo(() => {
       if (!documents) return [];
       const groupedByWeek = groupBy(documents, (doc) => 
-          format(startOfWeek(new Date(doc.uploadDate)), 'yyyy-MM-dd')
+          format(startOfWeek(new Date(doc.uploadDate)), 'MMM d')
       );
       return Object.entries(groupedByWeek)
           .map(([week, docs]) => ({
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           .sort((a,b) => new Date(a.week).getTime() - new Date(b.week).getTime());
   }, [documents]);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
 
   const recentActivities = useMemo(() => {
     if (!toolUsages) return [];
@@ -189,60 +189,63 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="w-full max-w-6xl mx-auto">
+    <div className="container mx-auto px-4 py-12 bg-secondary/50">
+      <div className="w-full max-w-7xl mx-auto">
         <div className="text-left mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Welcome back, {userProfile?.name || user.email}!
           </p>
         </div>
-
-        <Card className="mb-8 bg-accent/20 border-accent/50">
-          <CardContent className="p-6 flex items-center justify-center">
-              <Rocket className="w-6 h-6 mr-4 text-accent-foreground" />
-              <p className="text-lg font-medium text-accent-foreground">
-                You saved 10 hours this month using DocuEase 🚀
-              </p>
-          </CardContent>
-        </Card>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Main column */}
           <div className="lg:col-span-2 space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Documents Processed</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Documents Processed</CardTitle>
+                        <FileStack className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-4xl font-bold">{documents?.length || 0}</p>
+                        <p className="text-2xl font-bold">{documents?.length || 0}</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Tools Used</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Tools Used</CardTitle>
+                        <Wrench className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-4xl font-bold">{toolUsages?.length || 0}</p>
+                        <p className="text-2xl font-bold">{toolUsages?.length || 0}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Active Orders</CardTitle>
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-2xl font-bold">{orders?.filter(o => ['Pending', 'Processing', 'Shipped'].includes(o.status)).length || 0}</p>
                     </CardContent>
                 </Card>
             </div>
             <Card>
               <CardHeader>
-                  <CardTitle>Documents Processed Over Time</CardTitle>
+                  <CardTitle>Weekly Activity</CardTitle>
                   <CardDescription>
-                      Weekly document processing count.
+                      Number of documents processed per week.
                   </CardDescription>
               </CardHeader>
               <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={documentsByWeekData}>
+                      <BarChart data={documentsByWeekData}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="week" tickFormatter={(tick) => format(new Date(tick), 'MMM d')} />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" name="Documents" />
-                      </LineChart>
+                          <XAxis dataKey="week" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted))' }}/>
+                          <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Documents" />
+                      </BarChart>
                   </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -267,7 +270,7 @@ export default function DashboardPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedOrders.map((order) => (
+                      {sortedOrders.slice(0,5).map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium truncate max-w-[100px]">{order.id}</TableCell>
                           <TableCell>{format(new Date(order.orderDate), 'PP')}</TableCell>
@@ -281,7 +284,13 @@ export default function DashboardPage() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <p className="text-muted-foreground text-center">You have no orders yet.</p>
+                  <div className="text-center py-10">
+                    <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">You have no orders yet.</p>
+                     <Button asChild variant="link" className="mt-2">
+                        <Link href="/print-delivery">Place an order</Link>
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -305,6 +314,7 @@ export default function DashboardPage() {
               </Card>
             )}
           </div>
+          {/* Side column */}
           <div className="space-y-8">
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -347,7 +357,7 @@ export default function DashboardPage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center text-center">
-                    <Avatar className="w-24 h-24 mb-4">
+                    <Avatar className="w-24 h-24 mb-4 border-4 border-background shadow-md">
                         <AvatarImage src={userProfile?.photoURL || user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} />
                         <AvatarFallback><UserCircle className="w-12 h-12" /></AvatarFallback>
                     </Avatar>
@@ -355,6 +365,11 @@ export default function DashboardPage() {
                     <p className="text-muted-foreground text-sm">{userProfile?.role}{userProfile?.role && userProfile?.company ? ' at ' : ''}{userProfile?.company}</p>
                     <p className="text-muted-foreground text-xs mt-2">{user.email}</p>
                 </CardContent>
+                 <CardFooter className="flex-col gap-2">
+                   <Button onClick={handleLogout} variant="outline" className="w-full">
+                      Log Out
+                    </Button>
+                 </CardFooter>
             </Card>
 
             <Card>
@@ -386,6 +401,26 @@ export default function DashboardPage() {
                     )}
                 </CardContent>
             </Card>
+            
+            <Card>
+              <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>
+                      Your latest actions.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 {recentActivities.map(activity => (
+                      <div key={activity.id} className="flex items-center">
+                          <Activity className="h-4 w-4 mr-4 text-muted-foreground" />
+                          <div className="flex-grow">
+                              <p className="text-sm font-medium">{activity.toolName}</p>
+                              <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</p>
+                          </div>
+                      </div>
+                  ))}
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -408,8 +443,8 @@ export default function DashboardPage() {
         </div>
 
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-             <Card className="lg:col-span-1">
+        <div className="grid grid-cols-1 gap-6 mb-8">
+             <Card>
                 <CardHeader>
                     <CardTitle>Tool Usage Breakdown</CardTitle>
                      <CardDescription>
@@ -418,73 +453,22 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={toolUsageChartData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                            nameKey="name"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
+                        <BarChart data={toolUsageChartData} layout="vertical" margin={{ left: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" fontSize={12} width={120} />
+                          <Tooltip cursor={{ fill: 'hsl(var(--muted))' }}/>
+                          <Bar dataKey="value" name="Times Used" radius={[0, 4, 4, 0]}>
                             {toolUsageChartData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
+                          </Bar>
+                        </BarChart>
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>
-                      Here are the latest actions you've performed.
-                  </CardDescription>
-              </CardHeader>
-              <CardContent>
-                 <Table>
-                      <TableHeader>
-                          <TableRow>
-                              <TableHead>Tool</TableHead>
-                              <TableHead className="text-right">Time</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {recentActivities.map(activity => (
-                              <TableRow key={activity.id}>
-                                  <TableCell>{activity.toolName}</TableCell>
-                                  <TableCell className="text-right">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</TableCell>
-                              </TableRow>
-                          ))}
-                      </TableBody>
-                  </Table>
-              </CardContent>
-            </Card>
         </div>
-
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>
-              Manage your account settings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold">User ID</h3>
-              <p className="text-muted-foreground text-sm">{user.uid}</p>
-            </div>
-            <Button onClick={handleLogout} variant="destructive">
-              Log Out
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
-
+}
