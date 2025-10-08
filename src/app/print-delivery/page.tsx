@@ -234,41 +234,43 @@ export default function PrintDeliveryPage() {
     if (!files || files.length === 0) return;
 
     const newPhotos: UploadedPhoto[] = [];
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
+        toast({ variant: 'destructive', title: 'No Images Selected', description: 'Please upload image files.' });
+        return;
+    }
+
     let firstImageProcessed = false;
 
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) {
-        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload an image file.' });
-        continue;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imgUrl = e.target?.result as string;
-        newPhotos.push({ name: file.name, url: imgUrl });
+    imageFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgUrl = e.target?.result as string;
+            newPhotos.push({ name: file.name, url: imgUrl });
 
-        // Auto-fill dimensions from the first image in the batch
-        if (!firstImageProcessed) {
-          const img = new Image();
-          img.onload = () => {
-            const dpi = 96;
-            const widthInCm = (img.width * 2.54) / dpi;
-            const heightInCm = (img.height * 2.54) / dpi;
-            setPhotoWidth(widthInCm.toFixed(1));
-            setPhotoHeight(heightInCm.toFixed(1));
-          };
-          img.src = imgUrl;
-          firstImageProcessed = true;
-        }
+            // Auto-fill dimensions from the first image in the batch
+            if (!firstImageProcessed) {
+                const img = new Image();
+                img.onload = () => {
+                    const dpi = 96; // A common screen DPI, adjust if necessary
+                    const widthInCm = (img.width * 2.54) / dpi;
+                    const heightInCm = (img.height * 2.54) / dpi;
+                    setPhotoWidth(widthInCm.toFixed(1));
+                    setPhotoHeight(heightInCm.toFixed(1));
+                };
+                img.src = imgUrl;
+                firstImageProcessed = true;
+            }
 
-        // When the last file is read, update the state
-        if (newPhotos.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
-            setUploadedPhotos(prev => [...prev, ...newPhotos]);
-            toast({ title: `${newPhotos.length} Image(s) Loaded` });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+            // When the last file is read, update the state
+            if (newPhotos.length === imageFiles.length) {
+                setUploadedPhotos(prev => [...prev, ...newPhotos]);
+                toast({ title: `${newPhotos.length} Image(s) Loaded` });
+            }
+        };
+        reader.readAsDataURL(file);
+    });
     
     if (photoFileInputRef.current) {
         photoFileInputRef.current.value = '';
@@ -940,17 +942,20 @@ export default function PrintDeliveryPage() {
             <div>
               <h3 className="text-xl font-semibold my-4 text-center">Photo Printing</h3>
               
-              <div className="mb-4">
-                <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple />
-                <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                    <UploadCloud className="mr-2 h-4 w-4" /> Upload Photos
-                </Button>
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                      <UploadCloud className="mr-2 h-4 w-4" /> Upload Photos
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                      <ImageIcon className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
+                  </Button>
+                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple />
               </div>
 
                {uploadedPhotos.length > 0 && (
                   <div className="mb-4 space-y-4">
                       <h4 className="text-sm font-semibold mb-2">Uploaded Photos ({uploadedPhotos.length}):</h4>
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-wrap gap-4 p-4 border rounded-md bg-muted/20">
                           {uploadedPhotos.map((photo, index) => (
                               <div key={index} className="w-32 group/page relative">
                                 <img src={photo.url} alt={photo.name} className="w-full rounded border" />
