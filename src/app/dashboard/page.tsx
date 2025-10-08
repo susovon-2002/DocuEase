@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase';
@@ -60,8 +61,8 @@ export default function DashboardPage() {
   }, [firestore, user]);
   
   const ordersQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, `users/${user.uid}/orders`);
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'orders'), where('userId', '==', user.uid));
   }, [firestore, user]);
 
   const { data: toolUsages, isLoading: toolUsagesLoading } = useCollection(toolUsagesQuery);
@@ -169,7 +170,7 @@ export default function DashboardPage() {
   }, [documents, toolUsages]);
   
   const getStatusBadgeVariant = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'delivered':
         return 'default';
       case 'shipped':
@@ -283,7 +284,7 @@ export default function DashboardPage() {
                       {sortedOrders.slice(0,5).map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium truncate max-w-[100px]">{order.id}</TableCell>
-                          <TableCell>{format(order.orderDate.toDate(), 'PP')}</TableCell>
+                          <TableCell>{order.orderDate ? format(order.orderDate.toDate(), 'PP') : 'N/A'}</TableCell>
                           <TableCell>{order.orderType}</TableCell>
                           <TableCell>₹{order.totalAmount.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
@@ -395,7 +396,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Renews On</span>
-                                <span>{format(subscription.endDate.toDate(), 'MMMM d, yyyy')}</span>
+                                <span>{subscription.endDate ? format(subscription.endDate.toDate(), 'MMMM d, yyyy') : 'N/A'}</span>
                             </div>
                              <Button asChild className="w-full mt-4">
                                 <Link href="/pricing">Manage Subscription</Link>
@@ -425,7 +426,7 @@ export default function DashboardPage() {
                           <Activity className="h-4 w-4 mr-4 text-muted-foreground" />
                           <div className="flex-grow">
                               <p className="text-sm font-medium">{activity.toolName}</p>
-                              <p className="text-xs text-muted-foreground">{formatDistanceToNow(activity.usageTimestamp.toDate(), { addSuffix: true })}</p>
+                              <p className="text-xs text-muted-foreground">{activity.usageTimestamp ? formatDistanceToNow(activity.usageTimestamp.toDate(), { addSuffix: true }) : 'N/A'}</p>
                           </div>
                       </div>
                   ))}
