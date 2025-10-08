@@ -103,7 +103,7 @@ export function PrintDeliveryOptions() {
              <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                 <div className="space-y-2">
-                    <Label>Photo Size (in inches)</Label>
+                    <Label>Photo Size (in cm)</Label>
                     <div className="flex items-center gap-2">
                         <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
                         <span>x</span>
