@@ -5,8 +5,9 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { UpgradeProModal } from '@/components/UpgradeProModal';
 import { Loader2 } from 'lucide-react';
+import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
-export default function SummarizePdfPage() {
+function SummarizePdfContent() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
@@ -52,4 +53,13 @@ export default function SummarizePdfPage() {
       </div>
     </div>
   );
+}
+
+
+export default function SummarizePdfPage() {
+  return (
+    <ToolAuthWrapper>
+      <SummarizePdfContent />
+    </ToolAuthWrapper>
+  )
 }

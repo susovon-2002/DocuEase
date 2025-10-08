@@ -1,9 +1,12 @@
 import { CompressPdfClient } from './CompressPdfClient';
+import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 export default function CompressPdfPage() {
   return (
-    <div className="py-12">
-      <CompressPdfClient />
-    </div>
+    <ToolAuthWrapper>
+      <div className="py-12">
+        <CompressPdfClient />
+      </div>
+    </ToolAuthWrapper>
   );
 }

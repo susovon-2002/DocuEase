@@ -1,9 +1,12 @@
 import { UnlockPdfClient } from './UnlockPdfClient';
+import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 export default function UnlockPdfPage() {
   return (
-    <div className="py-12">
-      <UnlockPdfClient />
-    </div>
+    <ToolAuthWrapper>
+      <div className="py-12">
+        <UnlockPdfClient />
+      </div>
+    </ToolAuthWrapper>
   );
 }

@@ -50,6 +50,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { CheckoutForm } from '@/components/CheckoutForm';
+import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -131,7 +132,7 @@ type PaymentDetails = {
   clientSecret: string;
 }
 
-export default function PrintDeliveryPage() {
+function PrintDeliveryContent() {
   // Photo State
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
@@ -1174,5 +1175,13 @@ export default function PrintDeliveryPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PrintDeliveryPage() {
+  return (
+    <ToolAuthWrapper>
+      <PrintDeliveryContent />
+    </ToolAuthWrapper>
   );
 }

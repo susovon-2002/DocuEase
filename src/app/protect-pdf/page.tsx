@@ -1,10 +1,13 @@
 
 import { ProtectPdfClient } from './ProtectPdfClient';
+import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 export default function ProtectPdfPage() {
   return (
-    <div className="py-12">
-      <ProtectPdfClient />
-    </div>
+    <ToolAuthWrapper>
+      <div className="py-12">
+        <ProtectPdfClient />
+      </div>
+    </ToolAuthWrapper>
   );
 }
