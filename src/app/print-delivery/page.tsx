@@ -47,15 +47,11 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 import { CheckoutForm } from '@/components/CheckoutForm';
 import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const DPI = 96;
 const CM_TO_INCH = 0.393701;
@@ -129,7 +125,8 @@ type PhotoInvoiceDetails = {
 type PaymentDetails = {
   orderType: 'Document' | 'Photo' | null;
   amount: number;
-  clientSecret: string;
+  orderId: string;
+  address: typeof initialAddressState;
 }
 
 function PrintDeliveryContent() {
@@ -158,7 +155,7 @@ function PrintDeliveryContent() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ orderType: null, amount: 0, clientSecret: '' });
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -679,7 +676,7 @@ function PrintDeliveryContent() {
   const handleProceedToPay = async (orderType: 'Document' | 'Photo', amount: number) => {
     setIsPaying(true);
     try {
-      const response = await fetch('/api/create-payment-intent', {
+      const response = await fetch('/api/create-razorpay-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -688,11 +685,16 @@ function PrintDeliveryContent() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create payment intent');
+        throw new Error('Failed to create Razorpay order');
       }
 
-      const { clientSecret } = await response.json();
-      setPaymentDetails({ orderType, amount, clientSecret });
+      const { order } = await response.json();
+      setPaymentDetails({ 
+        orderType, 
+        amount, 
+        orderId: order.id, 
+        address: orderType === 'Document' ? docDeliveryAddress : photoDeliveryAddress 
+      });
       setPaymentDialogOpen(true);
     } catch (error) {
       console.error(error);
@@ -708,10 +710,11 @@ function PrintDeliveryContent() {
 
   const handlePaymentSuccess = () => {
     setPaymentDialogOpen(false);
+    setPaymentDetails(null);
     // Here you would typically save the order to your database.
     // For now, we'll just show a success message and reset the form.
     
-    if (paymentDetails.orderType === 'Document') {
+    if (paymentDetails?.orderType === 'Document') {
         setUploadedDocs([]);
         setBwPages('0');
         setColorPages('0');
@@ -773,14 +776,18 @@ function PrintDeliveryContent() {
               <DialogHeader>
                   <DialogTitle>Complete Your Payment</DialogTitle>
                   <DialogDescription>
-                      Securely enter your payment details below to complete the order for your {paymentDetails.orderType} printing.
+                      Securely enter your payment details below to complete the order for your {paymentDetails?.orderType} printing.
                   </DialogDescription>
               </DialogHeader>
               <div className="py-4">
-                  {paymentDetails.clientSecret && (
-                      <Elements stripe={stripePromise} options={{ clientSecret: paymentDetails.clientSecret }}>
-                          <CheckoutForm onSuccess={handlePaymentSuccess} />
-                      </Elements>
+                  {paymentDetails && (
+                      <CheckoutForm
+                        orderId={paymentDetails.orderId}
+                        amount={paymentDetails.amount}
+                        orderType={paymentDetails.orderType!}
+                        address={paymentDetails.address}
+                        onSuccess={handlePaymentSuccess}
+                      />
                   )}
               </div>
           </DialogContent>

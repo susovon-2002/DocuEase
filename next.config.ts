@@ -41,7 +41,13 @@ const nextConfig: NextConfig = {
     }
     config.externals.push('canvas');
     return config;
-  }
+  },
+  experimental: {
+    scripting: {
+      scripting: true,
+      remoteAllowedDomains: ["checkout.razorpay.com"],
+    },
+  },
 };
 
 export default nextConfig;
