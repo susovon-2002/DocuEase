@@ -94,6 +94,8 @@ type UploadedPhoto = {
   name: string;
   url: string;
   copies: number;
+  width: string;
+  height: string;
 }
 
 const initialAddressState = {
@@ -127,8 +129,6 @@ export default function PrintDeliveryPage() {
   // Photo State
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
-  const [photoWidth, setPhotoWidth] = useState('3.5');
-  const [photoHeight, setPhotoHeight] = useState('4.5');
   const [paperType, setPaperType] = useState('photo');
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
@@ -216,17 +216,20 @@ export default function PrintDeliveryPage() {
         const reader = new FileReader();
         reader.onload = (e) => {
           const imgUrl = e.target?.result as string;
-           if (uploadedPhotos.length === 0 && files.length === 1) { // Auto-size with first image
-              const img = new Image();
-              img.onload = () => {
-                  const widthCm = (img.width / DPI) * 2.54;
-                  const heightCm = (img.height / DPI) * 2.54;
-                  setPhotoWidth(widthCm.toFixed(1));
-                  setPhotoHeight(heightCm.toFixed(1));
-              };
-              img.src = imgUrl;
-          }
-          setUploadedPhotos(prev => [...prev, { id: Date.now() + Math.random(), name: file.name, url: imgUrl, copies: 1 }]);
+          const img = new Image();
+          img.onload = () => {
+              const widthCm = (img.width / DPI) * 2.54;
+              const heightCm = (img.height / DPI) * 2.54;
+              setUploadedPhotos(prev => [...prev, { 
+                id: Date.now() + Math.random(), 
+                name: file.name, 
+                url: imgUrl, 
+                copies: 1, 
+                width: widthCm.toFixed(1), 
+                height: heightCm.toFixed(1) 
+              }]);
+          };
+          img.src = imgUrl;
         };
         reader.readAsDataURL(file);
       } else {
@@ -243,6 +246,10 @@ export default function PrintDeliveryPage() {
   const handlePhotoCopyChange = (id: number, copies: number) => {
     setUploadedPhotos(prev => prev.map(p => p.id === id ? { ...p, copies: copies >= 0 ? copies : 0 } : p));
   };
+
+  const handlePhotoSizeChange = (id: number, field: 'width' | 'height', value: string) => {
+    setUploadedPhotos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  }
 
   const handleRemoveDoc = (docIndex: number) => {
     setUploadedDocs(currentDocs => {
@@ -298,72 +305,68 @@ export default function PrintDeliveryPage() {
   };
 
    const a4Preview = useMemo(() => {
-    const widthCm = parseFloat(photoWidth);
-    const heightCm = parseFloat(photoHeight);
-
-    if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
-      return { previewPhotos: [], error: 'Invalid dimensions' };
-    }
-
     const A4_WIDTH_PX = 595;
     const A4_HEIGHT_PX = 842;
     const CM_TO_PX = A4_WIDTH_PX / 21;
 
-    const photoWidthPx = widthCm * CM_TO_PX;
-    const photoHeightPx = heightCm * CM_TO_PX;
+    let allPhotosToRender: { url: string; widthPx: number; heightPx: number}[] = [];
     
-    if (photoWidthPx > A4_WIDTH_PX || photoHeightPx > A4_HEIGHT_PX) {
-        return { previewPhotos: [], error: 'Photo size exceeds A4.' };
+    uploadedPhotos.forEach(photo => {
+      const widthCm = parseFloat(photo.width);
+      const heightCm = parseFloat(photo.height);
+      if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) return;
+      
+      for (let i = 0; i < photo.copies; i++) {
+        allPhotosToRender.push({
+          url: photo.url,
+          widthPx: widthCm * CM_TO_PX,
+          heightPx: heightCm * CM_TO_PX,
+        });
+      }
+    });
+    
+    // Naive packing algorithm for preview. A more complex algorithm would be needed for optimal packing.
+    const previewPhotos: { url: string; widthPx: number; heightPx: number}[] = [];
+    let currentX = 0;
+    let currentY = 0;
+    let rowMaxHeight = 0;
+
+    for (const photo of allPhotosToRender) {
+      if (currentX + photo.widthPx > A4_WIDTH_PX) {
+        currentX = 0;
+        currentY += rowMaxHeight;
+        rowMaxHeight = 0;
+      }
+      if (currentY + photo.heightPx > A4_HEIGHT_PX) {
+        continue; // Doesn't fit on this page
+      }
+      previewPhotos.push(photo);
+      currentX += photo.widthPx;
+      rowMaxHeight = Math.max(rowMaxHeight, photo.heightPx);
     }
-
-    const cols = Math.floor(A4_WIDTH_PX / photoWidthPx);
-    const rows = Math.floor(A4_HEIGHT_PX / photoHeightPx);
-    const photosPerPage = cols * rows;
-
-    if (photosPerPage === 0) {
-        return { previewPhotos: [], error: 'Photo size is too large to fit on A4.' };
-    }
-
-    const photosToRender = [];
-    if (uploadedPhotos.length > 0) {
-        for(const photo of uploadedPhotos) {
-            for(let i = 0; i < photo.copies; i++) {
-                photosToRender.push(photo.url);
-            }
-        }
-    } else {
-        // Fallback to placeholders if no photos are uploaded but copies are set.
-        const totalCopies = uploadedPhotos.reduce((sum, p) => sum + p.copies, 0);
-        for(let i=0; i < totalCopies; i++) {
-            photosToRender.push(null);
-        }
-    }
-
-
-    return { 
-        previewPhotos: photosToRender.slice(0, photosPerPage),
-        photoWidthPx, 
-        photoHeightPx, 
-        error: null 
-    };
-  }, [photoWidth, photoHeight, uploadedPhotos]);
+    
+    return { previewPhotos, error: null };
+  }, [uploadedPhotos]);
 
   
   const photoOrderTotal = useMemo(() => {
-    if (totalPhotoCopies === 0) return 0;
+    if (uploadedPhotos.length === 0) return 0;
     
-    const width = parseFloat(photoWidth);
-    const height = parseFloat(photoHeight);
-    if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) return 0;
+    const printingCost = uploadedPhotos.reduce((total, photo) => {
+        const width = parseFloat(photo.width);
+        const height = parseFloat(photo.height);
+        if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0 || photo.copies <= 0) return total;
+        
+        const basePrice = getPricePerPhoto(width, height);
+        const paperAddon = paperTypeAddons[paperType] || 0;
+        return total + (photo.copies * (basePrice + paperAddon));
+    }, 0);
 
-    const basePrice = getPricePerPhoto(width, height);
-    const paperAddon = paperTypeAddons[paperType] || 0;
+    if (printingCost === 0) return 0;
+    
     const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
-
-    const printingCost = totalPhotoCopies * (basePrice + paperAddon);
-
     return printingCost + deliveryCharge;
-  }, [totalPhotoCopies, photoWidth, photoHeight, paperType, photoDeliveryOption]);
+  }, [uploadedPhotos, paperType, photoDeliveryOption]);
 
   const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
@@ -607,8 +610,8 @@ export default function PrintDeliveryPage() {
     }
     const details: PhotoInvoiceDetails = {
       quantity: totalPhotoCopies,
-      width: photoWidth,
-      height: photoHeight,
+      width: "mixed",
+      height: "mixed",
       paperType: paperType,
       pricePerPhoto: 0 // This is simplified as total is passed directly
     };
@@ -647,8 +650,6 @@ export default function PrintDeliveryPage() {
             setDocDeliveryAddress(initialAddressState);
         } else {
             setUploadedPhotos([]);
-            setPhotoWidth('3.5');
-            setPhotoHeight('4.5');
             setPhotoDeliveryAddress(initialAddressState);
         }
     }, 2000);
@@ -935,28 +936,36 @@ export default function PrintDeliveryPage() {
                   {uploadedPhotos.length > 0 && (
                      <div className="space-y-2">
                         <Label>Uploaded Photos ({totalPhotoCopies} copies total)</Label>
-                        <ScrollArea className="h-60 w-full rounded-md border">
+                        <ScrollArea className="h-[40rem] w-full rounded-md border">
                           <div className="p-4 space-y-4">
                             {uploadedPhotos.map((photo) => (
-                              <div key={photo.id} className="flex items-center gap-4">
-                                <img src={photo.url} alt={photo.name} className="rounded-md w-16 h-16 object-cover" />
-                                <div className="flex-grow space-y-1">
-                                    <p className="text-sm font-medium truncate">{photo.name}</p>
-                                    <div className="flex items-center">
-                                       <Label htmlFor={`copies-${photo.id}`} className="text-xs mr-2">Copies:</Label>
-                                       <Input
-                                          id={`copies-${photo.id}`}
-                                          type="number"
-                                          min="0"
-                                          value={photo.copies}
-                                          onChange={e => handlePhotoCopyChange(photo.id, parseInt(e.target.value, 10))}
-                                          className="h-8 w-20"
-                                       />
-                                    </div>
+                              <div key={photo.id} className="p-2 border rounded-lg">
+                                <div className="flex items-start gap-4">
+                                  <img src={photo.url} alt={photo.name} className="rounded-md w-20 h-20 object-cover" />
+                                  <div className="flex-grow space-y-2">
+                                      <p className="text-sm font-medium truncate">{photo.name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <Label htmlFor={`width-${photo.id}`} className="text-xs">W:</Label>
+                                        <Input id={`width-${photo.id}`} type="number" value={photo.width} onChange={e => handlePhotoSizeChange(photo.id, 'width', e.target.value)} className="h-8 w-20" placeholder="cm" />
+                                        <Label htmlFor={`height-${photo.id}`} className="text-xs">H:</Label>
+                                        <Input id={`height-${photo.id}`} type="number" value={photo.height} onChange={e => handlePhotoSizeChange(photo.id, 'height', e.target.value)} className="h-8 w-20" placeholder="cm"/>
+                                      </div>
+                                      <div className="flex items-center">
+                                         <Label htmlFor={`copies-${photo.id}`} className="text-xs mr-2">Copies:</Label>
+                                         <Input
+                                            id={`copies-${photo.id}`}
+                                            type="number"
+                                            min="0"
+                                            value={photo.copies}
+                                            onChange={e => handlePhotoCopyChange(photo.id, parseInt(e.target.value, 10))}
+                                            className="h-8 w-20"
+                                         />
+                                      </div>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleRemovePhoto(photo.id)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemovePhoto(photo.id)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
                               </div>
                             ))}
                           </div>
@@ -964,16 +973,6 @@ export default function PrintDeliveryPage() {
                       </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
-                      <div className="space-y-2">
-                          <Label>Default Photo Size (in cm)</Label>
-                          <div className="flex items-center gap-2">
-                              <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
-                              <span>x</span>
-                              <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
-                          </div>
-                      </div>
-                  </div>
                    <div className="space-y-2">
                       <Label htmlFor="paper-type">Paper Type</Label>
                       <Select value={paperType} onValueChange={setPaperType}>
@@ -1011,25 +1010,16 @@ export default function PrintDeliveryPage() {
                             {a4Preview.error}
                         </div>
                     ) : (
-                        <div className="aspect-[210/297] bg-muted/20 border-2 border-dashed rounded-md p-2 grid"
-                             style={{
-                                 gridTemplateColumns: `repeat(auto-fill, minmax(${a4Preview.photoWidthPx}px, 1fr))`,
-                                 gap: '4px'
-                             }}
-                        >
-                            {a4Preview.previewPhotos.map((imageUrl, index) => (
-                                  <div 
-                                      key={index} 
-                                      className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
-                                      style={{ height: `${a4Preview.photoHeightPx}px` }}
-                                  >
-                                    {imageUrl ? (
-                                      <img src={imageUrl} alt="preview" className="w-full h-full object-cover"/>
-                                    ) : (
-                                      <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
-                                    )}
-                                  </div>
-                            ))}
+                        <div className="aspect-[210/297] bg-muted/20 border-2 border-dashed rounded-md p-1 flex flex-wrap content-start items-start gap-1">
+                          {a4Preview.previewPhotos.map((photo, index) => (
+                                <div 
+                                    key={index} 
+                                    className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
+                                    style={{ width: `${photo.widthPx}px`, height: `${photo.heightPx}px` }}
+                                >
+                                  <img src={photo.url} alt="preview" className="w-full h-full object-cover"/>
+                                </div>
+                          ))}
                         </div>
                     )}
                 </div>
@@ -1046,7 +1036,7 @@ export default function PrintDeliveryPage() {
                               </TableRow>
                               <TableRow>
                                   <TableCell>Printing Subtotal</TableCell>
-                                  <TableCell className="text-right">Rs. {(photoOrderTotal - deliveryCharges[photoDeliveryOption]).toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">Rs. {(photoOrderTotal - (deliveryCharges[photoDeliveryOption] || 0)).toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
                                 <TableCell>Delivery Fee ({photoDeliveryOption})</TableCell>
