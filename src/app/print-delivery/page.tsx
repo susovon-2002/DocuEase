@@ -336,82 +336,110 @@ export default function PrintDeliveryPage() {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    const drawText = (text: string, x: number, y: number, size = 12, isBold = false) => {
-        page.drawText(text, { x, y, font: isBold ? boldFont : font, size });
-    };
+    const primaryColor = rgb(0.14, 0.45, 0.82); // Approx. HSL for primary
+    const grayColor = rgb(0.3, 0.3, 0.3);
+    const lightGrayColor = rgb(0.9, 0.9, 0.9);
+    const whiteColor = rgb(1, 1, 1);
 
-    let y = height - 50;
-    
-    drawText('Invoice', 50, y, 24, true);
-    y -= 30;
-    drawText(`Order Type: ${orderType} Printing`, 50, y);
-    y -= 20;
-    drawText(`Date: ${new Date().toLocaleDateString()}`, 50, y);
-    y -= 40;
+    // Header
+    page.drawRectangle({
+      x: 0,
+      y: height - 100,
+      width,
+      height: 100,
+      color: primaryColor,
+    });
+    page.drawText('INVOICE', {
+      x: 50,
+      y: height - 65,
+      font: boldFont,
+      size: 36,
+      color: whiteColor,
+    });
 
-    drawText('Bill To:', 50, y, 14, true);
-    y -= 20;
-    drawText(address.name, 50, y);
-    y -= 15;
-    drawText(address.address, 50, y);
-    y -= 15;
-    drawText(address.pincode, 50, y);
-    y -= 20;
-    drawText(`Email: ${address.email}`, 50, y);
-    y -= 15;
-    drawText(`Mobile: ${address.mobile}`, 50, y);
-    y -= 40;
+    // Invoice Info
+    let infoY = height - 50;
+    page.drawText(`Order Type: ${orderType} Printing`, { x: 350, y: infoY, font: font, size: 10, color: grayColor });
+    infoY -= 15;
+    page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 350, y: infoY, font: font, size: 10, color: grayColor });
+    infoY -= 15;
+    page.drawText('Invoice #: 12345', { x: 350, y: infoY, font: font, size: 10, color: grayColor });
+
+    // Bill To Section
+    let billToY = height - 140;
+    page.drawText('BILL TO', { x: 50, y: billToY, font: boldFont, size: 12, color: primaryColor });
+    billToY -= 20;
+    page.drawText(address.name, { x: 50, y: billToY, font: boldFont, size: 11 });
+    billToY -= 15;
+    page.drawText(address.address, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
+    billToY -= 15;
+    page.drawText(address.pincode, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
+    billToY -= 15;
+    page.drawText(address.email, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
+    billToY -= 15;
+    page.drawText(address.mobile, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
 
     // Table Header
-    drawText('Item Description', 50, y, 12, true);
-    drawText('Total', 450, y, 12, true);
-    y -= 20;
-    
+    let tableY = billToY - 50;
+    page.drawRectangle({ x: 50, y: tableY - 10, width: width - 100, height: 25, color: lightGrayColor });
+    page.drawText('Item Description', { x: 60, y: tableY, font: boldFont, size: 11, color: grayColor });
+    page.drawText('Qty', { x: 350, y: tableY, font: boldFont, size: 11, color: grayColor });
+    page.drawText('Amount', { x: 450, y: tableY, font: boldFont, size: 11, color: grayColor });
+    tableY -= 30;
+
     // Table Rows
     if (orderType === 'Document' && 'bwPages' in details) {
         if (details.bwPages > 0) {
-            drawText(`B&W Pages (${details.bwPages} x Rs. ${BW_PRICE_PER_PAGE}/page)`, 50, y);
-            drawText(`Rs. ${(details.bwPages * BW_PRICE_PER_PAGE).toFixed(2)}`, 450, y);
-            y -= 20;
+            page.drawText(`B&W Pages`, { x: 60, y: tableY, font: font, size: 10 });
+            page.drawText(`${details.bwPages}`, { x: 350, y: tableY, font: font, size: 10 });
+            page.drawText(`Rs. ${(details.bwPages * BW_PRICE_PER_PAGE).toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
+            tableY -= 20;
         }
         if (details.colorPages > 0) {
-            drawText(`Color Pages (${details.colorPages} x Rs. ${COLOR_PRICE_PER_PAGE}/page)`, 50, y);
-            drawText(`Rs. ${(details.colorPages * COLOR_PRICE_PER_PAGE).toFixed(2)}`, 450, y);
-            y -= 20;
+            page.drawText(`Color Pages`, { x: 60, y: tableY, font: font, size: 10 });
+            page.drawText(`${details.colorPages}`, { x: 350, y: tableY, font: font, size: 10 });
+            page.drawText(`Rs. ${(details.colorPages * COLOR_PRICE_PER_PAGE).toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
+            tableY -= 20;
         }
     } else if (orderType === 'Photo' && 'quantity' in details) {
-        drawText(`Photos ${details.width}x${details.height}cm (${details.paperType})`, 50, y);
-        drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
-        y -= 20;
+        page.drawText(`Photos ${details.width}x${details.height}cm (${details.paperType})`, { x: 60, y: tableY, font: font, size: 10 });
+        page.drawText(`${details.quantity}`, { x: 350, y: tableY, font: font, size: 10 });
+        page.drawText(`Rs. ${subtotal.toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
+        tableY -= 20;
     }
     
-    y -= 10;
-    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 0.5 });
-    y -= 20;
+    // Totals Section
+    let totalY = tableY - 20;
     
     if(orderType === 'Document' && 'copies' in details) {
         const printingSubtotal = ((details.bwPages * BW_PRICE_PER_PAGE) + (details.colorPages * COLOR_PRICE_PER_PAGE));
-        drawText('Subtotal:', 350, y);
-        drawText(`Rs. ${printingSubtotal.toFixed(2)}`, 450, y);
-        y -= 20;
-        drawText('Copies:', 350, y);
-        drawText(`x ${details.copies}`, 450, y);
-        y -= 20;
+        page.drawText('Subtotal:', { x: 350, y: totalY, font: font, size: 10 });
+        page.drawText(`Rs. ${printingSubtotal.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
+        totalY -= 20;
+        page.drawText('Copies:', { x: 350, y: totalY, font: font, size: 10 });
+        page.drawText(`x ${details.copies}`, { x: 450, y: totalY, font: font, size: 10 });
+        totalY -= 20;
     } else {
-        drawText('Subtotal:', 350, y);
-        drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
-        y -= 20;
+        page.drawText('Subtotal:', { x: 350, y: totalY, font: font, size: 10 });
+        page.drawText(`Rs. ${subtotal.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
+        totalY -= 20;
     }
 
-    drawText(`Delivery Fee (${docDeliveryOption}):`, 350, y);
-    drawText(`Rs. ${deliveryCharge.toFixed(2)}`, 450, y);
-    y -= 20;
+    page.drawText(`Delivery Fee:`, { x: 350, y: totalY, font: font, size: 10 });
+    page.drawText(`Rs. ${deliveryCharge.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
+    totalY -= 20;
     
-    page.drawLine({ start: { x: 340, y }, end: { x: width - 50, y }, thickness: 1 });
-    y -= 20;
+    page.drawLine({ start: { x: 340, y: totalY }, end: { x: width - 50, y: totalY }, thickness: 1, color: grayColor });
+    totalY -= 20;
 
-    drawText('Grand Total:', 350, y, 14, true);
-    drawText(`Rs. ${total.toFixed(2)}`, 450, y, 14, true);
+    page.drawText('Grand Total:', { x: 350, y: totalY, font: boldFont, size: 12 });
+    page.drawText(`Rs. ${total.toFixed(2)}`, { x: 450, y: totalY, font: boldFont, size: 12 });
+    
+    // Footer
+    page.drawRectangle({ x: 0, y: 0, width, height: 60, color: lightGrayColor });
+    page.drawText('Thank you for your business!', { x: 50, y: 30, font: boldFont, size: 12, color: grayColor });
+    page.drawText('www.docuease.com | contact@docuease.com', { x: 350, y: 30, font: font, size: 9, color: grayColor });
+
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
