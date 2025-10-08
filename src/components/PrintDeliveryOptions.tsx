@@ -56,6 +56,7 @@ const paperTypeAddons: Record<string, number> = {
     'matte': 1,
     'glossy': 2,
     'premium': 3,
+    'hd': 4,
 };
 
 const deliveryCharges: Record<string, number> = {
@@ -324,6 +325,7 @@ export function PrintDeliveryOptions() {
                             <SelectItem value="matte">Matte (+₹1/photo)</SelectItem>
                             <SelectItem value="glossy">Glossy (+₹2/photo)</SelectItem>
                             <SelectItem value="premium">Premium Luster (+₹3/photo)</SelectItem>
+                            <SelectItem value="hd">HD Paper (+₹4/photo)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
