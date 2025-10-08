@@ -134,6 +134,7 @@ export default function PrintDeliveryPage() {
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
+  const [photoOrderStep, setPhotoOrderStep] = useState<'configure' | 'address' | 'payment'>('configure');
 
 
   // Document State
@@ -693,6 +694,7 @@ export default function PrintDeliveryPage() {
         } else {
             setUploadedPhotos([]);
             setPhotoDeliveryAddress(initialAddressState);
+            setPhotoOrderStep('configure');
         }
     }, 2000);
   };
@@ -970,8 +972,8 @@ export default function PrintDeliveryPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Left Column: Controls & Previews */}
                 <div className="space-y-6">
-                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple />
-                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple disabled={photoOrderStep !== 'configure'} />
+                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()} disabled={photoOrderStep !== 'configure'}>
                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo(s)
                   </Button>
                   
@@ -988,9 +990,9 @@ export default function PrintDeliveryPage() {
                                       <p className="text-sm font-medium truncate">{photo.name}</p>
                                       <div className="flex items-center gap-2">
                                         <Label htmlFor={`width-${photo.id}`} className="text-xs">W:</Label>
-                                        <Input id={`width-${photo.id}`} type="number" value={photo.width} onChange={e => handlePhotoSizeChange(photo.id, 'width', e.target.value)} className="h-8 w-20" placeholder="cm" />
+                                        <Input id={`width-${photo.id}`} type="number" value={photo.width} onChange={e => handlePhotoSizeChange(photo.id, 'width', e.target.value)} className="h-8 w-20" placeholder="cm" disabled={photoOrderStep !== 'configure'}/>
                                         <Label htmlFor={`height-${photo.id}`} className="text-xs">H:</Label>
-                                        <Input id={`height-${photo.id}`} type="number" value={photo.height} onChange={e => handlePhotoSizeChange(photo.id, 'height', e.target.value)} className="h-8 w-20" placeholder="cm"/>
+                                        <Input id={`height-${photo.id}`} type="number" value={photo.height} onChange={e => handlePhotoSizeChange(photo.id, 'height', e.target.value)} className="h-8 w-20" placeholder="cm" disabled={photoOrderStep !== 'configure'}/>
                                       </div>
                                       <div className="flex items-center">
                                          <Label htmlFor={`copies-${photo.id}`} className="text-xs mr-2">Copies:</Label>
@@ -1001,10 +1003,11 @@ export default function PrintDeliveryPage() {
                                             value={photo.copies}
                                             onChange={e => handlePhotoCopyChange(photo.id, parseInt(e.target.value, 10))}
                                             className="h-8 w-20"
+                                            disabled={photoOrderStep !== 'configure'}
                                          />
                                       </div>
                                   </div>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleRemovePhoto(photo.id)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleRemovePhoto(photo.id)} disabled={photoOrderStep !== 'configure'}>
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
@@ -1017,7 +1020,7 @@ export default function PrintDeliveryPage() {
 
                    <div className="space-y-2">
                       <Label htmlFor="paper-type">Paper Type</Label>
-                      <Select value={paperType} onValueChange={setPaperType}>
+                      <Select value={paperType} onValueChange={setPaperType} disabled={photoOrderStep !== 'configure'}>
                           <SelectTrigger id="paper-type">
                               <SelectValue placeholder="Select paper type" />
                           </SelectTrigger>
@@ -1032,7 +1035,7 @@ export default function PrintDeliveryPage() {
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="photo-delivery-option">Delivery Speed</Label>
-                      <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption}>
+                      <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption} disabled={photoOrderStep !== 'configure'}>
                           <SelectTrigger id="photo-delivery-option">
                               <SelectValue placeholder="Select delivery speed" />
                           </SelectTrigger>
@@ -1129,10 +1132,26 @@ export default function PrintDeliveryPage() {
                       <p className="text-center text-muted-foreground">Upload photos and set copies to see the price.</p>
                   )}
               </div>
-               {photoOrderTotal > 0 && (
-                <>
+               {photoOrderTotal > 0 && photoOrderStep === 'configure' && (
+                  <div className="flex justify-center mt-6">
+                    <Button size="lg" onClick={() => setPhotoOrderStep('address')} disabled={photoOrderTotal <= 0}>
+                      Confirm & Proceed
+                    </Button>
+                  </div>
+                )}
+               {photoOrderStep !== 'configure' && (
+                 <>
                   <Separator className="my-6" />
                   {renderAddressForm('photo', photoDeliveryAddress, handleAddressChange)}
+                   <div className="flex justify-center mt-6">
+                      <Button variant="outline" onClick={() => setPhotoOrderStep('configure')}>
+                        Back to Configuration
+                      </Button>
+                    </div>
+                 </>
+               )}
+               {isPhotoAddressComplete && photoOrderStep !== 'configure' && (
+                <>
                   <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
