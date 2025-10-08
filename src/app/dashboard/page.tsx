@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { useAuth, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, doc, query, where, setDoc } from 'firebase/firestore';
+import { collection, doc, query, where, setDoc, Timestamp } from 'firebase/firestore';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -118,9 +118,11 @@ export default function DashboardPage() {
   
   const documentsByWeekData = useMemo(() => {
       if (!documents) return [];
-      const groupedByWeek = groupBy(documents, (doc) => 
-          format(startOfWeek(new Date(doc.uploadDate)), 'MMM d')
-      );
+      const groupedByWeek = groupBy(documents, (doc) => {
+          // Firestore Timestamp objects have a toDate() method
+          const date = doc.uploadDate instanceof Timestamp ? doc.uploadDate.toDate() : new Date(doc.uploadDate);
+          return format(startOfWeek(date), 'MMM d');
+      });
       return Object.entries(groupedByWeek)
           .map(([week, docs]) => ({
               week,
@@ -134,13 +136,21 @@ export default function DashboardPage() {
   const recentActivities = useMemo(() => {
     if (!toolUsages) return [];
     return [...toolUsages]
-      .sort((a, b) => new Date(b.usageTimestamp).getTime() - new Date(a.usageTimestamp).getTime())
+      .sort((a, b) => {
+        const dateA = a.usageTimestamp instanceof Timestamp ? a.usageTimestamp.toDate() : new Date(a.usageTimestamp);
+        const dateB = b.usageTimestamp instanceof Timestamp ? b.usageTimestamp.toDate() : new Date(b.usageTimestamp);
+        return dateB.getTime() - dateA.getTime();
+      })
       .slice(0, 5);
   }, [toolUsages]);
   
   const sortedOrders = useMemo(() => {
     if (!orders) return [];
-    return [...orders].sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+    return [...orders].sort((a, b) => {
+        const dateA = a.orderDate instanceof Timestamp ? a.orderDate.toDate() : new Date(a.orderDate);
+        const dateB = b.orderDate instanceof Timestamp ? b.orderDate.toDate() : new Date(b.orderDate);
+        return dateB.getTime() - dateA.getTime();
+    });
   }, [orders]);
 
 
@@ -273,7 +283,7 @@ export default function DashboardPage() {
                       {sortedOrders.slice(0,5).map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium truncate max-w-[100px]">{order.id}</TableCell>
-                          <TableCell>{format(new Date(order.orderDate), 'PP')}</TableCell>
+                          <TableCell>{format(order.orderDate.toDate(), 'PP')}</TableCell>
                           <TableCell>{order.orderType}</TableCell>
                           <TableCell>₹{order.totalAmount.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
@@ -385,7 +395,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Renews On</span>
-                                <span>{format(new Date(subscription.endDate), 'MMMM d, yyyy')}</span>
+                                <span>{format(subscription.endDate.toDate(), 'MMMM d, yyyy')}</span>
                             </div>
                              <Button asChild className="w-full mt-4">
                                 <Link href="/pricing">Manage Subscription</Link>
@@ -415,7 +425,7 @@ export default function DashboardPage() {
                           <Activity className="h-4 w-4 mr-4 text-muted-foreground" />
                           <div className="flex-grow">
                               <p className="text-sm font-medium">{activity.toolName}</p>
-                              <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(activity.usageTimestamp), { addSuffix: true })}</p>
+                              <p className="text-xs text-muted-foreground">{formatDistanceToNow(activity.usageTimestamp.toDate(), { addSuffix: true })}</p>
                           </div>
                       </div>
                   ))}
