@@ -87,6 +87,11 @@ type UploadedDoc = {
   thumbnailUrls: string[];
 }
 
+type UploadedPhoto = {
+  name: string;
+  url: string;
+}
+
 const initialAddressState = {
   name: '',
   mobile: '',
@@ -119,12 +124,12 @@ export default function PrintDeliveryPage() {
   // Photo State
   const [photoWidth, setPhotoWidth] = useState('3.5');
   const [photoHeight, setPhotoHeight] = useState('4.5');
-  const [photoQuantity, setPhotoQuantity] = useState('20');
+  const [photoQuantity, setPhotoQuantity] = useState('1');
   const [paperType, setPaperType] = useState('photo');
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
-  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
 
 
   // Document State
@@ -224,30 +229,60 @@ export default function PrintDeliveryPage() {
     });
   };
   
-  const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+ const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
 
+    const newPhotos: UploadedPhoto[] = [];
+    let firstImageProcessed = false;
+
+    for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) {
-          toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload an image file.' });
-          return;
+        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload an image file.' });
+        continue;
       }
       
       const reader = new FileReader();
       reader.onload = (e) => {
+        const imgUrl = e.target?.result as string;
+        newPhotos.push({ name: file.name, url: imgUrl });
+
+        // Auto-fill dimensions from the first image in the batch
+        if (!firstImageProcessed) {
           const img = new Image();
           img.onload = () => {
-              const dpi = 96;
-              const widthInCm = (img.width * 2.54) / dpi;
-              const heightInCm = (img.height * 2.54) / dpi;
-              setPhotoWidth(widthInCm.toFixed(1));
-              setPhotoHeight(heightInCm.toFixed(1));
-              setUploadedPhotoUrl(img.src);
-              toast({ title: 'Image Loaded', description: 'Photo dimensions have been set from the uploaded image.' });
+            const dpi = 96;
+            const widthInCm = (img.width * 2.54) / dpi;
+            const heightInCm = (img.height * 2.54) / dpi;
+            setPhotoWidth(widthInCm.toFixed(1));
+            setPhotoHeight(heightInCm.toFixed(1));
           };
-          img.src = e.target?.result as string;
+          img.src = imgUrl;
+          firstImageProcessed = true;
+        }
+
+        // When the last file is read, update the state
+        if (newPhotos.length === files.length) {
+            setUploadedPhotos(prev => [...prev, ...newPhotos]);
+            toast({ title: `${files.length} Image(s) Loaded` });
+        }
       };
       reader.readAsDataURL(file);
+    }
+    
+    if (photoFileInputRef.current) {
+        photoFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (photoIndex: number) => {
+    setUploadedPhotos(currentPhotos => {
+      const photoToRemove = currentPhotos[photoIndex];
+      if (photoToRemove) {
+        URL.revokeObjectURL(photoToRemove.url);
+      }
+      return currentPhotos.filter((_, i) => i !== photoIndex);
+    });
   };
 
   const handlePageCountChange = (value: string, type: 'bw' | 'color') => {
@@ -278,9 +313,10 @@ export default function PrintDeliveryPage() {
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
     const height = parseFloat(photoHeight);
-    const quantity = parseInt(photoQuantity, 10);
+    const quantityPerPhoto = parseInt(photoQuantity, 10);
+    const numberOfPhotos = uploadedPhotos.length;
 
-    if (isNaN(width) || isNaN(height) || isNaN(quantity) || width <= 0 || height <= 0 || quantity <= 0) {
+    if (isNaN(width) || isNaN(height) || isNaN(quantityPerPhoto) || width <= 0 || height <= 0 || quantityPerPhoto <= 0 || numberOfPhotos === 0) {
       return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: null };
     }
 
@@ -291,16 +327,17 @@ export default function PrintDeliveryPage() {
     if (photosPerPage === 0) {
          return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: "Photo size is too large for an A4 sheet." };
     }
-
-    const pagesRequired = Math.ceil(quantity / photosPerPage);
+    
+    const totalPhotoCount = numberOfPhotos * quantityPerPhoto;
+    const pagesRequired = Math.ceil(totalPhotoCount / photosPerPage);
     const basePricePerPhoto = getPricePerPhoto(width, height);
     const paperAddon = paperTypeAddons[paperType] || 0;
     const finalPricePerPhoto = basePricePerPhoto + paperAddon;
     
-    const printingCost = quantity * finalPricePerPhoto;
+    const printingCost = totalPhotoCount * finalPricePerPhoto;
 
     return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, error: null };
-  }, [photoWidth, photoHeight, photoQuantity, paperType]);
+  }, [photoWidth, photoHeight, photoQuantity, paperType, uploadedPhotos.length]);
   
   const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
@@ -549,7 +586,7 @@ export default function PrintDeliveryPage() {
       return;
     }
     const details: PhotoInvoiceDetails = {
-      quantity: parseInt(photoQuantity, 10),
+      quantity: (parseInt(photoQuantity, 10) || 0) * uploadedPhotos.length,
       width: photoWidth,
       height: photoHeight,
       paperType: paperType,
@@ -589,9 +626,10 @@ export default function PrintDeliveryPage() {
             setDocQuantity('1');
             setDocDeliveryAddress(initialAddressState);
         } else {
+            setUploadedPhotos([]);
             setPhotoWidth('3.5');
             setPhotoHeight('4.5');
-            setPhotoQuantity('20');
+            setPhotoQuantity('1');
             setPhotoDeliveryAddress(initialAddressState);
         }
     }, 2000);
@@ -901,14 +939,49 @@ export default function PrintDeliveryPage() {
             {/* Photo Printing Section */}
             <div>
               <h3 className="text-xl font-semibold my-4 text-center">Photo Printing</h3>
+              
+              <div className="mb-4">
+                <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple />
+                <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                    <UploadCloud className="mr-2 h-4 w-4" /> Upload Photos
+                </Button>
+              </div>
+
+               {uploadedPhotos.length > 0 && (
+                  <div className="mb-4 space-y-4">
+                      <h4 className="text-sm font-semibold mb-2">Uploaded Photos ({uploadedPhotos.length}):</h4>
+                        <ScrollArea>
+                          <div className="flex space-x-4 pb-4">
+                              {uploadedPhotos.map((photo, index) => (
+                                  <div key={index} className="w-32 flex-shrink-0 group/page relative">
+                                      <img
+                                        src={photo.url}
+                                        alt={photo.name}
+                                        className="rounded-md w-full aspect-[2/3] object-cover bg-white border cursor-pointer"
+                                        onClick={() => setPreviewImageUrl(photo.url)}
+                                      />
+                                      <p className="text-center text-xs mt-1 text-muted-foreground truncate" title={photo.name}>{photo.name}</p>
+                                      <Button 
+                                          variant="destructive" 
+                                          size="icon" 
+                                          className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemovePhoto(index);
+                                          }}
+                                      >
+                                          <X className="h-3 w-3" />
+                                      </Button>
+                                  </div>
+                              ))}
+                          </div>
+                          <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                  </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <div className="mb-4">
-                    <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
-                    <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
-                    </Button>
-                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
                       <div className="space-y-2 sm:col-span-2">
                           <Label>Photo Size (in cm)</Label>
@@ -919,7 +992,7 @@ export default function PrintDeliveryPage() {
                           </div>
                       </div>
                       <div className="space-y-2">
-                          <Label htmlFor="photo-quantity">Quantity</Label>
+                          <Label htmlFor="photo-quantity">Copies of Each</Label>
                           <Input id="photo-quantity" type="number" min="1" placeholder="Number" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
                       </div>
                   </div>
@@ -968,8 +1041,8 @@ export default function PrintDeliveryPage() {
                                     height: `${a4Preview.photoHeightPx}px`
                                 }}
                             >
-                                {uploadedPhotoUrl ? (
-                                    <img src={uploadedPhotoUrl} className="object-cover w-full h-full" alt="preview" />
+                               {uploadedPhotos.length > 0 ? (
+                                    <img src={uploadedPhotos[0].url} className="object-cover w-full h-full" alt="preview" />
                                 ) : (
                                     <ImageIcon className="w-6 h-6 text-muted-foreground" />
                                 )}
@@ -991,7 +1064,7 @@ export default function PrintDeliveryPage() {
                                   <TableCell className="text-right">Rs. {photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
-                                  <TableCell>Printing Subtotal ({photoQuantity} photos)</TableCell>
+                                  <TableCell>Printing Subtotal ({uploadedPhotos.length * (parseInt(photoQuantity,10) || 0)} photos)</TableCell>
                                   <TableCell className="text-right">Rs. {photoPrice.printingCost.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
@@ -1005,7 +1078,7 @@ export default function PrintDeliveryPage() {
                           </TableBody>
                       </Table>
                   ) : (
-                      <p className="text-center text-muted-foreground">Enter dimensions and quantity to see the price.</p>
+                      <p className="text-center text-muted-foreground">Upload photos and enter dimensions to see the price.</p>
                   )}
               </div>
                {photoOrderTotal > 0 && (
