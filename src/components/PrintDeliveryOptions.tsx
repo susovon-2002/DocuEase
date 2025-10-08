@@ -90,17 +90,12 @@ export function PrintDeliveryOptions() {
              <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                 <div className="space-y-2">
-                    <Label htmlFor="photo-size">Photo Size</Label>
-                    <Select defaultValue="4x6">
-                      <SelectTrigger id="photo-size">
-                        <SelectValue placeholder="Select photo size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="4x6">4x6 inches (10x15 cm)</SelectItem>
-                        <SelectItem value="5x7">5x7 inches (13x18 cm)</SelectItem>
-                        <SelectItem value="8x10">8x10 inches (20x25 cm)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Photo Size (in inches)</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="photo-width" type="number" placeholder="Width" />
+                        <span>x</span>
+                        <Input id="photo-height" type="number" placeholder="Height" />
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="photo-quantity">Quantity</Label>
