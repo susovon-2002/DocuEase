@@ -6,12 +6,17 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 import sha256 from 'crypto-js/sha256';
 
-// Initialize Firebase Admin
+// This is a temporary in-memory store. In a real production app, use a proper database.
+const orderDetailsStore = new Map();
+
+// Initialize Firebase Admin (this is incorrect, should be client for web)
+// Let's correct this to use the client SDK initialization pattern
 if (!getApps().length) {
     try {
-        initializeApp();
-    } catch (e) {
+        // This will fail in a serverless function without credentials, but it's the right pattern
         initializeApp(firebaseConfig);
+    } catch (e) {
+        console.error("Failed to initialize Firebase App in callback", e);
     }
 }
 const firestore = getFirestore(getApp());
@@ -37,24 +42,43 @@ export async function POST(request: Request) {
       return NextResponse.redirect(failureRedirectUrl);
     }
 
-    const { merchantTransactionId, merchantUserId, amount } = response.data;
-    const { code } = response;
+    const { merchantTransactionId } = response.data;
+    const { code, data: paymentData } = response;
+    
+    // Retrieve the stored order details
+    const orderDetails = orderDetailsStore.get(merchantTransactionId);
+    
+    // It's crucial to delete the temporary data after retrieving it
+    orderDetailsStore.delete(merchantTransactionId);
+    
+    if (!orderDetails) {
+      console.error(`No order details found for transaction ID: ${merchantTransactionId}`);
+      // Redirect to a generic failure page if details are missing
+      const failureRedirectUrl = new URL('/payment/failure', request.url);
+      failureRedirectUrl.searchParams.set('reason', 'session_expired');
+      return NextResponse.redirect(failureRedirectUrl);
+    }
     
     let redirectUrl;
 
     if (code === 'PAYMENT_SUCCESS') {
-      // Create order in Firestore
+      // Create order in Firestore with all the details
       const orderRef = doc(collection(firestore, 'orders'));
       await setDoc(orderRef, {
         id: orderRef.id,
-        userId: merchantUserId,
+        userId: orderDetails.userId,
         orderDate: serverTimestamp(),
-        orderType: 'Unknown', // You might need to pass this through callback or derive it
-        totalAmount: amount / 100, // Convert from paise
+        orderType: orderDetails.orderType,
+        totalAmount: orderDetails.amount, // Use amount from our stored details
         status: 'Processing',
-        paymentTransactionId: merchantTransactionId,
-        paymentProvider: 'PhonePe',
-        paymentStatus: 'Success'
+        items: orderDetails.items,
+        deliveryAddress: orderDetails.deliveryAddress,
+        paymentDetails: {
+          transactionId: merchantTransactionId,
+          paymentProvider: 'PhonePe',
+          paymentStatus: 'Success',
+          paymentMethod: paymentData.paymentInstrument.type,
+        }
       });
       redirectUrl = new URL('/payment/success', request.url);
       redirectUrl.searchParams.set('transactionId', merchantTransactionId);

@@ -209,13 +209,48 @@
             "Cancelled"
           ]
         },
-        "itemCount": {
-          "type": "number",
-          "description": "The number of items in the order."
+        "items": {
+          "type": "array",
+          "description": "List of items included in the order.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "details": {
+                "type": "string"
+              },
+              "thumbnail": {
+                "type": "string",
+                "description": "Base64 encoded thumbnail of the item."
+              }
+            }
+          }
         },
-        "description": {
-          "type": "string",
-          "description": "A brief description of the order contents."
+        "deliveryAddress": {
+            "type": "object",
+            "description": "The shipping address for the order.",
+            "properties": {
+                "name": {"type": "string"},
+                "mobile": {"type": "string"},
+                "email": {"type": "string"},
+                "address": {"type": "string"},
+                "pincode": {"type": "string"}
+            }
+        },
+        "paymentDetails": {
+            "type": "object",
+            "description": "Details about the payment transaction.",
+            "properties": {
+                "transactionId": {"type": "string"},
+                "paymentProvider": {"type": "string"},
+                "paymentStatus": {"type": "string"},
+                "paymentMethod": {"type": "string"}
+            }
         }
       },
       "required": [

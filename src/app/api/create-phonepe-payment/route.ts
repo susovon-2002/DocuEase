@@ -7,11 +7,16 @@ const MERCHANT_ID = process.env.NEXT_PUBLIC_PHONEPE_MERCHANT_ID;
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
 
-export async function POST(request: Request) {
-  const { amount, userId, orderType } = await request.json();
+// We need a way to temporarily store order details between creating the payment and the callback.
+// In a real production app, you would use a database like Redis or a temporary Firestore doc.
+// For simplicity here, we'll use an in-memory map. This will NOT work across multiple server instances.
+const orderDetailsStore = new Map();
 
-  if (!amount || amount < 1 || !userId) {
-    return NextResponse.json({ error: 'Invalid amount or user ID' }, { status: 400 });
+export async function POST(request: Request) {
+  const { amount, userId, orderType, deliveryAddress, items } = await request.json();
+
+  if (!amount || amount < 1 || !userId || !deliveryAddress || !items) {
+    return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
   }
   
   if (!MERCHANT_ID || !SALT_KEY) {
@@ -19,6 +24,15 @@ export async function POST(request: Request) {
   }
 
   const merchantTransactionId = `M${Date.now()}`;
+  
+  // Store the details for the callback
+  orderDetailsStore.set(merchantTransactionId, {
+    userId,
+    orderType,
+    deliveryAddress,
+    items,
+    amount
+  });
   
   const callbackUrl = `${request.headers.get('origin')}/api/phonepe-callback`;
   const redirectUrl = `${request.headers.get('origin')}/payment/`;
@@ -31,7 +45,7 @@ export async function POST(request: Request) {
     redirectUrl: redirectUrl + merchantTransactionId,
     redirectMode: "POST",
     callbackUrl: callbackUrl,
-    mobileNumber: "9999999999", // Placeholder, should be from user address
+    mobileNumber: deliveryAddress.mobile || "9999999999",
     paymentInstrument: {
       type: "PAY_PAGE"
     }
@@ -56,11 +70,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ redirectUrl: responseData.data.instrumentResponse.redirectInfo.url });
     } else {
         console.error("PhonePe Error:", responseData);
+        // Clean up stored details if payment creation fails
+        orderDetailsStore.delete(merchantTransactionId);
         return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment' }, { status: 500 });
     }
 
   } catch (error) {
     console.error('Error creating PhonePe payment:', error);
+    // Clean up stored details on network or other errors
+    orderDetailsStore.delete(merchantTransactionId);
     return NextResponse.json(
       { error: 'Failed to create PhonePe payment' },
       { status: 500 }

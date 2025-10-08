@@ -430,241 +430,50 @@ function PrintDeliveryContent() {
   const isPhotoAddressComplete = useMemo(() => isAddressComplete(photoDeliveryAddress), [photoDeliveryAddress]);
 
 
-  const generateInvoicePdf = async (
-    orderType: 'Document' | 'Photo',
-    address: typeof initialAddressState,
-    details: DocumentInvoiceDetails | PhotoInvoiceDetails,
-    subtotal: number,
-    deliveryCharge: number,
-    total: number
-  ) => {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
-    const primaryColor = rgb(0.25, 0.55, 0.95);
-    const grayColor = rgb(0.3, 0.3, 0.3);
-    const lightGrayColor = rgb(0.95, 0.95, 0.95);
-    const whiteColor = rgb(1, 1, 1);
-
-    // Watermark
-    const watermarkText = 'DocuEase';
-    const watermarkFontSize = 80;
-    const watermarkFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const textWidth = watermarkFont.widthOfTextAtSize(watermarkText, watermarkFontSize);
-    
-    const drawWatermark = (x: number, y: number) => {
-        page.drawText(watermarkText, {
-            x,
-            y,
-            font: watermarkFont,
-            size: watermarkFontSize,
-            color: rgb(0.85, 0.85, 0.85),
-            opacity: 0.2,
-            rotate: degrees(-45),
-        });
-    }
-
-    drawWatermark(width * 0.1 - textWidth / 2, height * 0.6);
-    drawWatermark(width * 0.7 - textWidth / 2, height * 0.8);
-    drawWatermark(width * 0.2 - textWidth / 2, height * 0.15);
-    drawWatermark(width * 0.6 - textWidth / 2, height * 0.3);
-
-
-    // Header
-    page.drawRectangle({
-      x: 0,
-      y: height - 100,
-      width,
-      height: 100,
-      color: primaryColor,
-    });
-    page.drawText('DocuEase', {
-      x: 50,
-      y: height - 68,
-      font: boldFont,
-      size: 32,
-      color: whiteColor,
-    });
-
-
-    // Invoice Info
-    let infoY = height - 40;
-    page.drawText('INVOICE', { x: 450, y: infoY, font: boldFont, size: 20, color: whiteColor });
-    infoY -= 20;
-    page.drawText(`Order Type: ${orderType} Printing`, { x: 450, y: infoY, font: font, size: 8, color: whiteColor });
-    infoY -= 12;
-    page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 450, y: infoY, font: font, size: 8, color: whiteColor });
-    
-
-    // Bill To Section
-    let billToY = height - 140;
-    page.drawText('BILL TO', { x: 50, y: billToY, font: boldFont, size: 12, color: primaryColor });
-    billToY -= 20;
-    page.drawText(address.name, { x: 50, y: billToY, font: boldFont, size: 11 });
-    billToY -= 15;
-    page.drawText(address.address, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
-    billToY -= 15;
-    page.drawText(address.pincode, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
-    billToY -= 15;
-    page.drawText(address.email, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
-    billToY -= 15;
-    page.drawText(address.mobile, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
-    
-    // Company Address
-    let companyY = height - 140;
-    page.drawText('FROM', { x: 350, y: companyY, font: boldFont, size: 12, color: primaryColor });
-    companyY -= 20;
-    page.drawText('DocuEase', { x: 350, y: companyY, font: boldFont, size: 11 });
-    companyY -= 15;
-    page.drawText('Sector v, Bidhannagar, Near Technopolis', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
-    companyY -= 15;
-    page.drawText('kolkata 700091', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
-    companyY -= 15;
-    page.drawText('susovonsantra4@gmail.com', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
-    companyY -= 15;
-    page.drawText('ph.no 8910819035', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
-
-
-    // Table Header
-    let tableY = billToY - 50;
-    page.drawRectangle({ x: 50, y: tableY - 10, width: width - 100, height: 25, color: lightGrayColor });
-    page.drawText('Item Description', { x: 60, y: tableY, font: boldFont, size: 11, color: grayColor });
-    page.drawText('Qty', { x: 350, y: tableY, font: boldFont, size: 11, color: grayColor });
-    page.drawText('Amount', { x: 450, y: tableY, font: boldFont, size: 11, color: grayColor });
-    tableY -= 30;
-
-    // Table Rows
-    if (orderType === 'Document' && 'bwPages' in details) {
-        if (details.bwPages > 0) {
-            page.drawText(`B&W Pages (at Rs. ${BW_PRICE_PER_PAGE}/page)`, { x: 60, y: tableY, font: font, size: 10 });
-            page.drawText(`${details.bwPages}`, { x: 350, y: tableY, font: font, size: 10 });
-            page.drawText(`Rs. ${(details.bwPages * BW_PRICE_PER_PAGE).toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
-            tableY -= 20;
-        }
-        if (details.colorPages > 0) {
-            page.drawText(`Color Pages (at Rs. ${COLOR_PRICE_PER_PAGE}/page)`, { x: 60, y: tableY, font: font, size: 10 });
-            page.drawText(`${details.colorPages}`, { x: 350, y: tableY, font: font, size: 10 });
-            page.drawText(`Rs. ${(details.colorPages * COLOR_PRICE_PER_PAGE).toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
-            tableY -= 20;
-        }
-    } else if (orderType === 'Photo' && 'quantity' in details) {
-        page.drawText(`Photos ${details.width}x${details.height}cm (${details.paperType})`, { x: 60, y: tableY, font: font, size: 10 });
-        page.drawText(`${details.quantity}`, { x: 350, y: tableY, font: font, size: 10 });
-        page.drawText(`Rs. ${subtotal.toFixed(2)}`, { x: 450, y: tableY, font: font, size: 10 });
-        tableY -= 20;
-    }
-    
-    // Totals Section
-    let totalY = tableY - 20;
-    
-    if(orderType === 'Document' && 'copies' in details) {
-        const printingSubtotal = ((details.bwPages * BW_PRICE_PER_PAGE) + (details.colorPages * COLOR_PRICE_PER_PAGE));
-        page.drawText('Subtotal:', { x: 350, y: totalY, font: font, size: 10 });
-        page.drawText(`Rs. ${printingSubtotal.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
-        totalY -= 20;
-        page.drawText('Copies:', { x: 350, y: totalY, font: font, size: 10 });
-        page.drawText(`x ${details.copies}`, { x: 450, y: totalY, font: font, size: 10 });
-        totalY -= 20;
-    } else {
-        page.drawText('Subtotal:', { x: 350, y: totalY, font: font, size: 10 });
-        page.drawText(`Rs. ${subtotal.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
-        totalY -= 20;
-    }
-
-    page.drawText(`Delivery Fee:`, { x: 350, y: totalY, font: font, size: 10 });
-    page.drawText(`Rs. ${deliveryCharge.toFixed(2)}`, { x: 450, y: totalY, font: font, size: 10 });
-    totalY -= 20;
-    
-    page.drawLine({ start: { x: 340, y: totalY }, end: { x: width - 50, y: totalY }, thickness: 1, color: grayColor });
-    totalY -= 20;
-
-    page.drawText('Grand Total:', { x: 350, y: totalY, font: boldFont, size: 12 });
-    page.drawText(`Rs. ${total.toFixed(2)}`, { x: 450, y: totalY, font: boldFont, size: 12 });
-    
-    // Footer
-    let footerY = 40;
-    page.drawRectangle({ x: 0, y: 0, width, height: 60, color: lightGrayColor });
-    page.drawText('Thank you for your business!', { x: 50, y: footerY, font: boldFont, size: 12, color: grayColor });
-
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'invoice.pdf';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  
-  const handleGenerateDocInvoice = () => {
-    if (!isDocAddressComplete) {
-      toast({
-        variant: "destructive",
-        title: "Incomplete Address",
-        description: "Please fill out all delivery details before generating an invoice.",
-      });
-      return;
-    }
-
-    const details: DocumentInvoiceDetails = {
-        bwPages: parseInt(bwPages, 10) || 0,
-        colorPages: parseInt(colorPages, 10) || 0,
-        copies: parseInt(docQuantity, 10) || 1,
-    };
-    
-    generateInvoicePdf(
-      'Document',
-      docDeliveryAddress,
-      details,
-      (details.bwPages * BW_PRICE_PER_PAGE) + (details.colorPages * COLOR_PRICE_PER_PAGE),
-      deliveryCharges[docDeliveryOption] || 0,
-      documentOrderTotal
-    );
-  };
-
-  const handleGeneratePhotoInvoice = () => {
-     if (!isPhotoAddressComplete) {
-      toast({
-        variant: "destructive",
-        title: "Incomplete Address",
-        description: "Please fill out all delivery details before generating an invoice.",
-      });
-      return;
-    }
-    const details: PhotoInvoiceDetails = {
-      quantity: totalPhotoCopies,
-      width: "mixed",
-      height: "mixed",
-      paperType: paperType,
-      pricePerPhoto: 0 // This is simplified as total is passed directly
-    };
-
-    generateInvoicePdf(
-      'Photo',
-      photoDeliveryAddress,
-      details,
-      photoOrderTotal - (deliveryCharges[photoDeliveryOption] || 0),
-      deliveryCharges[photoDeliveryOption] || 0,
-      photoOrderTotal
-    );
-  };
-
   const handleProceedToPay = async (orderType: 'Document' | 'Photo', amount: number) => {
     if (!user) {
       toast({ variant: 'destructive', title: 'Not Logged In', description: 'Please log in to proceed with payment.' });
       return;
     }
     setIsPaying(true);
+
+    let orderItems: any[] = [];
+    let deliveryAddress: any = {};
+
+    if (orderType === 'Document') {
+        orderItems = uploadedDocs.flatMap(doc => 
+            doc.thumbnailUrls.map((thumb, index) => ({
+                name: doc.name,
+                type: 'Document Page',
+                details: `Page ${index + 1}`,
+                thumbnail: thumb, // Base64 Data URL
+            }))
+        );
+        deliveryAddress = docDeliveryAddress;
+    } else { // Photo
+        orderItems = uploadedPhotos.map(photo => ({
+            name: photo.name,
+            type: 'Photo Print',
+            details: `${photo.copies}x, ${photo.width}cm x ${photo.height}cm, Paper: ${paperType}`,
+            thumbnail: photo.url, // Base64 Data URL
+        }));
+        deliveryAddress = photoDeliveryAddress;
+    }
+
+
     try {
       const response = await fetch('/api/create-phonepe-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount, userId: user.uid, orderType }),
+        body: JSON.stringify({ 
+            amount, 
+            userId: user.uid, 
+            orderType,
+            deliveryAddress,
+            items: orderItems,
+        }),
       });
 
       if (!response.ok) {
@@ -898,10 +707,6 @@ function PrintDeliveryContent() {
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Documents</h4>
                     <div className="flex justify-center gap-4 mt-6">
-                        <Button size="lg" variant="outline" onClick={handleGenerateDocInvoice} disabled={!isDocAddressComplete}>
-                            <FileText className="mr-2 h-5 w-5" />
-                            Invoice
-                        </Button>
                         <Button size="lg" disabled={isPaying || documentOrderTotal <= 0 || !isDocAddressComplete} onClick={() => handleProceedToPay('Document', documentOrderTotal)}>
                             {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Proceed to Pay Rs. {documentOrderTotal.toFixed(2)}
@@ -1105,10 +910,6 @@ function PrintDeliveryContent() {
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
                     <div className="flex justify-center gap-4 mt-6">
-                        <Button size="lg" variant="outline" onClick={handleGeneratePhotoInvoice} disabled={!isPhotoAddressComplete}>
-                            <FileText className="mr-2 h-5 w-5" />
-                            Invoice
-                        </Button>
                         <Button size="lg" disabled={isPaying || photoOrderTotal <= 0 || !isPhotoAddressComplete} onClick={() => handleProceedToPay('Photo', photoOrderTotal)}>
                             {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Proceed to Pay Rs. {photoOrderTotal.toFixed(2)}
