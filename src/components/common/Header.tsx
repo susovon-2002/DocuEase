@@ -107,7 +107,6 @@ const Header = () => {
         <div className="flex flex-1 items-center justify-end space-x-2">
           <Button asChild variant="ghost">
             <Link href="/pricing">
-              <DollarSign className="mr-2 h-4 w-4" />
               Pricing
             </Link>
           </Button>
