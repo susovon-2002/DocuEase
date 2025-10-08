@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud } from "lucide-react";
+import { Printer, UploadCloud, X } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { useState, useMemo, useRef } from "react";
 import { Button } from "./ui/button";
@@ -73,7 +73,7 @@ export function PrintDeliveryOptions() {
   const [paperType, setPaperType] = useState('photo');
   const [deliveryOption, setDeliveryOption] = useState('standard');
   
-  const [totalDocPages, setTotalDocPages] = useState(0);
+  const [uploadedDocs, setUploadedDocs] = useState<{ name: string; pages: number }[]>([]);
   const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
   const [docQuantity, setDocQuantity] = useState('1');
 
@@ -82,11 +82,15 @@ export function PrintDeliveryOptions() {
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  const totalDocPages = useMemo(() => {
+    return uploadedDocs.reduce((acc, doc) => acc + doc.pages, 0);
+  }, [uploadedDocs]);
+
   const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    let newPages = 0;
+    const newDocs: { name: string; pages: number }[] = [];
     for (const file of Array.from(files)) {
         if(file.type !== 'application/pdf') {
             toast({ variant: 'destructive', title: 'Invalid File', description: `${file.name} is not a PDF.` });
@@ -96,21 +100,25 @@ export function PrintDeliveryOptions() {
         try {
             const fileBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-            newPages += pdf.numPages;
+            newDocs.push({ name: file.name, pages: pdf.numPages });
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
         }
     }
     
-    if (newPages > 0) {
-        setTotalDocPages(currentTotal => currentTotal + newPages);
-        toast({ title: 'Documents Added', description: `Added ${newPages} pages.` });
+    if (newDocs.length > 0) {
+        setUploadedDocs(currentDocs => [...currentDocs, ...newDocs]);
+        toast({ title: 'Documents Added', description: `Added ${newDocs.length} document(s).` });
     }
-    // Clear the input so the same file can be uploaded again if needed
+
     if (docFileInputRef.current) {
         docFileInputRef.current.value = '';
     }
+  };
+
+  const handleRemoveDoc = (index: number) => {
+    setUploadedDocs(currentDocs => currentDocs.filter((_, i) => i !== index));
   };
   
   const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,9 +221,26 @@ export function PrintDeliveryOptions() {
                     />
                  </div>
             </div>
+
+            {uploadedDocs.length > 0 && (
+                <div className="mb-4">
+                    <h4 className="text-sm font-semibold mb-2">Uploaded Documents:</h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border rounded-lg p-2">
+                        {uploadedDocs.map((doc, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                <span className="text-sm truncate">{doc.name} ({doc.pages} pages)</span>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveDoc(index)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {totalDocPages > 0 && (
                  <div className="space-y-4 mb-6">
-                    <p className="text-sm text-center text-muted-foreground">Total pages detected: {totalDocPages}. Select your printing option.</p>
+                    <p className="text-sm text-center text-muted-foreground">Total pages to print: {totalDocPages}. Select your printing option.</p>
                      <RadioGroup value={docPrintType} onValueChange={(v) => setDocPrintType(v as 'bw' | 'color')} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <RadioGroupItem value="bw" id="bw" className="peer sr-only" />
@@ -358,5 +383,3 @@ export function PrintDeliveryOptions() {
     </Card>
   );
 }
-
-    
