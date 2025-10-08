@@ -368,8 +368,8 @@ export default function PrintDeliveryPage() {
     for (const item of items) {
         drawText(item.description, 50, y);
         drawText(String(item.quantity), 250, y);
-        drawText(`₹${item.price.toFixed(2)}`, 350, y);
-        drawText(`₹${item.total.toFixed(2)}`, 450, y);
+        drawText(`Rs. ${item.price.toFixed(2)}`, 350, y);
+        drawText(`Rs. ${item.total.toFixed(2)}`, 450, y);
         y -= 20;
     }
     
@@ -378,18 +378,18 @@ export default function PrintDeliveryPage() {
     y -= 20;
 
     drawText('Subtotal:', 350, y);
-    drawText(`₹${subtotal.toFixed(2)}`, 450, y);
+    drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
     y -= 20;
     
     drawText('Delivery:', 350, y);
-    drawText(`₹${deliveryCharge.toFixed(2)}`, 450, y);
+    drawText(`Rs. ${deliveryCharge.toFixed(2)}`, 450, y);
     y -= 20;
     
     page.drawLine({ start: { x: 340, y }, end: { x: width - 50, y }, thickness: 1 });
     y -= 20;
 
     drawText('Grand Total:', 350, y, 14, true);
-    drawText(`₹${total.toFixed(2)}`, 450, y, 14, true);
+    drawText(`Rs. ${total.toFixed(2)}`, 450, y, 14, true);
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -402,6 +402,14 @@ export default function PrintDeliveryPage() {
   };
   
   const handleGenerateDocInvoice = () => {
+    if (!isDocAddressComplete) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete Address",
+        description: "Please fill out all delivery details before generating an invoice.",
+      });
+      return;
+    }
     const items = [];
     const numBw = parseInt(bwPages, 10) || 0;
     const numColor = parseInt(colorPages, 10) || 0;
@@ -410,7 +418,7 @@ export default function PrintDeliveryPage() {
     if (numBw > 0) items.push({ description: 'B&W Pages', quantity: numBw, price: BW_PRICE_PER_PAGE, total: numBw * BW_PRICE_PER_PAGE });
     if (numColor > 0) items.push({ description: 'Color Pages', quantity: numColor, price: COLOR_PRICE_PER_PAGE, total: numColor * COLOR_PRICE_PER_PAGE });
     
-    const printingSubtotal = documentPrintingCost.printingSubtotal / quantity;
+    const printingSubtotal = (documentPrintingCost.bwCost + documentPrintingCost.colorCost);
 
     generateInvoicePdf(
       'Document',
@@ -423,6 +431,14 @@ export default function PrintDeliveryPage() {
   };
 
   const handleGeneratePhotoInvoice = () => {
+     if (!isPhotoAddressComplete) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete Address",
+        description: "Please fill out all delivery details before generating an invoice.",
+      });
+      return;
+    }
     const items = [{
       description: `Photos ${photoWidth}x${photoHeight}cm (${paperType})`,
       quantity: parseInt(photoQuantity, 10),
@@ -600,8 +616,8 @@ export default function PrintDeliveryPage() {
                               <SelectValue placeholder="Select delivery speed" />
                           </SelectTrigger>
                           <SelectContent>
-                              <SelectItem value="standard">Standard (₹45)</SelectItem>
-                              <SelectItem value="express">Express (₹100)</SelectItem>
+                              <SelectItem value="standard">Standard (Rs. 45)</SelectItem>
+                              <SelectItem value="express">Express (Rs. 100)</SelectItem>
                           </SelectContent>
                       </Select>
                   </div>
@@ -611,16 +627,16 @@ export default function PrintDeliveryPage() {
                       <Table>
                         <TableBody>
                             <TableRow>
-                                <TableCell>B&amp;W Pages ({bwPages} x ₹{BW_PRICE_PER_PAGE}/page)</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.bwCost.toFixed(2)}</TableCell>
+                                <TableCell>B&amp;W Pages ({bwPages} x Rs. {BW_PRICE_PER_PAGE}/page)</TableCell>
+                                <TableCell className="text-right">Rs. {documentPrintingCost.bwCost.toFixed(2)}</TableCell>
                             </TableRow>
                             <TableRow>
-                                <TableCell>Color Pages ({colorPages} x ₹{COLOR_PRICE_PER_PAGE}/page)</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.colorCost.toFixed(2)}</TableCell>
+                                <TableCell>Color Pages ({colorPages} x Rs. {COLOR_PRICE_PER_PAGE}/page)</TableCell>
+                                <TableCell className="text-right">Rs. {documentPrintingCost.colorCost.toFixed(2)}</TableCell>
                             </TableRow>
                             <TableRow>
                                 <TableCell>Subtotal</TableCell>
-                                <TableCell className="text-right">₹{(documentPrintingCost.bwCost + documentPrintingCost.colorCost).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">Rs. {(documentPrintingCost.bwCost + documentPrintingCost.colorCost).toFixed(2)}</TableCell>
                             </TableRow>
                              <TableRow>
                                 <TableCell>Copies</TableCell>
@@ -628,11 +644,11 @@ export default function PrintDeliveryPage() {
                               </TableRow>
                              <TableRow>
                                 <TableCell>Delivery Fee ({docDeliveryOption})</TableCell>
-                                <TableCell className="text-right">₹{deliveryCharges[docDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
+                                <TableCell className="text-right">Rs. {deliveryCharges[docDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
                               </TableRow>
                              <TableRow className="font-bold bg-muted/50">
                                 <TableCell>Document Order Total</TableCell>
-                                <TableCell className="text-right">₹{documentOrderTotal.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">Rs. {documentOrderTotal.toFixed(2)}</TableCell>
                             </TableRow>
                         </TableBody>
                       </Table>
@@ -665,7 +681,7 @@ export default function PrintDeliveryPage() {
                         </Button>
                         <Button size="lg" disabled={documentOrderTotal <= 0 || !isDocAddressComplete}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
-                            Proceed to Pay ₹{documentOrderTotal.toFixed(2)}
+                            Proceed to Pay Rs. {documentOrderTotal.toFixed(2)}
                         </Button>
                     </div>
                   </div>
@@ -705,10 +721,10 @@ export default function PrintDeliveryPage() {
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="photo">Standard Photo Paper</SelectItem>
-                              <SelectItem value="matte">Matte (+₹1/photo)</SelectItem>
-                              <SelectItem value="glossy">Glossy (+₹2/photo)</SelectItem>
-                              <SelectItem value="premium">Premium Luster (+₹3/photo)</SelectItem>
-                              <SelectItem value="hd">HD Paper (+₹4/photo)</SelectItem>
+                              <SelectItem value="matte">Matte (+Rs. 1/photo)</SelectItem>
+                              <SelectItem value="glossy">Glossy (+Rs. 2/photo)</SelectItem>
+                              <SelectItem value="premium">Premium Luster (+Rs. 3/photo)</SelectItem>
+                              <SelectItem value="hd">HD Paper (+Rs. 4/photo)</SelectItem>
                           </SelectContent>
                       </Select>
                   </div>
@@ -720,8 +736,8 @@ export default function PrintDeliveryPage() {
                           <SelectValue placeholder="Select delivery speed" />
                       </SelectTrigger>
                       <SelectContent>
-                          <SelectItem value="standard">Standard (₹45)</SelectItem>
-                          <SelectItem value="express">Express (₹100)</SelectItem>
+                          <SelectItem value="standard">Standard (Rs. 45)</SelectItem>
+                          <SelectItem value="express">Express (Rs. 100)</SelectItem>
                       </SelectContent>
                   </Select>
               </div>
@@ -735,19 +751,19 @@ export default function PrintDeliveryPage() {
                           <TableBody>
                               <TableRow>
                                   <TableCell>Price per Photo</TableCell>
-                                  <TableCell className="text-right">₹{photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">Rs. {photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
                                   <TableCell>Printing Subtotal ({photoQuantity} photos)</TableCell>
-                                  <TableCell className="text-right">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">Rs. {photoPrice.printingCost.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
                                 <TableCell>Delivery Fee ({photoDeliveryOption})</TableCell>
-                                <TableCell className="text-right">₹{deliveryCharges[photoDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
+                                <TableCell className="text-right">Rs. {deliveryCharges[photoDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
                               </TableRow>
                               <TableRow className="font-bold bg-muted/50 text-lg">
                                   <TableCell>Photo Order Total</TableCell>
-                                  <TableCell className="text-right">₹{photoOrderTotal.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">Rs. {photoOrderTotal.toFixed(2)}</TableCell>
                               </TableRow>
                           </TableBody>
                       </Table>
@@ -780,7 +796,7 @@ export default function PrintDeliveryPage() {
                         </Button>
                         <Button size="lg" disabled={photoOrderTotal <= 0 || !isPhotoAddressComplete}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
-                            Proceed to Pay ₹{photoOrderTotal.toFixed(2)}
+                            Proceed to Pay Rs. {photoOrderTotal.toFixed(2)}
                         </Button>
                     </div>
                   </div>
