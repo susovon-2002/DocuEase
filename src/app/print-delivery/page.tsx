@@ -25,12 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PagePreviewDialog } from "@/components/PagePreviewDialog";
@@ -93,7 +94,6 @@ export default function PrintDeliveryPage() {
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
-  const [photoGenerateInvoice, setPhotoGenerateInvoice] = useState(false);
 
   // Document State
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
@@ -103,7 +103,6 @@ export default function PrintDeliveryPage() {
   const [docDeliveryOption, setDocDeliveryOption] = useState('standard');
   const [docPaymentMethod, setDocPaymentMethod] = useState('upi');
   const [docDeliveryAddress, setDocDeliveryAddress] = useState(initialAddressState);
-  const [docGenerateInvoice, setDocGenerateInvoice] = useState(false);
 
 
   // General State
@@ -299,39 +298,157 @@ export default function PrintDeliveryPage() {
     const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
     return subtotal + deliveryCharge;
   }, [photoPrice, photoDeliveryOption]);
+
+  const generateInvoicePdf = async (
+    orderType: 'Document' | 'Photo',
+    address: typeof initialAddressState,
+    items: { description: string, quantity: number, price: number, total: number }[],
+    subtotal: number,
+    deliveryCharge: number,
+    total: number
+  ) => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const drawText = (text: string, x: number, y: number, size = 12, isBold = false) => {
+        page.drawText(text, { x, y, font: isBold ? boldFont : font, size });
+    };
+
+    let y = height - 50;
+    
+    drawText('Invoice', 50, y, 24, true);
+    y -= 30;
+    drawText(`Order Type: ${orderType} Printing`, 50, y);
+    y -= 20;
+    drawText(`Date: ${new Date().toLocaleDateString()}`, 50, y);
+    y -= 40;
+
+    drawText('Bill To:', 50, y, 14, true);
+    y -= 20;
+    drawText(address.name, 50, y);
+    y -= 15;
+    drawText(address.address, 50, y);
+    y -= 15;
+    drawText(address.pincode, 50, y);
+    y -= 20;
+    drawText(`Email: ${address.email}`, 50, y);
+    y -= 15;
+    drawText(`Mobile: ${address.mobile}`, 50, y);
+    y -= 40;
+
+    // Table Header
+    drawText('Item Description', 50, y, 12, true);
+    drawText('Quantity', 250, y, 12, true);
+    drawText('Unit Price', 350, y, 12, true);
+    drawText('Total', 450, y, 12, true);
+    y -= 20;
+    
+    // Table Rows
+    for (const item of items) {
+        drawText(item.description, 50, y);
+        drawText(String(item.quantity), 250, y);
+        drawText(`₹${item.price.toFixed(2)}`, 350, y);
+        drawText(`₹${item.total.toFixed(2)}`, 450, y);
+        y -= 20;
+    }
+    
+    y -= 10;
+    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 0.5 });
+    y -= 20;
+
+    drawText('Subtotal:', 350, y);
+    drawText(`₹${subtotal.toFixed(2)}`, 450, y);
+    y -= 20;
+    
+    drawText('Delivery:', 350, y);
+    drawText(`₹${deliveryCharge.toFixed(2)}`, 450, y);
+    y -= 20;
+    
+    page.drawLine({ start: { x: 340, y }, end: { x: width - 50, y }, thickness: 1 });
+    y -= 20;
+
+    drawText('Grand Total:', 350, y, 14, true);
+    drawText(`₹${total.toFixed(2)}`, 450, y, 14, true);
+
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'invoice.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleGenerateDocInvoice = () => {
+    const items = [];
+    const numBw = parseInt(bwPages, 10) || 0;
+    const numColor = parseInt(colorPages, 10) || 0;
+    const quantity = parseInt(docQuantity, 10) || 1;
+    
+    if (numBw > 0) items.push({ description: 'B&W Pages', quantity: numBw, price: BW_PRICE_PER_PAGE, total: numBw * BW_PRICE_PER_PAGE });
+    if (numColor > 0) items.push({ description: 'Color Pages', quantity: numColor, price: COLOR_PRICE_PER_PAGE, total: numColor * COLOR_PRICE_PER_PAGE });
+    
+    const printingSubtotal = documentPrintingCost.printingSubtotal / quantity;
+
+    generateInvoicePdf(
+      'Document',
+      docDeliveryAddress,
+      items,
+      printingSubtotal,
+      deliveryCharges[docDeliveryOption] || 0,
+      documentOrderTotal
+    );
+  };
+
+  const handleGeneratePhotoInvoice = () => {
+    const items = [{
+      description: `Photos ${photoWidth}x${photoHeight}cm (${paperType})`,
+      quantity: parseInt(photoQuantity, 10),
+      price: photoPrice.pricePerPhoto,
+      total: photoPrice.printingCost,
+    }];
+    generateInvoicePdf(
+      'Photo',
+      photoDeliveryAddress,
+      items,
+      photoPrice.printingCost,
+      deliveryCharges[photoDeliveryOption] || 0,
+      photoOrderTotal
+    );
+  };
+
   
   const renderAddressForm = (
     type: 'doc' | 'photo',
     address: typeof initialAddressState,
-    invoice: boolean,
-    setInvoice: (checked: boolean) => void
+    onAddressChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, type: 'doc' | 'photo') => void
   ) => (
     <>
       <h4 className="text-md font-semibold mb-4 text-center">Delivery Details</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor={`${type}-name`}><User className="inline-block mr-2 h-4 w-4" />Full Name</Label>
-          <Input id={`${type}-name`} name="name" value={address.name} onChange={e => handleAddressChange(e, type)} placeholder="Enter your full name" />
+          <Input id={`${type}-name`} name="name" value={address.name} onChange={e => onAddressChange(e, type)} placeholder="Enter your full name" />
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${type}-mobile`}><Phone className="inline-block mr-2 h-4 w-4" />Mobile Number</Label>
-          <Input id={`${type}-mobile`} name="mobile" value={address.mobile} onChange={e => handleAddressChange(e, type)} placeholder="Enter your mobile number" />
+          <Input id={`${type}-mobile`} name="mobile" value={address.mobile} onChange={e => onAddressChange(e, type)} placeholder="Enter your mobile number" />
         </div>
          <div className="space-y-2">
           <Label htmlFor={`${type}-email`}><Mail className="inline-block mr-2 h-4 w-4" />Email Address</Label>
-          <Input id={`${type}-email`} name="email" value={address.email} onChange={e => handleAddressChange(e, type)} placeholder="Enter your email address" />
+          <Input id={`${type}-email`} name="email" value={address.email} onChange={e => onAddressChange(e, type)} placeholder="Enter your email address" />
         </div>
          <div className="space-y-2">
           <Label htmlFor={`${type}-pincode`}><MapPin className="inline-block mr-2 h-4 w-4" />Pincode</Label>
-          <Input id={`${type}-pincode`} name="pincode" value={address.pincode} onChange={e => handleAddressChange(e, type)} placeholder="Enter your pincode" />
+          <Input id={`${type}-pincode`} name="pincode" value={address.pincode} onChange={e => onAddressChange(e, type)} placeholder="Enter your pincode" />
         </div>
         <div className="md:col-span-2 space-y-2">
           <Label htmlFor={`${type}-address`}><MapPin className="inline-block mr-2 h-4 w-4" />Full Address</Label>
-          <Textarea id={`${type}-address`} name="address" value={address.address} onChange={e => handleAddressChange(e, type)} placeholder="Enter your full street address" />
-        </div>
-        <div className="md:col-span-2 flex items-center space-x-2">
-            <Checkbox id={`${type}-invoice`} checked={invoice} onCheckedChange={(checked) => setInvoice(checked as boolean)} />
-            <Label htmlFor={`${type}-invoice`}>Generate an invoice for this order</Label>
+          <Textarea id={`${type}-address`} name="address" value={address.address} onChange={e => onAddressChange(e, type)} placeholder="Enter your full street address" />
         </div>
       </div>
     </>
@@ -508,7 +625,7 @@ export default function PrintDeliveryPage() {
                {documentOrderTotal > 0 && (
                 <>
                   <Separator className="my-6" />
-                  {renderAddressForm('doc', docDeliveryAddress, docGenerateInvoice, setDocGenerateInvoice)}
+                  {renderAddressForm('doc', docDeliveryAddress, handleAddressChange)}
                   <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Documents</h4>
@@ -523,7 +640,11 @@ export default function PrintDeliveryPage() {
                         <RadioGroupItem value="cod" id="doc-cod" className="peer sr-only" />
                         <Label htmlFor="doc-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
                     </RadioGroup>
-                    <div className="flex justify-center mt-6">
+                    <div className="flex justify-center gap-4 mt-6">
+                        <Button size="lg" variant="outline" onClick={handleGenerateDocInvoice} disabled={documentOrderTotal <= 0}>
+                            <FileText className="mr-2 h-5 w-5" />
+                            Invoice
+                        </Button>
                         <Button size="lg" disabled={documentOrderTotal <= 0}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay ₹{documentOrderTotal.toFixed(2)}
@@ -619,7 +740,7 @@ export default function PrintDeliveryPage() {
                {photoOrderTotal > 0 && (
                 <>
                   <Separator className="my-6" />
-                  {renderAddressForm('photo', photoDeliveryAddress, photoGenerateInvoice, setPhotoGenerateInvoice)}
+                  {renderAddressForm('photo', photoDeliveryAddress, handleAddressChange)}
                   <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
@@ -634,7 +755,11 @@ export default function PrintDeliveryPage() {
                         <RadioGroupItem value="cod" id="photo-cod" className="peer sr-only" />
                         <Label htmlFor="photo-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
                     </RadioGroup>
-                    <div className="flex justify-center mt-6">
+                    <div className="flex justify-center gap-4 mt-6">
+                        <Button size="lg" variant="outline" onClick={handleGeneratePhotoInvoice} disabled={photoOrderTotal <= 0}>
+                            <FileText className="mr-2 h-5 w-5" />
+                            Invoice
+                        </Button>
                         <Button size="lg" disabled={photoOrderTotal <= 0}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay ₹{photoOrderTotal.toFixed(2)}
