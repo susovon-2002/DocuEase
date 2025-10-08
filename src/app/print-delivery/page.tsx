@@ -32,7 +32,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PagePreviewDialog } from "@/components/PagePreviewDialog";
@@ -341,6 +341,24 @@ export default function PrintDeliveryPage() {
     const grayColor = rgb(0.3, 0.3, 0.3);
     const lightGrayColor = rgb(0.95, 0.95, 0.95);
     const whiteColor = rgb(1, 1, 1);
+
+    // Watermark
+    const watermarkText = 'DocuEase';
+    const watermarkFontSize = 100;
+    const watermarkFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const textWidth = watermarkFont.widthOfTextAtSize(watermarkText, watermarkFontSize);
+    const textHeight = watermarkFont.heightAtSize(watermarkFontSize);
+    
+    page.drawText(watermarkText, {
+        x: width / 2 - textWidth / 2,
+        y: height / 2 - textHeight / 2,
+        font: watermarkFont,
+        size: watermarkFontSize,
+        color: rgb(0.85, 0.85, 0.85),
+        opacity: 0.2,
+        rotate: degrees(-45),
+    });
+
 
     // Header
     page.drawRectangle({
