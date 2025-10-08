@@ -31,6 +31,9 @@ export function FileUploadPlaceholder({
     if (files) {
       setSelectedFiles((prevFiles) => [...prevFiles, ...Array.from(files)]);
     }
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
   };
 
   const handleClearFiles = () => {

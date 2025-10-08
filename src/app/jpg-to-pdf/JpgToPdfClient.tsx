@@ -184,7 +184,7 @@ export function JpgToPdfClient() {
                     ))}
                   </div>
                   <div className="flex justify-center gap-4 pt-4">
-                    <Button onClick={() => fileInputRef.current?.click()} variant="outline">Add More Files</Button>
+                    <Button onClick={handleFileSelectClick} variant="outline">Add More Files</Button>
                     <Button onClick={handleConvert} size="lg">
                       <Wand2 className="mr-2 h-4 w-4" />
                       Convert to PDF
