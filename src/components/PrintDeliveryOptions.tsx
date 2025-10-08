@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -15,6 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Printer } from "lucide-react";
 
 const printOptions = [
@@ -37,28 +46,44 @@ export function PrintDeliveryOptions() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {printOptions.map((option) => (
-              <TableRow key={option.item}>
-                <TableCell className="font-medium">{option.item}</TableCell>
-                <TableCell className="text-right">{option.cost}</TableCell>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="paper-size" className="font-semibold">Choose Paper Size</Label>
+            <Select defaultValue="a4">
+              <SelectTrigger id="paper-size" className="w-full md:w-1/2 mx-auto">
+                <SelectValue placeholder="Select paper size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="a4">A4 (8.27" x 11.69")</SelectItem>
+                <SelectItem value="a5">A5 (5.83" x 8.27")</SelectItem>
+                <SelectItem value="legal">Legal (8.5" x 14")</SelectItem>
+                <SelectItem value="letter">Letter (8.5" x 11")</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
               </TableRow>
-            ))}
-            <TableRow className="bg-muted/50">
-              <TableCell className="font-medium">
-                Standard Delivery Fee
-              </TableCell>
-              <TableCell className="text-right">₹30 - ₹60</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {printOptions.map((option) => (
+                <TableRow key={option.item}>
+                  <TableCell className="font-medium">{option.item}</TableCell>
+                  <TableCell className="text-right">{option.cost}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="bg-muted/50">
+                <TableCell className="font-medium">
+                  Standard Delivery Fee
+                </TableCell>
+                <TableCell className="text-right">₹30 - ₹60</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
         <p className="text-xs text-muted-foreground mt-4 text-center">
           Delivery fees may vary based on your location. Service available for all plans.
         </p>
