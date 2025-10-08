@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https' ,
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
@@ -42,6 +42,7 @@ const nextConfig: NextConfig = {
     config.externals.push('canvas');
     return config;
   },
+  output: 'standalone'
 };
 
 export default nextConfig;
