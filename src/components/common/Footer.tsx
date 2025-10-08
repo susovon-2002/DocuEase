@@ -4,39 +4,44 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { useVideoPlayer } from '@/hooks/use-video-player';
 import Link from 'next/link';
+import { tools } from '@/lib/tools';
+import { groupBy } from 'lodash';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { togglePlayer } = useVideoPlayer();
+  const toolsByCategory = groupBy(tools, 'category');
 
   return (
     <footer className="border-t bg-secondary/50">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          <div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+          <div className="col-span-2 md:col-span-1">
             <h3 className="font-semibold mb-4">DocuEase</h3>
             <p className="text-sm text-muted-foreground">The All-in-One PDF Toolkit</p>
           </div>
-          <div>
-            <h3 className="font-semibold mb-4">Tools</h3>
-            <ul className="space-y-2">
-              <li><Link href="/merge-pdf" className="text-sm text-muted-foreground hover:text-primary">Merge PDF</Link></li>
-              <li><Link href="/compress-pdf" className="text-sm text-muted-foreground hover:text-primary">Compress PDF</Link></li>
-              <li><Link href="/split-pdf" className="text-sm text-muted-foreground hover:text-primary">Split PDF</Link></li>
-              <li><Link href="/edit-pdf" className="text-sm text-muted-foreground hover:text-primary">Edit PDF</Link></li>
-            </ul>
-          </div>
+
+          {Object.entries(toolsByCategory).map(([category, categoryTools]) => (
+             <div key={category}>
+                <h3 className="font-semibold mb-4">{category}</h3>
+                <ul className="space-y-2">
+                    {categoryTools.slice(0, 4).map(tool => (
+                        <li key={tool.path}>
+                            <Link href={tool.path} className="text-sm text-muted-foreground hover:text-primary">
+                                {tool.title}
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+          ))}
+
           <div>
             <h3 className="font-semibold mb-4">Company</h3>
             <ul className="space-y-2">
                <li><Link href="/pricing" className="text-sm text-muted-foreground hover:text-primary">Pricing</Link></li>
                <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-primary">Contact Us</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2">
-              <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</Link></li>
+                 <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-sm text-muted-foreground hover:text-primary">Terms of Service</Link></li>
             </ul>
           </div>
