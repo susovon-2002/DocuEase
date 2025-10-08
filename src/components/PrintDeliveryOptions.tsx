@@ -70,7 +70,6 @@ const COLOR_PRICE_PER_PAGE = 5;
 
 type UploadedDoc = {
   name: string;
-  pages: number;
   thumbnailUrls: string[];
 }
 
@@ -91,7 +90,7 @@ export function PrintDeliveryOptions() {
   const { toast } = useToast();
 
   const totalDocPages = useMemo(() => {
-    return uploadedDocs.reduce((acc, doc) => acc + doc.pages, 0);
+    return uploadedDocs.reduce((acc, doc) => acc + doc.thumbnailUrls.length, 0);
   }, [uploadedDocs]);
 
   const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,8 +107,7 @@ export function PrintDeliveryOptions() {
         try {
             const fileBuffer = await file.arrayBuffer();
             const thumbnailUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer.slice(0)));
-            const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-            newDocs.push({ name: file.name, pages: pdf.numPages, thumbnailUrls });
+            newDocs.push({ name: file.name, thumbnailUrls });
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
@@ -126,12 +124,36 @@ export function PrintDeliveryOptions() {
     }
   };
 
-  const handleRemoveDoc = (index: number) => {
-    const docToRemove = uploadedDocs[index];
-    if (docToRemove) {
-      docToRemove.thumbnailUrls.forEach(url => URL.revokeObjectURL(url));
-    }
-    setUploadedDocs(currentDocs => currentDocs.filter((_, i) => i !== index));
+  const handleRemoveDoc = (docIndex: number) => {
+    setUploadedDocs(currentDocs => {
+      const docToRemove = currentDocs[docIndex];
+      if (docToRemove) {
+        docToRemove.thumbnailUrls.forEach(url => URL.revokeObjectURL(url));
+      }
+      return currentDocs.filter((_, i) => i !== docIndex);
+    });
+  };
+
+  const handleRemovePage = (docIndex: number, pageIndex: number) => {
+    setUploadedDocs(currentDocs => {
+      const newDocs = [...currentDocs];
+      const targetDoc = newDocs[docIndex];
+
+      if (targetDoc) {
+        // Revoke the object URL to prevent memory leaks
+        const urlToRemove = targetDoc.thumbnailUrls[pageIndex];
+        URL.revokeObjectURL(urlToRemove);
+
+        // Filter out the page to be removed
+        targetDoc.thumbnailUrls = targetDoc.thumbnailUrls.filter((_, i) => i !== pageIndex);
+
+        // If the document has no pages left, remove the document itself
+        if (targetDoc.thumbnailUrls.length === 0) {
+          return newDocs.filter((_, i) => i !== docIndex);
+        }
+      }
+      return newDocs;
+    });
   };
   
   const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,23 +260,31 @@ export function PrintDeliveryOptions() {
             {uploadedDocs.length > 0 && (
                 <div className="mb-4 space-y-4">
                     <h4 className="text-sm font-semibold mb-2">Uploaded Documents ({uploadedDocs.length}):</h4>
-                     {uploadedDocs.map((doc, index) => (
-                        <div key={index} className="relative group p-4 rounded-md bg-muted/50 border">
+                     {uploadedDocs.map((doc, docIndex) => (
+                        <div key={docIndex} className="relative group p-4 rounded-md bg-muted/50 border">
                            <div className="flex justify-between items-center mb-2">
                              <div>
                                <p className="text-sm truncate font-medium">{doc.name}</p>
-                               <p className="text-xs text-muted-foreground">{doc.pages} pages</p>
+                               <p className="text-xs text-muted-foreground">{doc.thumbnailUrls.length} pages</p>
                              </div>
-                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleRemoveDoc(index)}>
+                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleRemoveDoc(docIndex)}>
                                 <X className="h-4 w-4" />
                             </Button>
                            </div>
                            <ScrollArea>
                             <div className="flex space-x-4 pb-4">
                                 {doc.thumbnailUrls.map((url, pageIndex) => (
-                                    <div key={pageIndex} className="w-24 flex-shrink-0">
+                                    <div key={pageIndex} className="w-24 flex-shrink-0 group/page relative">
                                         <img src={url} alt={`${doc.name} page ${pageIndex + 1}`} className="rounded-md w-full aspect-[2/3] object-contain bg-white border" />
                                         <p className="text-center text-xs mt-1 text-muted-foreground">Page {pageIndex + 1}</p>
+                                        <Button 
+                                            variant="destructive" 
+                                            size="icon" 
+                                            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity"
+                                            onClick={() => handleRemovePage(docIndex, pageIndex)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
                                     </div>
                                 ))}
                             </div>
