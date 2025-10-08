@@ -1,15 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Button } from '../ui/button';
-import { useVideoPlayer } from '@/hooks/use-video-player';
 import Link from 'next/link';
 import { tools } from '@/lib/tools';
 import { groupBy } from 'lodash';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const { togglePlayer } = useVideoPlayer();
   const toolsByCategory = groupBy(tools, 'category');
 
   return (
@@ -46,13 +43,10 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center">
+        <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-center items-center">
           <p className="text-center text-sm text-muted-foreground">
             &copy; {currentYear} DocuEase. All Rights Reserved.
           </p>
-          <Button variant="link" onClick={togglePlayer}>
-            Entertainment
-          </Button>
         </div>
       </div>
     </footer>

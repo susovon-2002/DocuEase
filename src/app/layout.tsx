@@ -5,6 +5,7 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import { FirebaseClientProvider } from '@/firebase';
 import { FloatingVideoPlayer } from '@/components/FloatingVideoPlayer';
+import { EntertainmentButton } from '@/components/EntertainmentButton';
 
 export const metadata: Metadata = {
   title: 'DocuEase',
@@ -32,6 +33,7 @@ export default function RootLayout({
           <main className="flex-grow bg-background">{children}</main>
           <Footer />
           <FloatingVideoPlayer />
+          <EntertainmentButton />
           <Toaster />
         </FirebaseClientProvider>
       </body>
