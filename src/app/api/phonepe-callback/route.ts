@@ -3,7 +3,7 @@ import { doc, setDoc, collection, serverTimestamp, getDoc, updateDoc } from 'fir
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
-import sha256 from 'crypto-js/sha256';
+import { createHash } from 'crypto';
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         console.error("Checksum verification failed: Missing SALT_KEY or received checksum.");
         return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
     }
-    const calculatedChecksum = sha256(Buffer.from(body.response, 'base64').toString() + SALT_KEY).toString() + `###${SALT_INDEX}`;
+    const calculatedChecksum = createHash('sha256').update(Buffer.from(body.response, 'base64').toString() + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
     
     if (receivedChecksum !== calculatedChecksum) {
       console.error("Checksum mismatch!");

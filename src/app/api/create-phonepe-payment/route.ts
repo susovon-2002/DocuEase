@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
-import sha256 from 'crypto-js/sha256';
+import { createHash } from 'crypto';
 
 const PHONEPE_HOST_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
 const MERCHANT_ID = process.env.NEXT_PUBLIC_PHONEPE_MERCHANT_ID;
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
     };
     
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const checksum = sha256(base64Payload + '/pg/v1/pay' + SALT_KEY).toString() + `###${SALT_INDEX}`;
+    const checksum = createHash('sha256').update(base64Payload + '/pg/v1/pay' + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
 
     const response = await fetch(`${PHONEPE_HOST_URL}/pg/v1/pay`, {
       method: 'POST',
