@@ -24,9 +24,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer } from "lucide-react";
+import { Printer, UploadCloud } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
 
 const A4_PRINTABLE_WIDTH = 20; // cm
 const A4_PRINTABLE_HEIGHT = 28; // cm
@@ -67,6 +73,59 @@ export function PrintDeliveryOptions() {
   
   const [bwPages, setBwPages] = useState('');
   const [colorPages, setColorPages] = useState('');
+  const [totalDocPages, setTotalDocPages] = useState(0);
+
+  const docFileInputRef = useRef<HTMLInputElement>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if(file.type !== 'application/pdf') {
+        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload a PDF document.' });
+        return;
+    }
+    
+    try {
+        const fileBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
+        setTotalDocPages(pdf.numPages);
+        setColorPages(String(pdf.numPages));
+        setBwPages('0');
+        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages. Please specify color/B&W counts.` });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error Reading PDF', description: 'Could not process the uploaded document.' });
+    }
+  };
+  
+  const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+          toast({ variant: 'destructive', title: 'Invalid File', description: 'Please upload an image file.' });
+          return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+              // Assuming 96 DPI for conversion from pixels to cm
+              const dpi = 96;
+              const widthInCm = (img.width * 2.54) / dpi;
+              const heightInCm = (img.height * 2.54) / dpi;
+              setPhotoWidth(widthInCm.toFixed(1));
+              setPhotoHeight(heightInCm.toFixed(1));
+              toast({ title: 'Image Loaded', description: 'Photo dimensions have been set from the uploaded image.' });
+          };
+          img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+  };
 
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
@@ -124,6 +183,12 @@ export function PrintDeliveryOptions() {
         <div className="space-y-8">
           <div>
             <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
+             <div className="mb-4">
+                 <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf"/>
+                 <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
+                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Auto-fill Pages
+                 </Button>
+            </div>
             <div className="space-y-4 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                     <div className="space-y-2">
@@ -135,6 +200,7 @@ export function PrintDeliveryOptions() {
                         <Input id="color-pages" type="number" placeholder="No. of Color pages" value={colorPages} onChange={(e) => setColorPages(e.target.value)} min="0" />
                     </div>
                 </div>
+                 {totalDocPages > 0 && <p className="text-sm text-center text-muted-foreground">Total pages detected: {totalDocPages}. Please allocate them between B&W and Color.</p>}
                  {documentPrintingCost > 0 && (
                     <div className="pt-4 text-center">
                         <p className="text-md font-semibold">Document Printing Subtotal:</p>
@@ -148,6 +214,12 @@ export function PrintDeliveryOptions() {
 
           <div>
              <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing Calculator</h3>
+              <div className="mb-4">
+                 <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
+                 <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
+                 </Button>
+            </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                 <div className="space-y-2">
                     <Label>Photo Size (in cm)</Label>
