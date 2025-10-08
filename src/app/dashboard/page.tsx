@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, doc, query, where, setDoc, Timestamp } from 'firebase/firestore';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow, startOfWeek } from 'date-fns';
 import { groupBy, countBy } from 'lodash';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { UserCircle, Award, Trophy, Star, Edit, Rocket, Zap, Activity, FileStack, Wrench, Package, FileText } from 'lucide-react';
+import { UserCircle, Award, Trophy, Star, Edit, Rocket, Zap, Activity, FileStack, Wrench, Package, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,19 @@ export default function DashboardPage() {
   
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
   
+  useEffect(() => {
+    if (!isAuthUserLoading && user && userProfile && userProfile.isRestricted) {
+        toast({
+            variant: 'destructive',
+            title: 'Account Restricted',
+            description: 'Your access has been restricted. Please contact support.',
+            duration: Infinity,
+        });
+        signOut(auth);
+        router.push('/login');
+    }
+  }, [user, userProfile, isAuthUserLoading, auth, router, toast]);
+
   const subscriptionQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.subscriptionId) return null;
     return doc(firestore, 'subscriptions', userProfile.subscriptionId);
@@ -375,6 +388,9 @@ export default function DashboardPage() {
                     <h3 className="font-semibold text-lg">{userProfile?.name || user.email}</h3>
                     <p className="text-muted-foreground text-sm">{userProfile?.role}{userProfile?.role && userProfile?.company ? ' at ' : ''}{userProfile?.company}</p>
                     <p className="text-muted-foreground text-xs mt-2">{user.email}</p>
+                     {userProfile?.isAdmin && (
+                        <Badge variant="secondary" className="mt-4"><Shield className="w-3 h-3 mr-1" />Admin</Badge>
+                     )}
                 </CardContent>
                  <CardFooter className="flex-col gap-2">
                    <Button onClick={handleLogout} variant="outline" className="w-full">

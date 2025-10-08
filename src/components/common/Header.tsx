@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer, DollarSign } from 'lucide-react';
+import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer, Shield } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import {
@@ -16,13 +16,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from 'react';
+import { doc } from 'firebase/firestore';
 
 
 const AuthContent = () => {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
+
+  const userProfileQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, `users/${user.uid}`);
+  }, [firestore, user]);
+  
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -37,7 +47,7 @@ const AuthContent = () => {
     }
   };
 
-  if (!isClient || isUserLoading) {
+  if (!isClient || isUserLoading || isUserProfileLoading) {
     // Render a static placeholder on the server and during initial client load/auth check.
     // This MUST be identical to prevent hydration errors.
     return <div className="h-8 w-8 rounded-full bg-muted" />;
@@ -49,7 +59,7 @@ const AuthContent = () => {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.photoURL || "https://picsum.photos/seed/user/100/100"} alt={user.displayName || user.email || 'User'} />
+              <AvatarImage src={userProfile?.photoURL || user.photoURL || "https://picsum.photos/seed/user/100/100"} alt={userProfile?.name || user.email || 'User'} />
               <AvatarFallback>
                 <UserCircle />
               </AvatarFallback>
@@ -59,7 +69,7 @@ const AuthContent = () => {
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+              <p className="text-sm font-medium leading-none">{userProfile?.name || 'User'}</p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user.email}
               </p>
@@ -72,6 +82,14 @@ const AuthContent = () => {
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
+           {userProfile?.isAdmin && (
+             <DropdownMenuItem asChild>
+                <Link href="/admin/users">
+                  <Shield className="mr-2 h-4 w-4" />
+                  <span>Admin Panel</span>
+                </Link>
+              </DropdownMenuItem>
+           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />

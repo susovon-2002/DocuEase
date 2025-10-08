@@ -45,6 +45,14 @@
         "subscriptionId": {
           "type": "string",
           "description": "Reference to Subscription. (Relationship: Subscription 1:1 User)"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Determines if the user has admin privileges."
+        },
+        "isRestricted": {
+          "type": "boolean",
+          "description": "If true, the user's access to the application is restricted."
         }
       },
       "required": [

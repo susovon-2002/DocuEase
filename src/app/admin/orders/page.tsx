@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Loader2, Package } from 'lucide-react';
-import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
+import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
 
 function AdminOrdersContent() {
   const firestore = useFirestore();
@@ -106,8 +106,8 @@ function AdminOrdersContent() {
 
 export default function AdminOrdersPage() {
     return (
-        <ToolAuthWrapper>
+        <AdminAuthWrapper>
             <AdminOrdersContent />
-        </ToolAuthWrapper>
+        </AdminAuthWrapper>
     )
 }

@@ -7,15 +7,16 @@ import { z } from 'zod';
 import { Loader2, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { Checkbox } from '@/components/ui/checkbox';
+import { doc, serverTimestamp } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -40,6 +41,7 @@ export default function LoginPage() {
   const [captcha, setCaptcha] = useState({ num1: 0, num2: 0 });
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
 
   const generateCaptcha = () => {
@@ -62,6 +64,20 @@ export default function LoginPage() {
       terms: false,
     },
   });
+  
+  const createUserProfile = (user: User) => {
+    if (!firestore) return;
+    const userRef = doc(firestore, `users/${user.uid}`);
+    setDocumentNonBlocking(userRef, {
+        id: user.uid,
+        email: user.email,
+        name: user.displayName || user.email?.split('@')[0],
+        photoURL: user.photoURL,
+        registrationDate: serverTimestamp(),
+        isAdmin: false,
+        isRestricted: false,
+    }, { merge: true });
+  }
 
   const onSubmit = async (data: FormValues) => {
     const captchaAnswer = parseInt(data.captcha, 10);
@@ -88,7 +104,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, data.email, data.password);
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        createUserProfile(userCredential.user);
         toast({
           title: 'Account Created',
           description: 'You have been successfully signed up.',
