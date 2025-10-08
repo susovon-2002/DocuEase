@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -34,6 +34,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { PagePreviewDialog } from "./PagePreviewDialog";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -86,6 +87,7 @@ export function PrintDeliveryOptions() {
   const [docQuantity, setDocQuantity] = useState('1');
 
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
 
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
@@ -525,6 +527,58 @@ export function PrintDeliveryOptions() {
               <p className="text-xs text-muted-foreground mt-4 text-center">
                   Delivery fees may vary based on your final location and order weight. Service available for all plans.
               </p>
+            </div>
+            <Separator />
+             <div>
+                <h3 className="text-xl font-semibold mb-4 text-center">Grand Total</h3>
+                <Table>
+                    <TableBody>
+                        <TableRow className="font-bold bg-primary/10 text-lg">
+                            <TableCell>Total Order Cost</TableCell>
+                            <TableCell className="text-right">₹{(documentPrintingCost.totalCost + photoPrice.totalCost).toFixed(2)}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </div>
+            <Separator />
+             <div>
+                <h3 className="text-lg font-semibold mb-4 text-center">Payment Method</h3>
+                <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <RadioGroupItem value="upi" id="upi" className="peer sr-only" />
+                        <Label htmlFor="upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <Wallet className="mb-2 h-6 w-6" />
+                            UPI
+                        </Label>
+                    </div>
+                     <div>
+                        <RadioGroupItem value="netbanking" id="netbanking" className="peer sr-only" />
+                        <Label htmlFor="netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <CreditCard className="mb-2 h-6 w-6" />
+                            Net Banking
+                        </Label>
+                    </div>
+                     <div>
+                        <RadioGroupItem value="qrcode" id="qrcode" className="peer sr-only" />
+                        <Label htmlFor="qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <QrCode className="mb-2 h-6 w-6" />
+                            QR Code
+                        </Label>
+                    </div>
+                     <div>
+                        <RadioGroupItem value="cod" id="cod" className="peer sr-only" />
+                        <Label htmlFor="cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <HandCoins className="mb-2 h-6 w-6" />
+                            COD
+                        </Label>
+                    </div>
+                </RadioGroup>
+                <div className="flex justify-center mt-6">
+                    <Button size="lg" disabled={(documentPrintingCost.totalCost + photoPrice.totalCost) <= 0}>
+                        <ShoppingCart className="mr-2 h-5 w-5" />
+                        Proceed to Pay ₹{(documentPrintingCost.totalCost + photoPrice.totalCost).toFixed(2)}
+                    </Button>
+                </div>
             </div>
           </div>
         </CardContent>
