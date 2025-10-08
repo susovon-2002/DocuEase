@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -35,6 +35,8 @@ import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { PagePreviewDialog } from "./PagePreviewDialog";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Checkbox } from "./ui/checkbox";
+import { Textarea } from "./ui/textarea";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -74,6 +76,14 @@ type UploadedDoc = {
   thumbnailUrls: string[];
 }
 
+const initialAddressState = {
+  name: '',
+  mobile: '',
+  email: '',
+  address: '',
+  pincode: '',
+};
+
 export function PrintDeliveryOptions() {
   // Photo State
   const [photoWidth, setPhotoWidth] = useState('3.5');
@@ -82,6 +92,8 @@ export function PrintDeliveryOptions() {
   const [paperType, setPaperType] = useState('photo');
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
+  const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
+  const [photoGenerateInvoice, setPhotoGenerateInvoice] = useState(false);
 
   // Document State
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
@@ -90,6 +102,9 @@ export function PrintDeliveryOptions() {
   const [docQuantity, setDocQuantity] = useState('1');
   const [docDeliveryOption, setDocDeliveryOption] = useState('standard');
   const [docPaymentMethod, setDocPaymentMethod] = useState('upi');
+  const [docDeliveryAddress, setDocDeliveryAddress] = useState(initialAddressState);
+  const [docGenerateInvoice, setDocGenerateInvoice] = useState(false);
+
 
   // General State
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -211,6 +226,18 @@ export function PrintDeliveryOptions() {
       }
     }
   };
+  
+  const handleAddressChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    type: 'doc' | 'photo'
+  ) => {
+    const { name, value } = e.target;
+    if (type === 'doc') {
+      setDocDeliveryAddress(prev => ({ ...prev, [name]: value }));
+    } else {
+      setPhotoDeliveryAddress(prev => ({ ...prev, [name]: value }));
+    }
+  };
 
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
@@ -272,6 +299,43 @@ export function PrintDeliveryOptions() {
     const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
     return subtotal + deliveryCharge;
   }, [photoPrice, photoDeliveryOption]);
+  
+  const renderAddressForm = (
+    type: 'doc' | 'photo',
+    address: typeof initialAddressState,
+    invoice: boolean,
+    setInvoice: (checked: boolean) => void
+  ) => (
+    <>
+      <h4 className="text-md font-semibold mb-4 text-center">Delivery Details</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${type}-name`}><User className="inline-block mr-2 h-4 w-4" />Full Name</Label>
+          <Input id={`${type}-name`} name="name" value={address.name} onChange={e => handleAddressChange(e, type)} placeholder="Enter your full name" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${type}-mobile`}><Phone className="inline-block mr-2 h-4 w-4" />Mobile Number</Label>
+          <Input id={`${type}-mobile`} name="mobile" value={address.mobile} onChange={e => handleAddressChange(e, type)} placeholder="Enter your mobile number" />
+        </div>
+         <div className="space-y-2">
+          <Label htmlFor={`${type}-email`}><Mail className="inline-block mr-2 h-4 w-4" />Email Address</Label>
+          <Input id={`${type}-email`} name="email" value={address.email} onChange={e => handleAddressChange(e, type)} placeholder="Enter your email address" />
+        </div>
+         <div className="space-y-2">
+          <Label htmlFor={`${type}-pincode`}><MapPin className="inline-block mr-2 h-4 w-4" />Pincode</Label>
+          <Input id={`${type}-pincode`} name="pincode" value={address.pincode} onChange={e => handleAddressChange(e, type)} placeholder="Enter your pincode" />
+        </div>
+        <div className="md:col-span-2 space-y-2">
+          <Label htmlFor={`${type}-address`}><MapPin className="inline-block mr-2 h-4 w-4" />Full Address</Label>
+          <Textarea id={`${type}-address`} name="address" value={address.address} onChange={e => handleAddressChange(e, type)} placeholder="Enter your full street address" />
+        </div>
+        <div className="md:col-span-2 flex items-center space-x-2">
+            <Checkbox id={`${type}-invoice`} checked={invoice} onCheckedChange={(checked) => setInvoice(checked as boolean)} />
+            <Label htmlFor={`${type}-invoice`}>Generate an invoice for this order</Label>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -443,7 +507,9 @@ export function PrintDeliveryOptions() {
               )}
                {documentOrderTotal > 0 && (
                 <>
-                  <Separator className="my-4" />
+                  <Separator className="my-6" />
+                  {renderAddressForm('doc', docDeliveryAddress, docGenerateInvoice, setDocGenerateInvoice)}
+                  <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Documents</h4>
                     <RadioGroup value={docPaymentMethod} onValueChange={setDocPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -552,7 +618,9 @@ export function PrintDeliveryOptions() {
               </div>
                {photoOrderTotal > 0 && (
                 <>
-                  <Separator className="my-4" />
+                  <Separator className="my-6" />
+                  {renderAddressForm('photo', photoDeliveryAddress, photoGenerateInvoice, setPhotoGenerateInvoice)}
+                  <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
                     <RadioGroup value={photoPaymentMethod} onValueChange={setPhotoPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
