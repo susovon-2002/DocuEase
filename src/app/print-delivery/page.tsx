@@ -85,6 +85,21 @@ const initialAddressState = {
   pincode: '',
 };
 
+type DocumentInvoiceDetails = {
+    bwPages: number;
+    colorPages: number;
+    copies: number;
+};
+
+type PhotoInvoiceDetails = {
+    quantity: number;
+    width: string;
+    height: string;
+    paperType: string;
+    pricePerPhoto: number;
+};
+
+
 export default function PrintDeliveryPage() {
   // Photo State
   const [photoWidth, setPhotoWidth] = useState('3.5');
@@ -310,21 +325,11 @@ export default function PrintDeliveryPage() {
   const generateInvoicePdf = async (
     orderType: 'Document' | 'Photo',
     address: typeof initialAddressState,
-    items: { description: string, quantity: number, price: number, total: number }[],
+    details: DocumentInvoiceDetails | PhotoInvoiceDetails,
     subtotal: number,
     deliveryCharge: number,
     total: number
   ) => {
-
-    if (!isAddressComplete(address)) {
-        toast({
-            variant: 'destructive',
-            title: 'Incomplete Address',
-            description: 'Please fill out all delivery details before generating an invoice.'
-        });
-        return;
-    }
-
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -359,29 +364,46 @@ export default function PrintDeliveryPage() {
 
     // Table Header
     drawText('Item Description', 50, y, 12, true);
-    drawText('Quantity', 250, y, 12, true);
-    drawText('Unit Price', 350, y, 12, true);
     drawText('Total', 450, y, 12, true);
     y -= 20;
     
     // Table Rows
-    for (const item of items) {
-        drawText(item.description, 50, y);
-        drawText(String(item.quantity), 250, y);
-        drawText(`Rs. ${item.price.toFixed(2)}`, 350, y);
-        drawText(`Rs. ${item.total.toFixed(2)}`, 450, y);
+    if (orderType === 'Document' && 'bwPages' in details) {
+        if (details.bwPages > 0) {
+            drawText(`B&W Pages (${details.bwPages} x Rs. ${BW_PRICE_PER_PAGE}/page)`, 50, y);
+            drawText(`Rs. ${(details.bwPages * BW_PRICE_PER_PAGE).toFixed(2)}`, 450, y);
+            y -= 20;
+        }
+        if (details.colorPages > 0) {
+            drawText(`Color Pages (${details.colorPages} x Rs. ${COLOR_PRICE_PER_PAGE}/page)`, 50, y);
+            drawText(`Rs. ${(details.colorPages * COLOR_PRICE_PER_PAGE).toFixed(2)}`, 450, y);
+            y -= 20;
+        }
+    } else if (orderType === 'Photo' && 'quantity' in details) {
+        drawText(`Photos ${details.width}x${details.height}cm (${details.paperType})`, 50, y);
+        drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
         y -= 20;
     }
     
     y -= 10;
     page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 0.5 });
     y -= 20;
-
-    drawText('Subtotal:', 350, y);
-    drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
-    y -= 20;
     
-    drawText('Delivery:', 350, y);
+    if(orderType === 'Document' && 'copies' in details) {
+        const printingSubtotal = ((details.bwPages * BW_PRICE_PER_PAGE) + (details.colorPages * COLOR_PRICE_PER_PAGE));
+        drawText('Subtotal:', 350, y);
+        drawText(`Rs. ${printingSubtotal.toFixed(2)}`, 450, y);
+        y -= 20;
+        drawText('Copies:', 350, y);
+        drawText(`x ${details.copies}`, 450, y);
+        y -= 20;
+    } else {
+        drawText('Subtotal:', 350, y);
+        drawText(`Rs. ${subtotal.toFixed(2)}`, 450, y);
+        y -= 20;
+    }
+
+    drawText(`Delivery Fee (${docDeliveryOption}):`, 350, y);
     drawText(`Rs. ${deliveryCharge.toFixed(2)}`, 450, y);
     y -= 20;
     
@@ -410,21 +432,18 @@ export default function PrintDeliveryPage() {
       });
       return;
     }
-    const items = [];
-    const numBw = parseInt(bwPages, 10) || 0;
-    const numColor = parseInt(colorPages, 10) || 0;
-    const quantity = parseInt(docQuantity, 10) || 1;
-    
-    if (numBw > 0) items.push({ description: 'B&W Pages', quantity: numBw, price: BW_PRICE_PER_PAGE, total: numBw * BW_PRICE_PER_PAGE });
-    if (numColor > 0) items.push({ description: 'Color Pages', quantity: numColor, price: COLOR_PRICE_PER_PAGE, total: numColor * COLOR_PRICE_PER_PAGE });
-    
-    const printingSubtotal = (documentPrintingCost.bwCost + documentPrintingCost.colorCost);
 
+    const details: DocumentInvoiceDetails = {
+        bwPages: parseInt(bwPages, 10) || 0,
+        colorPages: parseInt(colorPages, 10) || 0,
+        copies: parseInt(docQuantity, 10) || 1,
+    };
+    
     generateInvoicePdf(
       'Document',
       docDeliveryAddress,
-      items,
-      printingSubtotal,
+      details,
+      (details.bwPages * BW_PRICE_PER_PAGE) + (details.colorPages * COLOR_PRICE_PER_PAGE),
       deliveryCharges[docDeliveryOption] || 0,
       documentOrderTotal
     );
@@ -439,16 +458,18 @@ export default function PrintDeliveryPage() {
       });
       return;
     }
-    const items = [{
-      description: `Photos ${photoWidth}x${photoHeight}cm (${paperType})`,
+    const details: PhotoInvoiceDetails = {
       quantity: parseInt(photoQuantity, 10),
-      price: photoPrice.pricePerPhoto,
-      total: photoPrice.printingCost,
-    }];
+      width: photoWidth,
+      height: photoHeight,
+      paperType: paperType,
+      pricePerPhoto: photoPrice.pricePerPhoto
+    };
+
     generateInvoicePdf(
       'Photo',
       photoDeliveryAddress,
-      items,
+      details,
       photoPrice.printingCost,
       deliveryCharges[photoDeliveryOption] || 0,
       photoOrderTotal
