@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
+import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -70,7 +71,7 @@ const COLOR_PRICE_PER_PAGE = 5;
 type UploadedDoc = {
   name: string;
   pages: number;
-  thumbnailUrl: string;
+  thumbnailUrls: string[];
 }
 
 export function PrintDeliveryOptions() {
@@ -106,9 +107,9 @@ export function PrintDeliveryOptions() {
         
         try {
             const fileBuffer = await file.arrayBuffer();
-            const [thumbnailUrl] = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer.slice(0)));
+            const thumbnailUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer.slice(0)));
             const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-            newDocs.push({ name: file.name, pages: pdf.numPages, thumbnailUrl });
+            newDocs.push({ name: file.name, pages: pdf.numPages, thumbnailUrls });
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
@@ -128,7 +129,7 @@ export function PrintDeliveryOptions() {
   const handleRemoveDoc = (index: number) => {
     const docToRemove = uploadedDocs[index];
     if (docToRemove) {
-      URL.revokeObjectURL(docToRemove.thumbnailUrl);
+      docToRemove.thumbnailUrls.forEach(url => URL.revokeObjectURL(url));
     }
     setUploadedDocs(currentDocs => currentDocs.filter((_, i) => i !== index));
   };
@@ -235,20 +236,32 @@ export function PrintDeliveryOptions() {
             </div>
 
             {uploadedDocs.length > 0 && (
-                <div className="mb-4">
-                    <h4 className="text-sm font-semibold mb-2">Uploaded Documents:</h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {uploadedDocs.map((doc, index) => (
-                            <div key={index} className="relative group p-2 rounded-md bg-muted/50">
-                                <img src={doc.thumbnailUrl} alt={doc.name} className="rounded-md w-full aspect-[2/3] object-contain bg-white mb-2" />
-                                <div className="text-xs truncate font-medium">{doc.name}</div>
-                                <div className="text-xs text-muted-foreground">{doc.pages} pages</div>
-                                <Button variant="destructive" size="icon" className="absolute top-3 right-3 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleRemoveDoc(index)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                <div className="mb-4 space-y-4">
+                    <h4 className="text-sm font-semibold mb-2">Uploaded Documents ({uploadedDocs.length}):</h4>
+                     {uploadedDocs.map((doc, index) => (
+                        <div key={index} className="relative group p-4 rounded-md bg-muted/50 border">
+                           <div className="flex justify-between items-center mb-2">
+                             <div>
+                               <p className="text-sm truncate font-medium">{doc.name}</p>
+                               <p className="text-xs text-muted-foreground">{doc.pages} pages</p>
+                             </div>
+                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleRemoveDoc(index)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                           </div>
+                           <ScrollArea>
+                            <div className="flex space-x-4 pb-4">
+                                {doc.thumbnailUrls.map((url, pageIndex) => (
+                                    <div key={pageIndex} className="w-24 flex-shrink-0">
+                                        <img src={url} alt={`${doc.name} page ${pageIndex + 1}`} className="rounded-md w-full aspect-[2/3] object-contain bg-white border" />
+                                        <p className="text-center text-xs mt-1 text-muted-foreground">Page {pageIndex + 1}</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                            <ScrollBar orientation="horizontal" />
+                           </ScrollArea>
+                        </div>
+                    ))}
                 </div>
             )}
 
