@@ -26,14 +26,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Printer } from "lucide-react";
 import { Separator } from "./ui/separator";
-
-const printOptions = [
-  { item: "Black & White Print", cost: "₹3 / page" },
-  { item: "Color Print", cost: "₹5 / page" },
-  { item: "Glossy Photo Paper", cost: "₹15 / photo" },
-];
+import { useState, useMemo } from "react";
 
 export function PrintDeliveryOptions() {
+  const [photoWidth, setPhotoWidth] = useState('');
+  const [photoHeight, setPhotoHeight] = useState('');
+  const [photoQuantity, setPhotoQuantity] = useState('1');
+
+  const photoPrice = useMemo(() => {
+    const width = parseFloat(photoWidth);
+    const height = parseFloat(photoHeight);
+    const quantity = parseInt(photoQuantity, 10);
+
+    if (isNaN(width) || isNaN(height) || isNaN(quantity) || width <= 0 || height <= 0 || quantity <= 0) {
+      return { pricePerPhoto: 0, totalPrice: 0 };
+    }
+    const pricePerPhoto = width * height * 5;
+    const totalPrice = pricePerPhoto * quantity;
+    return { pricePerPhoto, totalPrice };
+  }, [photoWidth, photoHeight, photoQuantity]);
+
+
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader className="text-center">
@@ -92,14 +105,14 @@ export function PrintDeliveryOptions() {
                 <div className="space-y-2">
                     <Label>Photo Size (in inches)</Label>
                     <div className="flex items-center gap-2">
-                        <Input id="photo-width" type="number" placeholder="Width" />
+                        <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
                         <span>x</span>
-                        <Input id="photo-height" type="number" placeholder="Height" />
+                        <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
                     </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="photo-quantity">Quantity</Label>
-                    <Input id="photo-quantity" type="number" min="1" placeholder="Number of photos" />
+                    <Input id="photo-quantity" type="number" min="1" placeholder="Number of photos" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
                 </div>
              </div>
              <Table className="mt-4">
@@ -112,8 +125,14 @@ export function PrintDeliveryOptions() {
                  <TableBody>
                     <TableRow>
                         <TableCell className="font-medium">Glossy Photo Paper</TableCell>
-                        <TableCell className="text-right">₹15 / photo</TableCell>
+                        <TableCell className="text-right">₹{photoPrice.pricePerPhoto > 0 ? `${photoPrice.pricePerPhoto.toFixed(2)} / photo` : '15 / photo'}</TableCell>
                     </TableRow>
+                    {photoPrice.totalPrice > 0 && (
+                      <TableRow className="font-bold">
+                        <TableCell>Total</TableCell>
+                        <TableCell className="text-right">₹{photoPrice.totalPrice.toFixed(2)}</TableCell>
+                      </TableRow>
+                    )}
                  </TableBody>
              </Table>
           </div>
