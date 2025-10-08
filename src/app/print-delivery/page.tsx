@@ -51,6 +51,8 @@ import {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
+const DPI = 96;
+const CM_TO_INCH = 0.393701;
 
 const A4_PRINTABLE_WIDTH = 20; // cm
 const A4_PRINTABLE_HEIGHT = 28; // cm
@@ -90,6 +92,8 @@ type UploadedDoc = {
 type UploadedPhoto = {
   name: string;
   url: string;
+  widthCm?: number;
+  heightCm?: number;
 }
 
 const initialAddressState = {
@@ -119,6 +123,11 @@ type PaymentDetails = {
   amount: number;
 }
 
+interface A4Slot {
+  id: number;
+  image?: UploadedPhoto;
+}
+
 
 export default function PrintDeliveryPage() {
   // Photo State
@@ -129,7 +138,10 @@ export default function PrintDeliveryPage() {
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
-  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
+  
+  const [a4Slots, setA4Slots] = useState<A4Slot[]>([]);
+  const slotUploadInputRef = useRef<HTMLInputElement>(null);
+  const [currentSlotIndex, setCurrentSlotIndex] = useState<number | null>(null);
 
 
   // Document State
@@ -149,7 +161,6 @@ export default function PrintDeliveryPage() {
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ orderType: null, amount: 0 });
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
-  const photoFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const totalDocPages = useMemo(() => {
@@ -228,65 +239,51 @@ export default function PrintDeliveryPage() {
       return newDocs;
     });
   };
-  
- const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, autoFill: boolean) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
 
-    const newPhotos: UploadedPhoto[] = [];
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-    
-    if (imageFiles.length === 0) {
-        toast({ variant: 'destructive', title: 'No Images Selected', description: 'Please upload image files.' });
-        return;
+  const handleSlotUploadClick = (index: number) => {
+    setCurrentSlotIndex(index);
+    slotUploadInputRef.current?.click();
+  };
+
+  const handleSlotFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || currentSlotIndex === null) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ variant: 'destructive', title: 'Invalid File', description: 'Please select an image file.' });
+      return;
     }
 
-    let firstImageProcessed = false;
-
-    imageFiles.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const imgUrl = e.target?.result as string;
-            newPhotos.push({ name: file.name, url: imgUrl });
-
-            // Auto-fill dimensions from the first image in the batch if requested
-            if (autoFill && !firstImageProcessed) {
-                const img = new Image();
-                img.onload = () => {
-                    const dpi = 96; // A common screen DPI, adjust if necessary
-                    const widthInCm = (img.width * 2.54) / dpi;
-                    const heightInCm = (img.height * 2.54) / dpi;
-                    setPhotoWidth(widthInCm.toFixed(1));
-                    setPhotoHeight(heightInCm.toFixed(1));
-                };
-                img.src = imgUrl;
-                firstImageProcessed = true;
-            }
-
-            // When the last file is read, update the state
-            if (newPhotos.length === imageFiles.length) {
-                setUploadedPhotos(prev => [...prev, ...newPhotos]);
-                toast({ title: `${newPhotos.length} Image(s) Loaded` });
-            }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imgUrl = event.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const widthCm = (img.width / DPI) * 2.54;
+        const heightCm = (img.height / DPI) * 2.54;
+        
+        const newPhoto: UploadedPhoto = {
+          name: file.name,
+          url: imgUrl,
+          widthCm,
+          heightCm,
         };
-        reader.readAsDataURL(file);
-    });
-    
-    if (photoFileInputRef.current) {
-        photoFileInputRef.current.value = '';
-    }
-  };
 
-  const handleRemovePhoto = (photoIndex: number) => {
-    setUploadedPhotos(currentPhotos => {
-      const photoToRemove = currentPhotos[photoIndex];
-      if (photoToRemove) {
-        URL.revokeObjectURL(photoToRemove.url);
-      }
-      return currentPhotos.filter((_, i) => i !== photoIndex);
-    });
-  };
+        setA4Slots(prevSlots => {
+          const newSlots = [...prevSlots];
+          newSlots[currentSlotIndex] = { ...newSlots[currentSlotIndex], image: newPhoto };
+          return newSlots;
+        });
+      };
+      img.src = imgUrl;
+    };
+    reader.readAsDataURL(file);
 
+    // Reset input for next upload
+    if (slotUploadInputRef.current) slotUploadInputRef.current.value = '';
+    setCurrentSlotIndex(null);
+  };
+  
   const handlePageCountChange = (value: string, type: 'bw' | 'color') => {
     const numValue = parseInt(value, 10) || 0;
     if (value === '' || (numValue >= 0 && numValue <= totalDocPages)) {
@@ -312,35 +309,61 @@ export default function PrintDeliveryPage() {
     }
   };
 
-  const photoPrice = useMemo(() => {
-    const width = parseFloat(photoWidth);
-    const height = parseFloat(photoHeight);
-    const quantityPerPhoto = parseInt(photoQuantity, 10);
-    const numberOfPhotos = uploadedPhotos.length;
-
-    if (isNaN(width) || isNaN(height) || isNaN(quantityPerPhoto) || width <= 0 || height <= 0 || quantityPerPhoto <= 0 || numberOfPhotos === 0) {
-      return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: null };
+  const a4Layout = useMemo(() => {
+    const widthCm = parseFloat(photoWidth);
+    const heightCm = parseFloat(photoHeight);
+    if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
+      return { slots: [], error: 'Invalid dimensions' };
     }
 
-    const photosPerPageX = Math.floor(A4_PRINTABLE_WIDTH / width);
-    const photosPerPageY = Math.floor(A4_PRINTABLE_HEIGHT / height);
-    const photosPerPage = photosPerPageX * photosPerPageY;
+    const A4_WIDTH_PX = 595;
+    const A4_HEIGHT_PX = 842;
+    const CM_TO_PX = A4_WIDTH_PX / 21;
+
+    const photoWidthPx = widthCm * CM_TO_PX;
+    const photoHeightPx = heightCm * CM_TO_PX;
+
+    if (photoWidthPx > A4_WIDTH_PX || photoHeightPx > A4_HEIGHT_PX) {
+      return { slots: [], error: 'Photo size exceeds A4.' };
+    }
+
+    const cols = Math.floor(A4_WIDTH_PX / photoWidthPx);
+    const rows = Math.floor(A4_HEIGHT_PX / photoHeightPx);
+    const photosPerPage = cols * rows;
 
     if (photosPerPage === 0) {
-         return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: "Photo size is too large for an A4 sheet." };
+      return { slots: [], error: 'Photo size is too large to fit on A4.' };
     }
     
-    const totalPhotoCount = numberOfPhotos * quantityPerPhoto;
-    const pagesRequired = Math.ceil(totalPhotoCount / photosPerPage);
-    const basePricePerPhoto = getPricePerPhoto(width, height);
-    const paperAddon = paperTypeAddons[paperType] || 0;
-    const finalPricePerPhoto = basePricePerPhoto + paperAddon;
-    
-    const printingCost = totalPhotoCount * finalPricePerPhoto;
+    // If layout changes, reset slots
+    if(a4Slots.length !== photosPerPage) {
+        const newSlots = Array.from({ length: photosPerPage }, (_, i) => ({ id: i }));
+        setA4Slots(newSlots);
+        return { slots: newSlots, photoWidthPx, photoHeightPx, error: null };
+    }
 
-    return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, error: null };
-  }, [photoWidth, photoHeight, photoQuantity, paperType, uploadedPhotos.length]);
+    return { slots: a4Slots, photoWidthPx, photoHeightPx, error: null };
+  }, [photoWidth, photoHeight, a4Slots]);
   
+  const photoOrderTotal = useMemo(() => {
+    const uploadedPhotos = a4Slots.filter(s => s.image).map(s => s.image!);
+    if(uploadedPhotos.length === 0) return 0;
+    
+    const quantity = parseInt(photoQuantity, 10) || 1;
+    let totalCost = 0;
+
+    for (const photo of uploadedPhotos) {
+        if(photo.widthCm && photo.heightCm) {
+            const basePrice = getPricePerPhoto(photo.widthCm, photo.heightCm);
+            const paperAddon = paperTypeAddons[paperType] || 0;
+            totalCost += (basePrice + paperAddon);
+        }
+    }
+    const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
+    return (totalCost * quantity) + deliveryCharge;
+
+  }, [a4Slots, photoQuantity, paperType, photoDeliveryOption]);
+
   const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
     const numColor = parseInt(colorPages, 10) || 0;
@@ -368,12 +391,6 @@ export default function PrintDeliveryPage() {
     return subtotal + deliveryCharge;
   }, [documentPrintingCost, docDeliveryOption]);
 
-  const photoOrderTotal = useMemo(() => {
-    const subtotal = photoPrice.printingCost;
-    if (subtotal === 0) return 0;
-    const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
-    return subtotal + deliveryCharge;
-  }, [photoPrice, photoDeliveryOption]);
 
   const isAddressComplete = (address: typeof initialAddressState) => {
     return address.name && address.mobile && address.email && address.address && address.pincode;
@@ -588,18 +605,18 @@ export default function PrintDeliveryPage() {
       return;
     }
     const details: PhotoInvoiceDetails = {
-      quantity: (parseInt(photoQuantity, 10) || 0) * uploadedPhotos.length,
+      quantity: a4Slots.filter(s => s.image).length * (parseInt(photoQuantity, 10) || 1),
       width: photoWidth,
       height: photoHeight,
       paperType: paperType,
-      pricePerPhoto: photoPrice.pricePerPhoto
+      pricePerPhoto: 0 // This is simplified as total is passed directly
     };
 
     generateInvoicePdf(
       'Photo',
       photoDeliveryAddress,
       details,
-      photoPrice.printingCost,
+      photoOrderTotal - (deliveryCharges[photoDeliveryOption] || 0),
       deliveryCharges[photoDeliveryOption] || 0,
       photoOrderTotal
     );
@@ -628,7 +645,7 @@ export default function PrintDeliveryPage() {
             setDocQuantity('1');
             setDocDeliveryAddress(initialAddressState);
         } else {
-            setUploadedPhotos([]);
+            setA4Slots([]);
             setPhotoWidth('3.5');
             setPhotoHeight('4.5');
             setPhotoQuantity('1');
@@ -669,41 +686,6 @@ export default function PrintDeliveryPage() {
       </div>
     </>
   );
-
-  const a4Preview = useMemo(() => {
-    const widthCm = parseFloat(photoWidth);
-    const heightCm = parseFloat(photoHeight);
-    if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
-      return { previewPhotos: [], error: 'Invalid dimensions' };
-    }
-
-    const A4_WIDTH_PX = 595;
-    const A4_HEIGHT_PX = 842;
-    const CM_TO_PX = A4_WIDTH_PX / 21; // approx 28.35
-
-    const photoWidthPx = widthCm * CM_TO_PX;
-    const photoHeightPx = heightCm * CM_TO_PX;
-    
-    if (photoWidthPx > A4_WIDTH_PX || photoHeightPx > A4_HEIGHT_PX) {
-      return { previewPhotos: [], error: "Photo size exceeds A4." };
-    }
-
-    const cols = Math.floor(A4_WIDTH_PX / photoWidthPx);
-    const rows = Math.floor(A4_HEIGHT_PX / photoHeightPx);
-    const photosPerPage = cols * rows;
-
-    if (photosPerPage === 0) {
-        return { previewPhotos: [], error: "Photo size is too large to fit on A4." };
-    }
-
-    return { 
-        previewPhotos: Array.from({ length: photosPerPage }, (_, i) => i),
-        photoWidthPx,
-        photoHeightPx,
-        error: null 
-    };
-
-  }, [photoWidth, photoHeight]);
 
 
   return (
@@ -942,46 +924,19 @@ export default function PrintDeliveryPage() {
             <div>
               <h3 className="text-xl font-semibold my-4 text-center">Photo Printing</h3>
               
-              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                      <UploadCloud className="mr-2 h-4 w-4" /> Upload Photos
-                  </Button>
-                  <input type="file" ref={photoFileInputRef} onChange={(e) => handlePhotoFileUpload(e, true)} className="hidden" accept="image/*" multiple />
-                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                      <ImageIcon className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
-                  </Button>
-              </div>
+              <input
+                type="file"
+                ref={slotUploadInputRef}
+                onChange={handleSlotFileChange}
+                className="hidden"
+                accept="image/*"
+              />
               
-              {uploadedPhotos.length > 0 && (
-                  <div className="mb-4 space-y-4">
-                      <h4 className="text-sm font-semibold mb-2">Uploaded Photos ({uploadedPhotos.length}):</h4>
-                        <div className="flex flex-wrap gap-4 p-4 border rounded-md bg-muted/20">
-                          {uploadedPhotos.map((photo, index) => (
-                              <div key={index} className="w-32 group/page relative">
-                                <img src={photo.url} alt={photo.name} className="w-full rounded border" />
-                                  <p className="text-center text-xs mt-1 text-muted-foreground truncate" title={photo.name}>{photo.name}</p>
-                                  <Button 
-                                      variant="destructive" 
-                                      size="icon" 
-                                      className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity z-10"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemovePhoto(index);
-                                      }}
-                                  >
-                                      <X className="h-3 w-3" />
-                                  </Button>
-                              </div>
-                          ))}
-                        </div>
-                  </div>
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
                       <div className="space-y-2 sm:col-span-2">
-                          <Label>Photo Size (in cm)</Label>
+                          <Label>Default Photo Size (in cm)</Label>
                           <div className="flex items-center gap-2">
                               <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
                               <span>x</span>
@@ -1024,20 +979,37 @@ export default function PrintDeliveryPage() {
 
                 <div>
                    <h4 className="text-md font-semibold mb-2 text-center">A4 Page Layout Preview</h4>
-                    {a4Preview.error ? (
+                    {a4Layout.error ? (
                         <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md flex items-center justify-center text-destructive text-center p-4">
-                            {a4Preview.error}
+                            {a4Layout.error}
                         </div>
                     ) : (
-                        <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md p-2 grid"
+                        <div className="aspect-[210/297] bg-muted/20 border-2 border-dashed rounded-md p-2 grid"
                              style={{
-                                 gridTemplateColumns: `repeat(auto-fill, minmax(${a4Preview.photoWidthPx}px, 1fr))`,
+                                 gridTemplateColumns: `repeat(auto-fill, minmax(${a4Layout.photoWidthPx}px, 1fr))`,
                                  gap: '4px'
                              }}
                         >
-                            {a4Preview.previewPhotos.map(i => (
-                                <div key={i} className="bg-muted-foreground/20 flex items-center justify-center" style={{ height: `${a4Preview.photoHeightPx}px` }}>
-                                    <ImageIcon className="text-muted-foreground/50" />
+                            {a4Layout.slots.map((slot, index) => (
+                                <div 
+                                    key={slot.id} 
+                                    className="bg-muted/50 flex items-center justify-center border border-dashed relative group cursor-pointer hover:bg-muted"
+                                    style={{ height: `${a4Layout.photoHeightPx}px` }}
+                                    onClick={() => handleSlotUploadClick(index)}
+                                >
+                                    {slot.image ? (
+                                        <img src={slot.image.url} alt={`slot ${index+1}`} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                          <UploadCloud className="w-6 h-6" />
+                                          <span className="text-xs text-center">Upload Image</span>
+                                        </div>
+                                    )}
+                                     {slot.image && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] p-1 truncate">
+                                            {slot.image.widthCm?.toFixed(1)}x{slot.image.heightCm?.toFixed(1)} cm
+                                        </div>
+                                     )}
                                 </div>
                             ))}
                         </div>
@@ -1047,18 +1019,20 @@ export default function PrintDeliveryPage() {
               
               <div className="mt-6">
                   <h4 className="text-md font-semibold mb-2 text-center">Photo Printing Cost</h4>
-                  {photoPrice.error ? (
-                      <p className="text-center text-destructive font-medium">{photoPrice.error}</p>
-                  ) : photoPrice.printingCost > 0 ? (
+                  {photoOrderTotal > 0 ? (
                       <Table>
                           <TableBody>
                               <TableRow>
-                                  <TableCell>Price per Photo</TableCell>
-                                  <TableCell className="text-right">Rs. {photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
+                                <TableCell>Number of Photos Uploaded</TableCell>
+                                <TableCell className="text-right">{a4Slots.filter(s => s.image).length}</TableCell>
                               </TableRow>
                               <TableRow>
-                                  <TableCell>Printing Subtotal ({uploadedPhotos.length * (parseInt(photoQuantity,10) || 0)} photos)</TableCell>
-                                  <TableCell className="text-right">Rs. {photoPrice.printingCost.toFixed(2)}</TableCell>
+                                <TableCell>Copies per Photo</TableCell>
+                                <TableCell className="text-right">x {photoQuantity}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                  <TableCell>Printing Subtotal</TableCell>
+                                  <TableCell className="text-right">Rs. {(photoOrderTotal - deliveryCharges[photoDeliveryOption]).toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
                                 <TableCell>Delivery Fee ({photoDeliveryOption})</TableCell>
@@ -1071,7 +1045,7 @@ export default function PrintDeliveryPage() {
                           </TableBody>
                       </Table>
                   ) : (
-                      <p className="text-center text-muted-foreground">Upload photos and enter dimensions to see the price.</p>
+                      <p className="text-center text-muted-foreground">Set dimensions and upload photos into the slots to see the price.</p>
                   )}
               </div>
                {photoOrderTotal > 0 && (
