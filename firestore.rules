@@ -1,129 +1,187 @@
 /**
- * @file Firestore Security Rules for DocuEase Application
- * @version Prototyping Mode - Data shape is not strictly validated. Authorization is strictly enforced.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for the DocuEase application.
+ * All data is nested under /users/{userId}, ensuring that users can only access their own data.
  *
- * @corePhilosophy This ruleset enforces a strict user-ownership model for all data. Users can only
- *                 access their own profile information, subscriptions, documents, and tool usage records.
- *                 All data is nested under /users/{userId} to achieve path-based authorization.
+ * Data Structure:
+ * - /users/{userId}: User profiles, accessible only by the user.
+ * - /subscriptions/{subscriptionId}: Subscription data, accessible by anyone.
+ * - /users/{userId}/documents/{documentId}: Documents owned by the user.
+ * - /users/{userId}/toolUsages/{toolUsageId}: Tool usage records for the user.
+ * - /users/{userId}/orders/{orderId}: Orders placed by the user.
  *
- * @dataStructure
- *  - /users/{userId}: Stores user profile information.
- *  - /subscriptions/{subscriptionId}: Stores subscription details. Subscription `id` is also stored on user profile as `subscriptionId`.
- *  - /users/{userId}/documents/{documentId}: Stores documents uploaded by the user.
- *  - /users/{userId}/toolUsages/{toolUsageId}: Stores tool usage records for each user.
+ * Key Security Decisions:
+ * - Users can only access their own profiles and associated data.
+ * - Listing of all users is disallowed.
+ * - Flexible schema validation to support rapid prototyping.
  *
- * @keySecurityDecisions
- *  - User listing is disallowed.
- *  - Path-based authorization is the primary mechanism for securing data.
- *  - Strict user-ownership is enforced for all writes (create, update, delete).
- *
- * @denormalizationForAuthorization The subscription id is denormalized on the user document, so rules do not have to query for subscription details.
- * @structuralSegregation Private data (user profiles, documents) is stored under the /users/{userId} path.
+ * Denormalization for Authorization:
+ *  - The path /users/{userId} automatically provides the userId for authorization, without needing
+ *    to read the document. The same applies to subcollections under /users/{userId}.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure root access.
-     * @path /
-     * @allow (get): Always denied.
-     * @deny (get): Any user trying to get the root.
-     * @principle Root path should not be accessible.
+     * @description Checks if the request is made by a signed-in user.
+     * @return {bool} True if the user is signed in, false otherwise.
      */
-    match /{document=**} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    // Helper function to check if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper function to check if the user is the owner of the resource
+    /**
+     * @description Checks if the request is made by the owner of the resource.
+     * @param {string} userId - The user ID to compare with the request's authentication UID.
+     * @return {bool} True if the user ID matches the authenticated user's UID, false otherwise.
+     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Helper function to check if the user is the owner of the resource and the resource exists
+    /**
+     * @description Checks if the request is made by the owner of the existing resource.
+     * @param {string} userId - The user ID to compare with the resource's data.
+     * @return {bool} True if the user ID matches the authenticated user's UID and the resource exists, false otherwise.
+     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Allows a user to read and write their own user profile.
+     * @description Rule for /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (get, list): Authenticated user can read their own profile.
-     * @allow (create): Authenticated user can create their own profile if the userId matches their auth.uid.
-     * @allow (update, delete): Authenticated user can update/delete their own profile if the userId matches their auth.uid and the resource exists.
-     * @deny (get, list): Any other user trying to read the user profile.
-     * @deny (create): Any user trying to create a user profile with a userId that doesn't match their auth.uid.
-     * @deny (update, delete): Any user trying to update/delete another user's profile.
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create) User with ID 'user123' creates their own profile.
+     *   request.auth.uid: 'user123'
+     *   request.resource.data.id: 'user123'
+     * @deny (create) User with ID 'user123' tries to create a profile for 'user456'.
+     *   request.auth.uid: 'user123'
+     *   request.resource.data.id: 'user456'
+     * @allow (get) User with ID 'user123' reads their own profile.
+     *   request.auth.uid: 'user123'
+     * @deny (get) User with ID 'user123' tries to read profile of 'user456'.
+     *   request.auth.uid: 'user123'
+     * @allow (update) User with ID 'user123' updates their own profile.
+     *   request.auth.uid: 'user123'
+     *   resource.data.id: 'user123'
+     *   request.resource.data.id: 'user123'
+     * @deny (update) User with ID 'user123' tries to update the profile of 'user456'.
+     *   request.auth.uid: 'user123'
+     *   resource.data.id: 'user456'
+     *   request.resource.data.id: 'user456'
+     * @deny (delete) User with ID 'user123' tries to delete the profile of 'user456'.
+     *   request.auth.uid: 'user123'
+     *   resource.data.id: 'user456'
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not allowed.
+      allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; // Enforce immutability of userId
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows read and write access to subscriptions.
+     * @description Rule for /subscriptions/{subscriptionId} collection.
      * @path /subscriptions/{subscriptionId}
-     * @allow (get, list): Not directly tied to a user, needs additional role-based access controls.
-     * @allow (create): Needs additional role-based access controls.
-     * @allow (update, delete): Needs additional role-based access controls.
-     * @principle Implement role-based access control for subscription management.
+     * @allow (get) Any user can get subscription information.
+     *   request.auth.uid: 'user123'
+     * @allow (list) Any user can list subscriptions.
+     *   request.auth.uid: 'user123'
+     * @deny (create) No one can create subscriptions.
+     *   request.auth.uid: 'user123'
+     * @deny (update) No one can update subscriptions.
+     *   request.auth.uid: 'user123'
+     * @deny (delete) No one can delete subscriptions.
+     *   request.auth.uid: 'user123'
      */
     match /subscriptions/{subscriptionId} {
-      allow get: if false; // TODO: Add role validation if needed.
-      allow list: if false; // Subscription listing is not allowed.
-      allow create: if false; // TODO: Add role validation if needed.
-      allow update: if false; // TODO: Add role validation if needed.
-      allow delete: if false; // TODO: Add role validation if needed.
+        allow get, list: if true;
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
     }
 
     /**
-     * @description Allows a user to manage their own documents.
+     * @description Rule for /users/{userId}/documents/{documentId} collection.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (get, list): Authenticated user can read/list their own documents.
-     * @allow (create): Authenticated user can create their own document under their user path.
-     * @allow (update, delete): Authenticated user can update/delete their own document if the userId matches their auth.uid and the resource exists.
-     * @deny (get, list): Any other user trying to read/list the user's documents.
-     * @deny (create): Any user trying to create a document under another user's path.
-     * @deny (update, delete): Any user trying to update/delete another user's documents.
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create) User with ID 'user123' creates a document in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (create) User with ID 'user123' tries to create a document in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @allow (get) User with ID 'user123' reads a document in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (get) User with ID 'user123' tries to read a document in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @allow (update) User with ID 'user123' updates a document in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (update) User with ID 'user123' tries to update a document in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @deny (delete) User with ID 'user123' tries to delete a document in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/documents/{documentId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; // Enforce immutability of userId
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+     /**
+      * @description Rule for /users/{userId}/toolUsages/{toolUsageId} collection.
+      * @path /users/{userId}/toolUsages/{toolUsageId}
+      * @allow (create) User with ID 'user123' creates a toolUsage in their own directory.
+      *   request.auth.uid: 'user123'
+      * @deny (create) User with ID 'user123' tries to create a toolUsage in 'user456's directory.
+      *   request.auth.uid: 'user123'
+      * @allow (get) User with ID 'user123' reads a toolUsage in their own directory.
+      *   request.auth.uid: 'user123'
+      * @deny (get) User with ID 'user123' tries to read a toolUsage in 'user456's directory.
+      *   request.auth.uid: 'user123'
+      * @allow (update) User with ID 'user123' updates a toolUsage in their own directory.
+      *   request.auth.uid: 'user123'
+      * @deny (update) User with ID 'user123' tries to update a toolUsage in 'user456's directory.
+      *   request.auth.uid: 'user123'
+      * @deny (delete) User with ID 'user123' tries to delete a toolUsage in 'user456's directory.
+      *   request.auth.uid: 'user123'
+      * @principle Enforces document ownership for writes.
+      */
+    match /users/{userId}/toolUsages/{toolUsageId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows a user to manage their own tool usage records.
-     * @path /users/{userId}/toolUsages/{toolUsageId}
-     * @allow (get, list): Authenticated user can read/list their own tool usage records.
-     * @allow (create): Authenticated user can create their own tool usage record under their user path.
-     * @allow (update, delete): Authenticated user can update/delete their own tool usage record if the userId matches their auth.uid and the resource exists.
-     * @deny (get, list): Any other user trying to read/list the user's tool usage records.
-     * @deny (create): Any user trying to create a tool usage record under another user's path.
-     * @deny (update, delete): Any user trying to update/delete another user's tool usage records.
-     * @principle Enforces document ownership for reads and writes.
+     * @description Rule for /users/{userId}/orders/{orderId} collection.
+     * @path /users/{userId}/orders/{orderId}
+     * @allow (create) User with ID 'user123' creates an order in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (create) User with ID 'user123' tries to create an order in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @allow (get) User with ID 'user123' reads an order in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (get) User with ID 'user123' tries to read an order in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @allow (update) User with ID 'user123' updates an order in their own directory.
+     *   request.auth.uid: 'user123'
+     * @deny (update) User with ID 'user123' tries to update an order in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @deny (delete) User with ID 'user123' tries to delete an order in 'user456's directory.
+     *   request.auth.uid: 'user123'
+     * @principle Enforces document ownership for writes.
      */
-    match /users/{userId}/toolUsages/{toolUsageId} {
+    match /users/{userId}/orders/{orderId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; // Enforce immutability of userId
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
   }
