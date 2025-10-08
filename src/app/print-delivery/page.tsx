@@ -953,6 +953,7 @@ export default function PrintDeliveryPage() {
                         <div className="flex flex-wrap gap-4">
                           {uploadedPhotos.map((photo, index) => (
                               <div key={index} className="w-32 group/page relative">
+                                <img src={photo.url} alt={photo.name} className="w-full rounded border" />
                                   <p className="text-center text-xs mt-1 text-muted-foreground truncate" title={photo.name}>{photo.name}</p>
                                   <Button 
                                       variant="destructive" 
