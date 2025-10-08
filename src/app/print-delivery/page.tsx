@@ -950,33 +950,24 @@ export default function PrintDeliveryPage() {
                {uploadedPhotos.length > 0 && (
                   <div className="mb-4 space-y-4">
                       <h4 className="text-sm font-semibold mb-2">Uploaded Photos ({uploadedPhotos.length}):</h4>
-                        <ScrollArea>
-                          <div className="flex space-x-4 pb-4">
-                              {uploadedPhotos.map((photo, index) => (
-                                  <div key={index} className="w-32 flex-shrink-0 group/page relative">
-                                      <img
-                                        src={photo.url}
-                                        alt={photo.name}
-                                        className="rounded-md w-full aspect-[2/3] object-cover bg-white border cursor-pointer"
-                                        onClick={() => setPreviewImageUrl(photo.url)}
-                                      />
-                                      <p className="text-center text-xs mt-1 text-muted-foreground truncate" title={photo.name}>{photo.name}</p>
-                                      <Button 
-                                          variant="destructive" 
-                                          size="icon" 
-                                          className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleRemovePhoto(index);
-                                          }}
-                                      >
-                                          <X className="h-3 w-3" />
-                                      </Button>
-                                  </div>
-                              ))}
-                          </div>
-                          <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
+                        <div className="flex flex-wrap gap-4">
+                          {uploadedPhotos.map((photo, index) => (
+                              <div key={index} className="w-32 group/page relative">
+                                  <p className="text-center text-xs mt-1 text-muted-foreground truncate" title={photo.name}>{photo.name}</p>
+                                  <Button 
+                                      variant="destructive" 
+                                      size="icon" 
+                                      className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity z-10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemovePhoto(index);
+                                      }}
+                                  >
+                                      <X className="h-3 w-3" />
+                                  </Button>
+                              </div>
+                          ))}
+                        </div>
                   </div>
               )}
               
@@ -1026,29 +1017,6 @@ export default function PrintDeliveryPage() {
                 </div>
 
                 <div>
-                    <Label className="text-center block mb-2">A4 Page Preview</Label>
-                    <div className="relative w-full aspect-[210/297] bg-white border-2 border-dashed rounded-md p-1 flex flex-wrap content-start gap-1 overflow-hidden">
-                        {a4Preview.error && (
-                            <div className="flex items-center justify-center w-full h-full text-destructive text-center p-4">
-                                {a4Preview.error}
-                            </div>
-                        )}
-                        {a4Preview.previewPhotos.map((_, index) => (
-                            <div key={index} 
-                                className="bg-muted flex items-center justify-center"
-                                style={{
-                                    width: `${a4Preview.photoWidthPx}px`,
-                                    height: `${a4Preview.photoHeightPx}px`
-                                }}
-                            >
-                               {uploadedPhotos.length > 0 ? (
-                                    <img src={uploadedPhotos[0].url} className="object-cover w-full h-full" alt="preview" />
-                                ) : (
-                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                                )}
-                            </div>
-                        ))}
-                    </div>
                 </div>
               </div>
               
