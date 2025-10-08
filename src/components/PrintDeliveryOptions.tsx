@@ -75,21 +75,24 @@ type UploadedDoc = {
 }
 
 export function PrintDeliveryOptions() {
+  // Photo State
   const [photoWidth, setPhotoWidth] = useState('3.5');
   const [photoHeight, setPhotoHeight] = useState('4.5');
   const [photoQuantity, setPhotoQuantity] = useState('20');
   const [paperType, setPaperType] = useState('photo');
-  const [deliveryOption, setDeliveryOption] = useState('standard');
-  
+  const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
+  const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
+
+  // Document State
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [bwPages, setBwPages] = useState('0');
   const [colorPages, setColorPages] = useState('0');
   const [docQuantity, setDocQuantity] = useState('1');
+  const [docDeliveryOption, setDocDeliveryOption] = useState('standard');
+  const [docPaymentMethod, setDocPaymentMethod] = useState('upi');
 
+  // General State
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
-
-
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -100,13 +103,17 @@ export function PrintDeliveryOptions() {
 
   useEffect(() => {
     if (totalDocPages > 0) {
-      setColorPages(String(totalDocPages));
-      setBwPages('0');
+      const currentBw = parseInt(bwPages, 10) || 0;
+      const currentColor = parseInt(colorPages, 10) || 0;
+      if (currentBw + currentColor !== totalDocPages) {
+        setColorPages(String(totalDocPages));
+        setBwPages('0');
+      }
     } else {
       setColorPages('0');
       setBwPages('0');
     }
-  }, [totalDocPages]);
+  }, [totalDocPages, bwPages, colorPages]);
 
   const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -155,14 +162,10 @@ export function PrintDeliveryOptions() {
       const targetDoc = newDocs[docIndex];
 
       if (targetDoc) {
-        // Revoke the object URL to prevent memory leaks
         const urlToRemove = targetDoc.thumbnailUrls[pageIndex];
         URL.revokeObjectURL(urlToRemove);
-
-        // Filter out the page to be removed
         targetDoc.thumbnailUrls = targetDoc.thumbnailUrls.filter((_, i) => i !== pageIndex);
 
-        // If the document has no pages left, remove the document itself
         if (targetDoc.thumbnailUrls.length === 0) {
           return newDocs.filter((_, i) => i !== docIndex);
         }
@@ -184,7 +187,6 @@ export function PrintDeliveryOptions() {
       reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-              // Assuming 96 DPI for conversion from pixels to cm
               const dpi = 96;
               const widthInCm = (img.width * 2.54) / dpi;
               const heightInCm = (img.height * 2.54) / dpi;
@@ -198,22 +200,17 @@ export function PrintDeliveryOptions() {
   };
 
   const handlePageCountChange = (value: string, type: 'bw' | 'color') => {
-    const numValue = parseInt(value, 10);
+    const numValue = parseInt(value, 10) || 0;
     if (value === '' || (numValue >= 0 && numValue <= totalDocPages)) {
       if (type === 'bw') {
         setBwPages(value);
-        if(numValue + parseInt(colorPages, 10) > totalDocPages) {
-            setColorPages(String(totalDocPages - numValue));
-        }
+        setColorPages(String(totalDocPages - numValue));
       } else {
         setColorPages(value);
-        if(numValue + parseInt(bwPages, 10) > totalDocPages) {
-            setBwPages(String(totalDocPages - numValue));
-        }
+        setBwPages(String(totalDocPages - numValue));
       }
     }
   };
-
 
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
@@ -242,7 +239,7 @@ export function PrintDeliveryOptions() {
     return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, error: null };
   }, [photoWidth, photoHeight, photoQuantity, paperType]);
   
- const documentPrintingCost = useMemo(() => {
+  const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
     const numColor = parseInt(colorPages, 10) || 0;
     const quantity = parseInt(docQuantity, 10) || 1;
@@ -262,32 +259,19 @@ export function PrintDeliveryOptions() {
     return { bwCost, colorCost, printingSubtotal, error: null };
   }, [bwPages, colorPages, docQuantity, totalDocPages]);
 
-  const finalCost = useMemo(() => {
-      const docSubtotal = documentPrintingCost.printingSubtotal;
-      const photoSubtotal = photoPrice.printingCost;
-      
-      const subtotal = docSubtotal + photoSubtotal;
-      
-      if (subtotal === 0) {
-          return {
-              docSubtotal,
-              photoSubtotal,
-              deliveryCharge: 0,
-              grandTotal: 0
-          };
-      }
-      
-      const deliveryCharge = deliveryCharges[deliveryOption] || 0;
-      const grandTotal = subtotal + deliveryCharge;
-      
-      return {
-          docSubtotal,
-          photoSubtotal,
-          deliveryCharge,
-          grandTotal
-      };
-  }, [documentPrintingCost, photoPrice, deliveryOption]);
+  const documentOrderTotal = useMemo(() => {
+    const subtotal = documentPrintingCost.printingSubtotal;
+    if (subtotal === 0) return 0;
+    const deliveryCharge = deliveryCharges[docDeliveryOption] || 0;
+    return subtotal + deliveryCharge;
+  }, [documentPrintingCost, docDeliveryOption]);
 
+  const photoOrderTotal = useMemo(() => {
+    const subtotal = photoPrice.printingCost;
+    if (subtotal === 0) return 0;
+    const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
+    return subtotal + deliveryCharge;
+  }, [photoPrice, photoDeliveryOption]);
 
   return (
     <>
@@ -312,8 +296,9 @@ export function PrintDeliveryOptions() {
         </CardHeader>
         <CardContent>
           <div className="space-y-8">
+            {/* Document Printing Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
+              <h3 className="text-xl font-semibold mb-4 text-center">Document Printing</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="md:col-span-2">
                       <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf" multiple />
@@ -409,7 +394,18 @@ export function PrintDeliveryOptions() {
                   {(parseInt(bwPages, 10) + parseInt(colorPages, 10)) > totalDocPages && (
                     <p className="text-sm text-destructive">Total page count cannot exceed {totalDocPages}.</p>
                   )}
-
+                  <div className="space-y-2">
+                      <Label htmlFor="doc-delivery-option">Delivery Speed</Label>
+                      <Select value={docDeliveryOption} onValueChange={setDocDeliveryOption}>
+                          <SelectTrigger id="doc-delivery-option">
+                              <SelectValue placeholder="Select delivery speed" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="standard">Standard (₹45)</SelectItem>
+                              <SelectItem value="express">Express (₹100)</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
                   {documentPrintingCost.printingSubtotal > 0 && (
                     <div className="mt-6">
                       <h4 className="text-md font-semibold mb-2 text-center">Document Printing Cost</h4>
@@ -431,9 +427,13 @@ export function PrintDeliveryOptions() {
                                 <TableCell>Copies</TableCell>
                                 <TableCell className="text-right">x {docQuantity}</TableCell>
                               </TableRow>
+                             <TableRow>
+                                <TableCell>Delivery Fee ({docDeliveryOption})</TableCell>
+                                <TableCell className="text-right">₹{deliveryCharges[docDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
+                              </TableRow>
                              <TableRow className="font-bold bg-muted/50">
-                                <TableCell>Document Printing Total</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.printingSubtotal.toFixed(2)}</TableCell>
+                                <TableCell>Document Order Total</TableCell>
+                                <TableCell className="text-right">₹{documentOrderTotal.toFixed(2)}</TableCell>
                             </TableRow>
                         </TableBody>
                       </Table>
@@ -441,12 +441,38 @@ export function PrintDeliveryOptions() {
                   )}
                 </div>
               )}
+               {documentOrderTotal > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <h4 className="text-md font-semibold mb-4 text-center">Payment for Documents</h4>
+                    <RadioGroup value={docPaymentMethod} onValueChange={setDocPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Payment Options */}
+                        <RadioGroupItem value="upi" id="doc-upi" className="peer sr-only" />
+                        <Label htmlFor="doc-upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><Wallet className="mb-2 h-6 w-6" />UPI</Label>
+                        <RadioGroupItem value="netbanking" id="doc-netbanking" className="peer sr-only" />
+                        <Label htmlFor="doc-netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><CreditCard className="mb-2 h-6 w-6" />Net Banking</Label>
+                        <RadioGroupItem value="qrcode" id="doc-qrcode" className="peer sr-only" />
+                        <Label htmlFor="doc-qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><QrCode className="mb-2 h-6 w-6" />QR Code</Label>
+                        <RadioGroupItem value="cod" id="doc-cod" className="peer sr-only" />
+                        <Label htmlFor="doc-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
+                    </RadioGroup>
+                    <div className="flex justify-center mt-6">
+                        <Button size="lg" disabled={documentOrderTotal <= 0}>
+                            <ShoppingCart className="mr-2 h-5 w-5" />
+                            Proceed to Pay ₹{documentOrderTotal.toFixed(2)}
+                        </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <Separator />
 
+            {/* Photo Printing Section */}
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing Calculator</h3>
+              <h3 className="text-xl font-semibold mb-4 text-center">Photo Printing</h3>
                 <div className="mb-4">
                   <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
                   <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
@@ -482,6 +508,18 @@ export function PrintDeliveryOptions() {
                       </Select>
                   </div>
               </div>
+               <div className="space-y-2 mt-6">
+                  <Label htmlFor="photo-delivery-option">Delivery Speed</Label>
+                  <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption}>
+                      <SelectTrigger id="photo-delivery-option">
+                          <SelectValue placeholder="Select delivery speed" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="standard">Standard (₹45)</SelectItem>
+                          <SelectItem value="express">Express (₹100)</SelectItem>
+                      </SelectContent>
+                  </Select>
+              </div>
               
               <div className="mt-6">
                   <h4 className="text-md font-semibold mb-2 text-center">Photo Printing Cost</h4>
@@ -491,20 +529,20 @@ export function PrintDeliveryOptions() {
                       <Table>
                           <TableBody>
                               <TableRow>
-                                  <TableCell>Photos per A4 Sheet</TableCell>
-                                  <TableCell className="text-right">{photoPrice.photosPerPage} photos</TableCell>
-                              </TableRow>
-                              <TableRow>
-                                  <TableCell>A4 Pages Required</TableCell>
-                                  <TableCell className="text-right">{photoPrice.pagesRequired} pages</TableCell>
-                              </TableRow>
-                              <TableRow>
                                   <TableCell>Price per Photo</TableCell>
                                   <TableCell className="text-right">₹{photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
                               </TableRow>
-                              <TableRow className="font-bold bg-muted/50">
-                                  <TableCell>Photo Printing Total</TableCell>
-                                  <TableCell className="text-right text-lg">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
+                              <TableRow>
+                                  <TableCell>Printing Subtotal ({photoQuantity} photos)</TableCell>
+                                  <TableCell className="text-right">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Delivery Fee ({photoDeliveryOption})</TableCell>
+                                <TableCell className="text-right">₹{deliveryCharges[photoDeliveryOption]?.toFixed(2) || '0.00'}</TableCell>
+                              </TableRow>
+                              <TableRow className="font-bold bg-muted/50 text-lg">
+                                  <TableCell>Photo Order Total</TableCell>
+                                  <TableCell className="text-right">₹{photoOrderTotal.toFixed(2)}</TableCell>
                               </TableRow>
                           </TableBody>
                       </Table>
@@ -512,100 +550,31 @@ export function PrintDeliveryOptions() {
                       <p className="text-center text-muted-foreground">Enter dimensions and quantity to see the price.</p>
                   )}
               </div>
-            </div>
-            <Separator />
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-center">Delivery</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                  <div className="space-y-2">
-                      <Label htmlFor="delivery-option">Delivery Speed</Label>
-                      <Select value={deliveryOption} onValueChange={setDeliveryOption}>
-                          <SelectTrigger id="delivery-option">
-                              <SelectValue placeholder="Select delivery speed" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="standard">Standard (₹45)</SelectItem>
-                              <SelectItem value="express">Express (₹100)</SelectItem>
-                          </SelectContent>
-                      </Select>
+               {photoOrderTotal > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
+                    <RadioGroup value={photoPaymentMethod} onValueChange={setPhotoPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Payment Options */}
+                        <RadioGroupItem value="upi" id="photo-upi" className="peer sr-only" />
+                        <Label htmlFor="photo-upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><Wallet className="mb-2 h-6 w-6" />UPI</Label>
+                        <RadioGroupItem value="netbanking" id="photo-netbanking" className="peer sr-only" />
+                        <Label htmlFor="photo-netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><CreditCard className="mb-2 h-6 w-6" />Net Banking</Label>
+                        <RadioGroupItem value="qrcode" id="photo-qrcode" className="peer sr-only" />
+                        <Label htmlFor="photo-qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><QrCode className="mb-2 h-6 w-6" />QR Code</Label>
+                        <RadioGroupItem value="cod" id="photo-cod" className="peer sr-only" />
+                        <Label htmlFor="photo-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
+                    </RadioGroup>
+                    <div className="flex justify-center mt-6">
+                        <Button size="lg" disabled={photoOrderTotal <= 0}>
+                            <ShoppingCart className="mr-2 h-5 w-5" />
+                            Proceed to Pay ₹{photoOrderTotal.toFixed(2)}
+                        </Button>
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
-                      Standard delivery takes 5-7 business days. Express delivery takes 2-3 business days.
-                  </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-4 text-center">
-                  Delivery fees may vary based on your final location and order weight. Service available for all plans.
-              </p>
-            </div>
-            <Separator />
-             <div>
-                <h3 className="text-xl font-semibold mb-4 text-center">Grand Total</h3>
-                 <Table>
-                    <TableBody>
-                        {finalCost.docSubtotal > 0 && (
-                            <TableRow>
-                                <TableCell>Document Printing Subtotal</TableCell>
-                                <TableCell className="text-right">₹{finalCost.docSubtotal.toFixed(2)}</TableCell>
-                            </TableRow>
-                        )}
-                        {finalCost.photoSubtotal > 0 && (
-                            <TableRow>
-                                <TableCell>Photo Printing Subtotal</TableCell>
-                                <TableCell className="text-right">₹{finalCost.photoSubtotal.toFixed(2)}</TableCell>
-                            </TableRow>
-                        )}
-                         {finalCost.grandTotal > 0 && (
-                            <TableRow>
-                                <TableCell>Delivery Fee ({deliveryOption})</TableCell>
-                                <TableCell className="text-right">₹{finalCost.deliveryCharge.toFixed(2)}</TableCell>
-                            </TableRow>
-                         )}
-                        <TableRow className="font-bold bg-primary/10 text-lg">
-                            <TableCell>Total Order Cost</TableCell>
-                            <TableCell className="text-right">₹{finalCost.grandTotal.toFixed(2)}</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
-            <Separator />
-             <div>
-                <h3 className="text-lg font-semibold mb-4 text-center">Payment Method</h3>
-                <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                        <RadioGroupItem value="upi" id="upi" className="peer sr-only" />
-                        <Label htmlFor="upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <Wallet className="mb-2 h-6 w-6" />
-                            UPI
-                        </Label>
-                    </div>
-                     <div>
-                        <RadioGroupItem value="netbanking" id="netbanking" className="peer sr-only" />
-                        <Label htmlFor="netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <CreditCard className="mb-2 h-6 w-6" />
-                            Net Banking
-                        </Label>
-                    </div>
-                     <div>
-                        <RadioGroupItem value="qrcode" id="qrcode" className="peer sr-only" />
-                        <Label htmlFor="qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <QrCode className="mb-2 h-6 w-6" />
-                            QR Code
-                        </Label>
-                    </div>
-                     <div>
-                        <RadioGroupItem value="cod" id="cod" className="peer sr-only" />
-                        <Label htmlFor="cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <HandCoins className="mb-2 h-6 w-6" />
-                            COD
-                        </Label>
-                    </div>
-                </RadioGroup>
-                <div className="flex justify-center mt-6">
-                    <Button size="lg" disabled={finalCost.grandTotal <= 0}>
-                        <ShoppingCart className="mr-2 h-5 w-5" />
-                        Proceed to Pay ₹{finalCost.grandTotal.toFixed(2)}
-                    </Button>
-                </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
