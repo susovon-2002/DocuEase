@@ -30,19 +30,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  output: 'standalone',
   webpack: (config, { isServer }) => {
-    // Required for pdf.js to work
-    if (!isServer) {
-        config.resolve.fallback = {
-            "fs": false,
-            "path": false,
-            "os": false
-        }
+    // This is to prevent a build error for pdf.js.
+    if (isServer) {
+        config.externals.push('canvas');
     }
-    config.externals.push('canvas');
     return config;
   },
-  output: 'standalone'
 };
 
 export default nextConfig;

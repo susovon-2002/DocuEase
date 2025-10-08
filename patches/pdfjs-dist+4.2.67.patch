@@ -1,0 +1,41 @@
+diff --git a/node_modules/pdfjs-dist/build/pdf.mjs b/node_modules/pdfjs-dist/build/pdf.mjs
+index 99c1a5a..12b485d 100644
+--- a/node_modules/pdfjs-dist/build/pdf.mjs
++++ b/node_modules/pdfjs-dist/build/pdf.mjs
+@@ -32126,11 +32126,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
+         return _fetch(url).then(response => {
+           return response.arrayBuffer();
+         });
+-      },
+-      async require(path) {
+-        const {
+-          default: module
+-        } = await import(path);
+-        return module;
+       }
+     };
+   }
+diff --git a/node_modules/pdfjs-dist/types/web/genericl10n.d.ts b/node_modules/pdfjs-dist/types/web/genericl10n.d.ts
+index 7293a52..1c5fe8b 100644
+--- a/node_modules/pdfjs-dist/types/web/genericl10n.d.ts
++++ b/node_modules/pdfjs-dist/types/web/genericl10n.d.ts
+@@ -1,5 +1,4 @@
+ export class GenericL10n {
+     constructor(lang: any);
+     _lang: any;
+-    _ready: Promise<any>;
+     getDirection(): Promise<string>;
+     get(key: any, args?: null, fallback?: any): Promise<any>;
+     translate(element: any): Promise<void>;
+diff --git a/node_modules/pdfjs-dist/types/web/l10n.d.ts b/node_modules/pdfjs-dist/types/web/l10n.d.ts
+index eea248a..e895786 100644
+--- a/node_modules/pdfjs-dist/types/web/l10n.d.ts
++++ b/node_modules/pdfjs-dist/types/web/l10n.d.ts
+@@ -10,7 +10,6 @@
+     constructor(lang: any, standardLocales?: any, isRTL?: boolean, getString?: (key: any) => any, getStrings?: () => any);
+     _lang: any;
+     _isRTL: boolean;
+-    _ready: Promise<any>;
+     getDirection(): Promise<string>;
+     get(key: any, args?: null, fallback?: any): Promise<any>;
+     translate(element: any): Promise<void>;
