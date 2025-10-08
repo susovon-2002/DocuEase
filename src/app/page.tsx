@@ -6,7 +6,6 @@ import { ArrowRight, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const popularTools = tools.filter(t => ['Merge PDF', 'Split PDF', 'Compress PDF', 'Edit PDF'].includes(t.title));
 
 export default function Home() {
   return (
@@ -60,15 +59,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Popular Tools Section */}
+      {/* All Tools Section */}
       <section className="py-20 bg-secondary/50" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">Our Most Popular Tools</h2>
-            <p className="text-muted-foreground mt-2">The features our users love the most, all in one place.</p>
+            <h2 className="text-3xl md:text-4xl font-bold">Explore All Our PDF Tools</h2>
+            <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularTools.map((tool) => (
+            {tools.map((tool) => (
               <ToolCard key={tool.path} tool={tool} />
             ))}
           </div>
