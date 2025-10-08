@@ -20,7 +20,7 @@ import { Printer } from "lucide-react";
 const printOptions = [
   { item: "Black & White Print", cost: "₹3 / page" },
   { item: "Color Print", cost: "₹5 / page" },
-  { item: "Glossy Photo Paper", cost: "+ ₹2 / photo (Basic plan & above)" },
+  { item: "Glossy Photo Paper", cost: "₹15 / photo" },
 ];
 
 export function PrintDeliveryOptions() {
