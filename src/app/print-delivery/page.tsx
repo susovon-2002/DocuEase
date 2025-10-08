@@ -973,7 +973,7 @@ export default function PrintDeliveryPage() {
               )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
+                <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
                       <div className="space-y-2 sm:col-span-2">
                           <Label>Photo Size (in cm)</Label>
@@ -988,7 +988,7 @@ export default function PrintDeliveryPage() {
                           <Input id="photo-quantity" type="number" min="1" placeholder="Number" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
                       </div>
                   </div>
-                   <div className="space-y-2 mt-6">
+                   <div className="space-y-2">
                       <Label htmlFor="paper-type">Paper Type</Label>
                       <Select value={paperType} onValueChange={setPaperType}>
                           <SelectTrigger id="paper-type">
@@ -1003,7 +1003,7 @@ export default function PrintDeliveryPage() {
                           </SelectContent>
                       </Select>
                   </div>
-                   <div className="space-y-2 mt-6">
+                   <div className="space-y-2">
                       <Label htmlFor="photo-delivery-option">Delivery Speed</Label>
                       <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption}>
                           <SelectTrigger id="photo-delivery-option">
