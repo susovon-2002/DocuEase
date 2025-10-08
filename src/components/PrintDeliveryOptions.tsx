@@ -27,11 +27,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Printer, UploadCloud, X } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { PagePreviewDialog } from "./PagePreviewDialog";
@@ -82,7 +81,8 @@ export function PrintDeliveryOptions() {
   const [deliveryOption, setDeliveryOption] = useState('standard');
   
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
-  const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
+  const [bwPages, setBwPages] = useState('0');
+  const [colorPages, setColorPages] = useState('0');
   const [docQuantity, setDocQuantity] = useState('1');
 
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -95,6 +95,16 @@ export function PrintDeliveryOptions() {
   const totalDocPages = useMemo(() => {
     return uploadedDocs.reduce((acc, doc) => acc + doc.thumbnailUrls.length, 0);
   }, [uploadedDocs]);
+
+  useEffect(() => {
+    if (totalDocPages > 0) {
+      setColorPages(String(totalDocPages));
+      setBwPages('0');
+    } else {
+      setColorPages('0');
+      setBwPages('0');
+    }
+  }, [totalDocPages]);
 
   const handleDocFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -185,6 +195,24 @@ export function PrintDeliveryOptions() {
       reader.readAsDataURL(file);
   };
 
+  const handlePageCountChange = (value: string, type: 'bw' | 'color') => {
+    const numValue = parseInt(value, 10);
+    if (value === '' || (numValue >= 0 && numValue <= totalDocPages)) {
+      if (type === 'bw') {
+        setBwPages(value);
+        if(numValue + parseInt(colorPages, 10) > totalDocPages) {
+            setColorPages(String(totalDocPages - numValue));
+        }
+      } else {
+        setColorPages(value);
+        if(numValue + parseInt(bwPages, 10) > totalDocPages) {
+            setBwPages(String(totalDocPages - numValue));
+        }
+      }
+    }
+  };
+
+
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
     const height = parseFloat(photoHeight);
@@ -214,14 +242,25 @@ export function PrintDeliveryOptions() {
     return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, totalCost, deliveryCharge, error: null };
   }, [photoWidth, photoHeight, photoQuantity, paperType, deliveryOption]);
   
-  const documentPrintingCost = useMemo(() => {
-    if (totalDocPages === 0) return 0;
-    const quantity = parseInt(docQuantity, 10);
-    if(isNaN(quantity) || quantity <= 0) return 0;
+ const documentPrintingCost = useMemo(() => {
+    const numBw = parseInt(bwPages, 10) || 0;
+    const numColor = parseInt(colorPages, 10) || 0;
+    const quantity = parseInt(docQuantity, 10) || 0;
 
-    const pricePerPage = docPrintType === 'bw' ? BW_PRICE_PER_PAGE : COLOR_PRICE_PER_PAGE;
-    return totalDocPages * pricePerPage * quantity;
-  }, [totalDocPages, docPrintType, docQuantity]);
+    if ((numBw + numColor) > totalDocPages || quantity <= 0) {
+      return { bwCost: 0, colorCost: 0, totalCost: 0, error: "Page count exceeds total pages." };
+    }
+    
+    if (totalDocPages === 0) {
+        return { bwCost: 0, colorCost: 0, totalCost: 0, error: null };
+    }
+    
+    const bwCost = numBw * BW_PRICE_PER_PAGE;
+    const colorCost = numColor * COLOR_PRICE_PER_PAGE;
+    const totalCost = (bwCost + colorCost) * quantity;
+    
+    return { bwCost: bwCost * quantity, colorCost: colorCost * quantity, totalCost, error: null };
+  }, [bwPages, colorPages, docQuantity, totalDocPages]);
 
 
   return (
@@ -315,42 +354,62 @@ export function PrintDeliveryOptions() {
                   </div>
               )}
 
-              {totalDocPages > 0 && (
-                  <div className="space-y-4 mb-6">
-                      <p className="text-sm text-center text-muted-foreground">Total pages to print: {totalDocPages}. Select your printing option.</p>
-                      <RadioGroup value={docPrintType} onValueChange={(v) => setDocPrintType(v as 'bw' | 'color')} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                              <RadioGroupItem value="bw" id="bw" className="peer sr-only" />
-                              <Label
-                                  htmlFor="bw"
-                                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                              >
-                                  <p>Black & White</p>
-                                  <p className="font-bold text-lg">₹{(totalDocPages * BW_PRICE_PER_PAGE).toFixed(2)}</p>
-                                  <p className="text-xs text-muted-foreground">per copy</p>
-                              </Label>
-                          </div>
-
-                          <div>
-                              <RadioGroupItem value="color" id="color" className="peer sr-only" />
-                              <Label
-                                  htmlFor="color"
-                                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                              >
-                                  <p>Color</p>
-                                  <p className="font-bold text-lg">₹{(totalDocPages * COLOR_PRICE_PER_PAGE).toFixed(2)}</p>
-                                  <p className="text-xs text-muted-foreground">per copy</p>
-                              </Label>
-                          </div>
-                      </RadioGroup>
-
-                      {documentPrintingCost > 0 && (
-                          <div className="pt-4 text-center">
-                              <p className="text-md font-semibold">Document Printing Subtotal:</p>
-                              <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
-                          </div>
-                      )}
+             {totalDocPages > 0 && (
+                <div className="space-y-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bw-pages">Black &amp; White Pages</Label>
+                      <Input
+                        id="bw-pages"
+                        type="number"
+                        min="0"
+                        max={totalDocPages}
+                        value={bwPages}
+                        onChange={(e) => handlePageCountChange(e.target.value, 'bw')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="color-pages">Color Pages</Label>
+                      <Input
+                        id="color-pages"
+                        type="number"
+                        min="0"
+                        max={totalDocPages}
+                        value={colorPages}
+                        onChange={(e) => handlePageCountChange(e.target.value, 'color')}
+                      />
+                    </div>
                   </div>
+                  {(parseInt(bwPages, 10) + parseInt(colorPages, 10)) > totalDocPages && (
+                    <p className="text-sm text-destructive">Total page count cannot exceed {totalDocPages}.</p>
+                  )}
+
+                  {documentPrintingCost.totalCost > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-md font-semibold mb-2 text-center">Document Printing Cost</h4>
+                      <Table>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>B&amp;W Pages Cost ({bwPages} pages)</TableCell>
+                            <TableCell className="text-right">₹{documentPrintingCost.bwCost.toFixed(2)}</TableCell>
+                          </TableRow>
+                           <TableRow>
+                            <TableCell>Color Pages Cost ({colorPages} pages)</TableCell>
+                            <TableCell className="text-right">₹{documentPrintingCost.colorCost.toFixed(2)}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Copies</TableCell>
+                            <TableCell className="text-right">x {docQuantity}</TableCell>
+                          </TableRow>
+                          <TableRow className="font-bold bg-muted/50">
+                            <TableCell>Document Subtotal</TableCell>
+                            <TableCell className="text-right text-lg">₹{documentPrintingCost.totalCost.toFixed(2)}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -395,7 +454,7 @@ export function PrintDeliveryOptions() {
               </div>
               
               <div className="mt-6">
-                  <h4 className="text-md font-semibold mb-2 text-center">Cost Breakdown</h4>
+                  <h4 className="text-md font-semibold mb-2 text-center">Photo Printing Cost</h4>
                   {photoPrice.error ? (
                       <p className="text-center text-red-500 font-medium">{photoPrice.error}</p>
                   ) : photoPrice.totalCost > 0 ? (
@@ -422,7 +481,7 @@ export function PrintDeliveryOptions() {
                                   <TableCell className="text-right">₹{photoPrice.deliveryCharge.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow className="font-bold bg-muted/50">
-                                  <TableCell>Total Estimated Cost</TableCell>
+                                  <TableCell>Photo Subtotal</TableCell>
                                   <TableCell className="text-right text-lg">₹{photoPrice.totalCost.toFixed(2)}</TableCell>
                               </TableRow>
                           </TableBody>
@@ -463,3 +522,4 @@ export function PrintDeliveryOptions() {
   );
 }
 
+    
