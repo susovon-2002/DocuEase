@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, StandardFonts, PDFFont, degrees } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Type, Image as ImageIcon, Trash2, ArrowLeft, Bold, Italic, Underline, Strikethrough } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -13,9 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
+import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type EditStep = 'upload' | 'edit' | 'download';
 
@@ -23,6 +21,7 @@ type PageData = {
   width: number;
   height: number;
   items: EditableItem[];
+  imageUrl: string;
 };
 
 type EditableItemBase = {
@@ -126,48 +125,26 @@ export function EditPdfClient() {
     
     try {
         const fileBuffer = await originalFile.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: fileBuffer.slice(0) }).promise;
+        const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
+        const pdfDoc = await PDFDocument.load(fileBuffer);
         const processedPages: PageData[] = [];
 
-        for (let i = 1; i <= pdf.numPages; i++) {
-          setProcessingMessage(`Processing page ${i} of ${pdf.numPages}...`);
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const textContent = await page.getTextContent();
+        for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+          setProcessingMessage(`Processing page ${i + 1} of ${pdfDoc.getPageCount()}...`);
+          const page = pdfDoc.getPage(i);
+          const { width, height } = page.getSize();
           
-          const items: TextItem[] = textContent.items.map((item: any, index: number) => {
-            const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
-            const fontHeight = Math.sqrt((transform[2] * transform[2]) + (transform[3] * transform[3]));
-
-            return {
-              id: `text-${i}-${index}`,
-              type: 'text',
-              x: transform[4],
-              y: viewport.height - transform[5] - fontHeight,
-              width: item.width,
-              height: item.height,
-              text: item.str,
-              fontSize: fontHeight,
-              fontFamily: item.fontName.includes('Bold') ? StandardFonts.HelveticaBold : StandardFonts.Helvetica,
-              color: { r: 0, g: 0, b: 0 }, // Default to black
-              rotation: 0,
-              isBold: item.fontName.includes('Bold'),
-              isItalic: item.fontName.includes('Italic'),
-              isUnderline: false,
-              isStrikethrough: false,
-            };
-          });
-
           processedPages.push({
-            width: viewport.width,
-            height: viewport.height,
-            items: items,
+            width: width,
+            height: height,
+            items: [],
+            imageUrl: imageUrls[i],
           });
         }
         
         setPagesData(processedPages);
         setStep('edit');
-        toast({ title: 'PDF Loaded', description: 'Click on any text to edit it.' });
+        toast({ title: 'PDF Loaded', description: 'You can now add text and images.' });
 
     } catch (error) {
       console.error(error);
@@ -276,40 +253,43 @@ export function EditPdfClient() {
       setProcessingMessage("Generating PDF...");
       
       try {
+        const originalPdfDoc = await PDFDocument.load(await originalFile!.arrayBuffer());
         const newPdfDoc = await PDFDocument.create();
+        
+        const pageIndices = originalPdfDoc.getPageIndices();
+        const copiedPages = await newPdfDoc.copyPages(originalPdfDoc, pageIndices);
+        copiedPages.forEach(p => newPdfDoc.addPage(p));
         
         for (let i = 0; i < pagesData.length; i++) {
           const pageData = pagesData[i];
-          const scale = 1 / 1.5;
+          const newPage = newPdfDoc.getPage(i);
           
-          const newPage = newPdfDoc.addPage([pageData.width * scale, pageData.height * scale]);
-
           for (const item of pageData.items) {
             if (item.type === 'text') {
               const font = await getFont(newPdfDoc, item);
               
               newPage.drawText(item.text, {
-                  x: item.x * scale,
-                  y: newPage.getHeight() - (item.y * scale) - (item.fontSize * scale),
+                  x: item.x,
+                  y: newPage.getHeight() - item.y - item.fontSize,
                   font,
-                  size: item.fontSize * scale,
+                  size: item.fontSize,
                   color: rgb(item.color.r, item.color.g, item.color.b),
-                  lineHeight: (item.fontSize + 2) * scale,
-                  // The wordBreaks property has been removed as it's not a standard pdf-lib feature
+                  lineHeight: (item.fontSize + 2),
               });
               
             } else if (item.type === 'image') {
                let embeddedImage;
+               const imageBytes = await fetch(item.imageUrl).then(res => res.arrayBuffer());
                if (item.mimeType === 'image/png') {
-                    embeddedImage = await newPdfDoc.embedPng(item.imageBytes);
+                    embeddedImage = await newPdfDoc.embedPng(imageBytes);
                } else {
-                    embeddedImage = await newPdfDoc.embedJpg(item.imageBytes);
+                    embeddedImage = await newPdfDoc.embedJpg(imageBytes);
                }
                newPage.drawImage(embeddedImage, {
-                    x: item.x * scale,
-                    y: newPage.getHeight() - (item.y * scale) - (item.height * scale),
-                    width: item.width * scale,
-                    height: item.height * scale,
+                    x: item.x,
+                    y: newPage.getHeight() - item.y - item.height,
+                    width: item.width,
+                    height: item.height,
                     rotate: degrees(-item.rotation),
                });
             }
@@ -351,7 +331,6 @@ export function EditPdfClient() {
     setSelectedItemId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (outputFile) {
-        // Clean up previous blob URL
         URL.revokeObjectURL(URL.createObjectURL(outputFile.blob));
     }
     setOutputFile(null);
@@ -511,6 +490,9 @@ export function EditPdfClient() {
                         style={{ width: page.width, height: page.height, flexShrink: 0 }}
                         onClick={(e) => { e.stopPropagation(); setSelectedItemId(null); }}
                       >
+                        {/* Background page image */}
+                        <img src={page.imageUrl} alt={`Page background ${pageIndex + 1}`} className="absolute top-0 left-0 w-full h-full" />
+                        
                         {/* Add buttons for this page */}
                         <div className="absolute top-2 right-2 z-10 flex gap-2">
                            <Button size="sm" onClick={(e) => { e.stopPropagation(); addItem('text', pageIndex); }}> <Type className="mr-2 h-4 w-4"/> Add Text</Button>

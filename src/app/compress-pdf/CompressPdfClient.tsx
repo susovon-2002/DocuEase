@@ -2,16 +2,13 @@
 
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
+import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-
-// Configure the pdf.js worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CompressStep = 'upload' | 'options' | 'download';
 type CompressionLevel = 'extreme' | 'recommended' | 'less';
@@ -77,60 +74,39 @@ export function CompressPdfClient() {
 
     try {
         const fileBuffer = await originalFile.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
-        const sourcePdf = await loadingTask.promise;
+        const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         const newPdfDoc = await PDFDocument.create();
         
         let quality: number;
-        let scale: number;
 
         switch(compressionLevel) {
           case 'extreme':
             quality = 0.5;
-            scale = 1.5; 
             break;
           case 'less':
             quality = 0.9;
-            scale = 2.5;
             break;
           case 'recommended':
           default:
             quality = 0.75;
-            scale = 2.0;
             break;
         }
 
-        for (let i = 1; i <= sourcePdf.numPages; i++) {
-            setProcessingMessage(`Processing page ${i} of ${sourcePdf.numPages}...`);
+        for (let i = 0; i < imageUrls.length; i++) {
+            setProcessingMessage(`Processing page ${i + 1} of ${imageUrls.length}...`);
             
-            const page = await sourcePdf.getPage(i);
-            const viewport = page.getViewport({ scale });
-
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            if (!context) throw new Error("Could not get canvas context");
-
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            const imageUrl = imageUrls[i];
+            const imageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
+            const jpegImage = await newPdfDoc.embedJpg(imageBytes);
             
-            context.fillStyle = 'white';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-
-            await page.render({ canvasContext: context, viewport }).promise;
-            
-            const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
-            const jpegImage = await newPdfDoc.embedJpg(jpegDataUrl);
-            
-            const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+            const newPage = newPdfDoc.addPage([jpegImage.width, jpegImage.height]);
             newPage.drawImage(jpegImage, {
                 x: 0,
                 y: 0,
-                width: viewport.width,
-                height: viewport.height,
+                width: jpegImage.width,
+                height: jpegImage.height,
             });
-            canvas.width = 0;
-            canvas.height = 0;
         }
 
         const pdfBytes = await newPdfDoc.save();

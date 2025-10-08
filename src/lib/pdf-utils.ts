@@ -1,17 +1,28 @@
-import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocument } from "pdf-lib";
 
-// Set up the worker for pdfjs just once
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+async function getPdfJs() {
+  if (typeof window !== 'undefined') {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+    return pdfjs;
+  }
+  return null;
+}
 
 export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<string[]> {
+    const pdfjs = await getPdfJs();
+    if (!pdfjs) {
+        // Return empty array or throw error if on server
+        return [];
+    }
+
     const imageUrls: string[] = [];
-    const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
+    const loadingTask = pdfjs.getDocument({ data: pdfBytes });
     const pdf = await loadingTask.promise;
 
     for (let i = 1; i <= pdf.numPages; i++) {
         try {
             const page = await pdf.getPage(i);
-            // Increased scale from 1.5 to 2.0 for higher quality previews
             const viewport = page.getViewport({ scale: 2.0 });
             
             const canvas = document.createElement('canvas');
@@ -35,8 +46,6 @@ export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<s
 
         } catch (error) {
             console.error(`Error rendering page ${i}:`, error);
-            // Push a placeholder or handle the error as needed
-            // For now, we'll push an empty string, but you could have a placeholder error image URL
             imageUrls.push('');
         }
     }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
+import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Crop } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -10,8 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Rnd } from 'react-rnd';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type CropStep = 'upload' | 'crop' | 'download';
 
@@ -65,26 +63,18 @@ export function CropPdfClient() {
     setProcessingMessage('Rendering PDF...');
     try {
       const fileBuffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
-      const pdf = await loadingTask.promise;
+      const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
+      const pdfDoc = await PDFDocument.load(fileBuffer);
       const infos: PageInfo[] = [];
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.0 });
-
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error("Could not get canvas context");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: context, viewport }).promise;
-
+      for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+        const page = pdfDoc.getPage(i);
+        const { width, height } = page.getSize();
         infos.push({
-          pageNumber: i,
-          width: viewport.width,
-          height: viewport.height,
-          imageUrl: canvas.toDataURL(),
+          pageNumber: i + 1,
+          width,
+          height,
+          imageUrl: imageUrls[i],
         });
       }
       

@@ -31,13 +31,6 @@ const nextConfig: NextConfig = {
     ],
   },
   output: 'standalone',
-  webpack: (config, { isServer }) => {
-    // This is to prevent a build error for pdf.js.
-    if (isServer) {
-        config.externals.push('canvas');
-    }
-    return config;
-  },
 };
 
 export default nextConfig;
