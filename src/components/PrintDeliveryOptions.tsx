@@ -274,7 +274,7 @@ export function PrintDeliveryOptions() {
                            <ScrollArea>
                             <div className="flex space-x-4 pb-4">
                                 {doc.thumbnailUrls.map((url, pageIndex) => (
-                                    <div key={pageIndex} className="w-24 flex-shrink-0 group/page relative">
+                                    <div key={pageIndex} className="w-32 flex-shrink-0 group/page relative">
                                         <img src={url} alt={`${doc.name} page ${pageIndex + 1}`} className="rounded-md w-full aspect-[2/3] object-contain bg-white border" />
                                         <p className="text-center text-xs mt-1 text-muted-foreground">Page {pageIndex + 1}</p>
                                         <Button 
