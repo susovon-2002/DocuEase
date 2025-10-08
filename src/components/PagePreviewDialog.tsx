@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { X } from "lucide-react";
 
 interface PagePreviewDialogProps {
@@ -27,15 +28,17 @@ export function PagePreviewDialog({ imageUrl, onOpenChange }: PagePreviewDialogP
             </button>
           </DialogClose>
         </DialogHeader>
-        <div className="flex-grow flex items-center justify-center p-4">
-          {imageUrl && (
-            <img
-              src={imageUrl}
-              alt="Page Preview"
-              className="max-w-full max-h-full object-contain"
-            />
-          )}
-        </div>
+        <ScrollArea className="flex-grow">
+          <div className="flex items-start justify-center p-4">
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt="Page Preview"
+                className="max-w-full h-auto object-contain"
+              />
+            )}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
