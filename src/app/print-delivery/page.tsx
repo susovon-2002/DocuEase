@@ -299,6 +299,14 @@ export default function PrintDeliveryPage() {
     return subtotal + deliveryCharge;
   }, [photoPrice, photoDeliveryOption]);
 
+  const isAddressComplete = (address: typeof initialAddressState) => {
+    return address.name && address.mobile && address.email && address.address && address.pincode;
+  }
+
+  const isDocAddressComplete = useMemo(() => isAddressComplete(docDeliveryAddress), [docDeliveryAddress]);
+  const isPhotoAddressComplete = useMemo(() => isAddressComplete(photoDeliveryAddress), [photoDeliveryAddress]);
+
+
   const generateInvoicePdf = async (
     orderType: 'Document' | 'Photo',
     address: typeof initialAddressState,
@@ -307,6 +315,16 @@ export default function PrintDeliveryPage() {
     deliveryCharge: number,
     total: number
   ) => {
+
+    if (!isAddressComplete(address)) {
+        toast({
+            variant: 'destructive',
+            title: 'Incomplete Address',
+            description: 'Please fill out all delivery details before generating an invoice.'
+        });
+        return;
+    }
+
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -641,11 +659,11 @@ export default function PrintDeliveryPage() {
                         <Label htmlFor="doc-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
                     </RadioGroup>
                     <div className="flex justify-center gap-4 mt-6">
-                        <Button size="lg" variant="outline" onClick={handleGenerateDocInvoice} disabled={documentOrderTotal <= 0}>
+                        <Button size="lg" variant="outline" onClick={handleGenerateDocInvoice} disabled={!isDocAddressComplete}>
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={documentOrderTotal <= 0}>
+                        <Button size="lg" disabled={documentOrderTotal <= 0 || !isDocAddressComplete}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay ₹{documentOrderTotal.toFixed(2)}
                         </Button>
@@ -756,11 +774,11 @@ export default function PrintDeliveryPage() {
                         <Label htmlFor="photo-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
                     </RadioGroup>
                     <div className="flex justify-center gap-4 mt-6">
-                        <Button size="lg" variant="outline" onClick={handleGeneratePhotoInvoice} disabled={photoOrderTotal <= 0}>
+                        <Button size="lg" variant="outline" onClick={handleGeneratePhotoInvoice} disabled={!isPhotoAddressComplete}>
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={photoOrderTotal <= 0}>
+                        <Button size="lg" disabled={photoOrderTotal <= 0 || !isPhotoAddressComplete}>
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Proceed to Pay ₹{photoOrderTotal.toFixed(2)}
                         </Button>
