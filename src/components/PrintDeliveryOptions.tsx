@@ -245,22 +245,25 @@ export function PrintDeliveryOptions() {
  const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
     const numColor = parseInt(colorPages, 10) || 0;
-    const quantity = parseInt(docQuantity, 10) || 0;
+    const quantity = parseInt(docQuantity, 10) || 1;
 
-    if ((numBw + numColor) > totalDocPages || quantity <= 0) {
-      return { bwCost: 0, colorCost: 0, totalCost: 0, error: "Page count exceeds total pages." };
+    if ((numBw + numColor) > totalDocPages) {
+      return { bwCost: 0, colorCost: 0, printingSubtotal: 0, totalCost: 0, deliveryCharge: 0, error: "Page count exceeds total pages." };
     }
     
-    if (totalDocPages === 0) {
-        return { bwCost: 0, colorCost: 0, totalCost: 0, error: null };
+    if (totalDocPages === 0 || quantity <=0) {
+        return { bwCost: 0, colorCost: 0, printingSubtotal: 0, totalCost: 0, deliveryCharge: 0, error: null };
     }
     
     const bwCost = numBw * BW_PRICE_PER_PAGE;
     const colorCost = numColor * COLOR_PRICE_PER_PAGE;
-    const totalCost = (bwCost + colorCost) * quantity;
+    const printingSubtotal = bwCost + colorCost;
+    const totalWithCopies = printingSubtotal * quantity;
+    const deliveryCharge = deliveryCharges[deliveryOption] || 0;
+    const totalCost = totalWithCopies + deliveryCharge;
     
-    return { bwCost: bwCost * quantity, colorCost: colorCost * quantity, totalCost, error: null };
-  }, [bwPages, colorPages, docQuantity, totalDocPages]);
+    return { bwCost, colorCost, printingSubtotal, totalCost, deliveryCharge, error: null };
+  }, [bwPages, colorPages, docQuantity, totalDocPages, deliveryOption]);
 
 
   return (
@@ -389,22 +392,30 @@ export function PrintDeliveryOptions() {
                       <h4 className="text-md font-semibold mb-2 text-center">Document Printing Cost</h4>
                       <Table>
                         <TableBody>
-                          <TableRow>
-                            <TableCell>B&amp;W Pages Cost ({bwPages} pages)</TableCell>
-                            <TableCell className="text-right">₹{documentPrintingCost.bwCost.toFixed(2)}</TableCell>
-                          </TableRow>
-                           <TableRow>
-                            <TableCell>Color Pages Cost ({colorPages} pages)</TableCell>
-                            <TableCell className="text-right">₹{documentPrintingCost.colorCost.toFixed(2)}</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>Copies</TableCell>
-                            <TableCell className="text-right">x {docQuantity}</TableCell>
-                          </TableRow>
-                          <TableRow className="font-bold bg-muted/50">
-                            <TableCell>Document Subtotal</TableCell>
-                            <TableCell className="text-right text-lg">₹{documentPrintingCost.totalCost.toFixed(2)}</TableCell>
-                          </TableRow>
+                            <TableRow>
+                                <TableCell>B&amp;W Pages ({bwPages} x ₹{BW_PRICE_PER_PAGE}/page)</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.bwCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>Color Pages ({colorPages} x ₹{COLOR_PRICE_PER_PAGE}/page)</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.colorCost.toFixed(2)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>Printing Subtotal</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.printingSubtotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                             <TableRow>
+                                <TableCell>Copies</TableCell>
+                                <TableCell className="text-right">x {docQuantity}</TableCell>
+                              </TableRow>
+                             <TableRow>
+                                <TableCell>Delivery Fee ({deliveryOption})</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.deliveryCharge.toFixed(2)}</TableCell>
+                            </TableRow>
+                            <TableRow className="font-bold bg-muted/50 text-lg">
+                                <TableCell>Document Grand Total</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.totalCost.toFixed(2)}</TableCell>
+                            </TableRow>
                         </TableBody>
                       </Table>
                     </div>
@@ -521,5 +532,3 @@ export function PrintDeliveryOptions() {
     </>
   );
 }
-
-    
