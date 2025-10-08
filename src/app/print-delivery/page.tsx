@@ -229,7 +229,7 @@ export default function PrintDeliveryPage() {
     });
   };
   
- const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+ const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, autoFill: boolean) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -249,8 +249,8 @@ export default function PrintDeliveryPage() {
             const imgUrl = e.target?.result as string;
             newPhotos.push({ name: file.name, url: imgUrl });
 
-            // Auto-fill dimensions from the first image in the batch
-            if (!firstImageProcessed) {
+            // Auto-fill dimensions from the first image in the batch if requested
+            if (autoFill && !firstImageProcessed) {
                 const img = new Image();
                 img.onload = () => {
                     const dpi = 96; // A common screen DPI, adjust if necessary
@@ -946,13 +946,13 @@ export default function PrintDeliveryPage() {
                   <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
                       <UploadCloud className="mr-2 h-4 w-4" /> Upload Photos
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <input type="file" ref={photoFileInputRef} onChange={(e) => handlePhotoFileUpload(e, true)} className="hidden" accept="image/*" multiple />
+                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
                       <ImageIcon className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
                   </Button>
-                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*" multiple />
               </div>
-
-               {uploadedPhotos.length > 0 && (
+              
+              {uploadedPhotos.length > 0 && (
                   <div className="mb-4 space-y-4">
                       <h4 className="text-sm font-semibold mb-2">Uploaded Photos ({uploadedPhotos.length}):</h4>
                         <div className="flex flex-wrap gap-4 p-4 border rounded-md bg-muted/20">
@@ -976,7 +976,7 @@ export default function PrintDeliveryPage() {
                         </div>
                   </div>
               )}
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
