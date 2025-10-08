@@ -4,9 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import { tools } from '@/lib/tools';
 import { groupBy } from 'lodash';
+import { CurrentYear } from './CurrentYear';
 
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
   const toolsByCategory = groupBy(tools, 'category');
 
   return (
@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
         <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-center items-center">
           <p className="text-center text-sm text-muted-foreground">
-            &copy; {currentYear} DocuEase. All Rights Reserved.
+            &copy; <CurrentYear /> DocuEase. All Rights Reserved.
           </p>
         </div>
       </div>
