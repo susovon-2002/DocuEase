@@ -457,9 +457,15 @@ export default function PrintDeliveryPage() {
     page.drawText(`Rs. ${total.toFixed(2)}`, { x: 450, y: totalY, font: boldFont, size: 12 });
     
     // Footer
+    let footerY = 40;
     page.drawRectangle({ x: 0, y: 0, width, height: 60, color: lightGrayColor });
-    page.drawText('Thank you for your business!', { x: 50, y: 30, font: boldFont, size: 12, color: grayColor });
-    page.drawText('www.docuease.com | contact@docuease.com', { x: 350, y: 30, font: font, size: 9, color: grayColor });
+    page.drawText('Thank you for your business!', { x: 50, y: footerY, font: boldFont, size: 12, color: grayColor });
+    footerY -= 15;
+    page.drawText('Sector v, Bidhannagar, Near Technopolis, kolkata 700091', { x: 50, y: footerY, font: font, size: 9, color: grayColor });
+
+    const contactText = 'susovonsantra4@gmail.com | ph.no 8910819035';
+    const contactTextWidth = font.widthOfTextAtSize(contactText, 9);
+    page.drawText(contactText, { x: width - contactTextWidth - 50, y: 30, font: font, size: 9, color: grayColor });
 
 
     const pdfBytes = await pdfDoc.save();
