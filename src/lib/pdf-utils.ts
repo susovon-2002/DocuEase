@@ -11,7 +11,8 @@ export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<s
     for (let i = 1; i <= pdf.numPages; i++) {
         try {
             const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 3.0 });
+            // Reduced scale from 3.0 to 1.5 for performance
+            const viewport = page.getViewport({ scale: 1.5 });
             
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');

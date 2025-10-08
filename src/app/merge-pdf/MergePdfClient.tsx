@@ -80,6 +80,10 @@ export function MergePdfClient() {
     if (files) {
       processNewFiles(Array.from(files));
     }
+     // Reset file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
   
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
