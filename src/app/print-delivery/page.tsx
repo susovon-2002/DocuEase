@@ -1018,6 +1018,25 @@ export default function PrintDeliveryPage() {
                 </div>
 
                 <div>
+                   <h4 className="text-md font-semibold mb-2 text-center">A4 Page Layout Preview</h4>
+                    {a4Preview.error ? (
+                        <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md flex items-center justify-center text-destructive text-center p-4">
+                            {a4Preview.error}
+                        </div>
+                    ) : (
+                        <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md p-2 grid"
+                             style={{
+                                 gridTemplateColumns: `repeat(auto-fill, minmax(${a4Preview.photoWidthPx}px, 1fr))`,
+                                 gap: '4px'
+                             }}
+                        >
+                            {a4Preview.previewPhotos.map(i => (
+                                <div key={i} className="bg-muted-foreground/20 flex items-center justify-center" style={{ height: `${a4Preview.photoHeightPx}px` }}>
+                                    <ImageIcon className="text-muted-foreground/50" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
               </div>
               
