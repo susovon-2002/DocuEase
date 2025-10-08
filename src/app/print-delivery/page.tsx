@@ -93,6 +93,7 @@ type UploadedPhoto = {
   id: number;
   name: string;
   url: string;
+  copies: number;
 }
 
 const initialAddressState = {
@@ -128,7 +129,6 @@ export default function PrintDeliveryPage() {
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [photoWidth, setPhotoWidth] = useState('3.5');
   const [photoHeight, setPhotoHeight] = useState('4.5');
-  const [photoQuantity, setPhotoQuantity] = useState('1');
   const [paperType, setPaperType] = useState('photo');
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
@@ -157,6 +157,10 @@ export default function PrintDeliveryPage() {
   const totalDocPages = useMemo(() => {
     return uploadedDocs.reduce((acc, doc) => acc + doc.thumbnailUrls.length, 0);
   }, [uploadedDocs]);
+  
+  const totalPhotoCopies = useMemo(() => {
+    return uploadedPhotos.reduce((acc, photo) => acc + photo.copies, 0);
+  }, [uploadedPhotos]);
 
   useEffect(() => {
     if (totalDocPages > 0) {
@@ -207,13 +211,12 @@ export default function PrintDeliveryPage() {
     const files = event.target.files;
     if (!files) return;
 
-    const newPhotos: UploadedPhoto[] = [];
     for (const file of Array.from(files)) {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const imgUrl = e.target?.result as string;
-          if (uploadedPhotos.length === 0 && newPhotos.length === 0 && files.length === 1) { // Auto-size with first image
+           if (uploadedPhotos.length === 0 && files.length === 1) { // Auto-size with first image
               const img = new Image();
               img.onload = () => {
                   const widthCm = (img.width / DPI) * 2.54;
@@ -223,7 +226,7 @@ export default function PrintDeliveryPage() {
               };
               img.src = imgUrl;
           }
-          setUploadedPhotos(prev => [...prev, { id: Date.now() + Math.random(), name: file.name, url: imgUrl }]);
+          setUploadedPhotos(prev => [...prev, { id: Date.now() + Math.random(), name: file.name, url: imgUrl, copies: 1 }]);
         };
         reader.readAsDataURL(file);
       } else {
@@ -235,6 +238,10 @@ export default function PrintDeliveryPage() {
   
   const handleRemovePhoto = (id: number) => {
     setUploadedPhotos(prev => prev.filter(photo => photo.id !== id));
+  };
+  
+  const handlePhotoCopyChange = (id: number, copies: number) => {
+    setUploadedPhotos(prev => prev.map(p => p.id === id ? { ...p, copies: copies >= 0 ? copies : 0 } : p));
   };
 
   const handleRemoveDoc = (docIndex: number) => {
@@ -290,10 +297,9 @@ export default function PrintDeliveryPage() {
     }
   };
 
-  const a4Preview = useMemo(() => {
+   const a4Preview = useMemo(() => {
     const widthCm = parseFloat(photoWidth);
     const heightCm = parseFloat(photoHeight);
-    const copies = parseInt(photoQuantity, 10) || 0;
 
     if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
       return { previewPhotos: [], error: 'Invalid dimensions' };
@@ -318,31 +324,46 @@ export default function PrintDeliveryPage() {
         return { previewPhotos: [], error: 'Photo size is too large to fit on A4.' };
     }
 
-    const totalCopiesToShow = Math.min(copies * uploadedPhotos.length, photosPerPage);
+    const photosToRender = [];
+    if (uploadedPhotos.length > 0) {
+        for(const photo of uploadedPhotos) {
+            for(let i = 0; i < photo.copies; i++) {
+                photosToRender.push(photo.url);
+            }
+        }
+    } else {
+        // Fallback to placeholders if no photos are uploaded but copies are set.
+        const totalCopies = uploadedPhotos.reduce((sum, p) => sum + p.copies, 0);
+        for(let i=0; i < totalCopies; i++) {
+            photosToRender.push(null);
+        }
+    }
+
 
     return { 
-        previewPhotos: Array.from({ length: totalCopiesToShow }), 
+        previewPhotos: photosToRender.slice(0, photosPerPage),
         photoWidthPx, 
         photoHeightPx, 
         error: null 
     };
-  }, [photoWidth, photoHeight, photoQuantity, uploadedPhotos.length]);
+  }, [photoWidth, photoHeight, uploadedPhotos]);
+
   
   const photoOrderTotal = useMemo(() => {
-    const numPhotos = uploadedPhotos.length;
-    if (numPhotos === 0) return 0;
+    if (totalPhotoCopies === 0) return 0;
     
     const width = parseFloat(photoWidth);
     const height = parseFloat(photoHeight);
     if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) return 0;
 
-    const quantity = parseInt(photoQuantity, 10) || 1;
     const basePrice = getPricePerPhoto(width, height);
     const paperAddon = paperTypeAddons[paperType] || 0;
     const deliveryCharge = deliveryCharges[photoDeliveryOption] || 0;
 
-    return (numPhotos * (basePrice + paperAddon) * quantity) + deliveryCharge;
-  }, [uploadedPhotos, photoWidth, photoHeight, photoQuantity, paperType, photoDeliveryOption]);
+    const printingCost = totalPhotoCopies * (basePrice + paperAddon);
+
+    return printingCost + deliveryCharge;
+  }, [totalPhotoCopies, photoWidth, photoHeight, paperType, photoDeliveryOption]);
 
   const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
@@ -585,7 +606,7 @@ export default function PrintDeliveryPage() {
       return;
     }
     const details: PhotoInvoiceDetails = {
-      quantity: uploadedPhotos.length * (parseInt(photoQuantity, 10) || 1),
+      quantity: totalPhotoCopies,
       width: photoWidth,
       height: photoHeight,
       paperType: paperType,
@@ -628,7 +649,6 @@ export default function PrintDeliveryPage() {
             setUploadedPhotos([]);
             setPhotoWidth('3.5');
             setPhotoHeight('4.5');
-            setPhotoQuantity('1');
             setPhotoDeliveryAddress(initialAddressState);
         }
     }, 2000);
@@ -914,14 +934,28 @@ export default function PrintDeliveryPage() {
                   
                   {uploadedPhotos.length > 0 && (
                      <div className="space-y-2">
-                        <Label>Uploaded Photos</Label>
-                        <ScrollArea className="h-40 w-full rounded-md border">
-                          <div className="p-4 grid grid-cols-3 gap-4">
+                        <Label>Uploaded Photos ({totalPhotoCopies} copies total)</Label>
+                        <ScrollArea className="h-60 w-full rounded-md border">
+                          <div className="p-4 space-y-4">
                             {uploadedPhotos.map((photo) => (
-                              <div key={photo.id} className="relative group/page">
-                                <img src={photo.url} alt={photo.name} className="rounded-md w-full aspect-square object-cover" />
-                                <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100" onClick={() => handleRemovePhoto(photo.id)}>
-                                  <X className="h-3 w-3" />
+                              <div key={photo.id} className="flex items-center gap-4">
+                                <img src={photo.url} alt={photo.name} className="rounded-md w-16 h-16 object-cover" />
+                                <div className="flex-grow space-y-1">
+                                    <p className="text-sm font-medium truncate">{photo.name}</p>
+                                    <div className="flex items-center">
+                                       <Label htmlFor={`copies-${photo.id}`} className="text-xs mr-2">Copies:</Label>
+                                       <Input
+                                          id={`copies-${photo.id}`}
+                                          type="number"
+                                          min="0"
+                                          value={photo.copies}
+                                          onChange={e => handlePhotoCopyChange(photo.id, parseInt(e.target.value, 10))}
+                                          className="h-8 w-20"
+                                       />
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemovePhoto(photo.id)}>
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ))}
@@ -930,18 +964,14 @@ export default function PrintDeliveryPage() {
                       </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
-                      <div className="space-y-2 sm:col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
+                      <div className="space-y-2">
                           <Label>Default Photo Size (in cm)</Label>
                           <div className="flex items-center gap-2">
                               <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
                               <span>x</span>
                               <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
                           </div>
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor="photo-quantity">Copies of Each</Label>
-                          <Input id="photo-quantity" type="number" min="1" placeholder="Number" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
                       </div>
                   </div>
                    <div className="space-y-2">
@@ -987,10 +1017,7 @@ export default function PrintDeliveryPage() {
                                  gap: '4px'
                              }}
                         >
-                            {a4Preview.previewPhotos.map((_, index) => {
-                                const photoIndex = index % uploadedPhotos.length;
-                                const imageUrl = uploadedPhotos.length > 0 ? uploadedPhotos[photoIndex].url : null;
-                                return (
+                            {a4Preview.previewPhotos.map((imageUrl, index) => (
                                   <div 
                                       key={index} 
                                       className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
@@ -1002,8 +1029,7 @@ export default function PrintDeliveryPage() {
                                       <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
                                     )}
                                   </div>
-                                );
-                            })}
+                            ))}
                         </div>
                     )}
                 </div>
@@ -1015,12 +1041,8 @@ export default function PrintDeliveryPage() {
                       <Table>
                           <TableBody>
                               <TableRow>
-                                <TableCell>Number of Unique Photos</TableCell>
-                                <TableCell className="text-right">{uploadedPhotos.length}</TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Copies per Photo</TableCell>
-                                <TableCell className="text-right">x {photoQuantity}</TableCell>
+                                <TableCell>Total Number of Photo Prints</TableCell>
+                                <TableCell className="text-right">{totalPhotoCopies}</TableCell>
                               </TableRow>
                               <TableRow>
                                   <TableCell>Printing Subtotal</TableCell>
@@ -1037,7 +1059,7 @@ export default function PrintDeliveryPage() {
                           </TableBody>
                       </Table>
                   ) : (
-                      <p className="text-center text-muted-foreground">Set dimensions and upload photos to see the price.</p>
+                      <p className="text-center text-muted-foreground">Upload photos and set copies to see the price.</p>
                   )}
               </div>
                {photoOrderTotal > 0 && (
