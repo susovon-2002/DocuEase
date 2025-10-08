@@ -293,6 +293,8 @@ export default function PrintDeliveryPage() {
   const a4Preview = useMemo(() => {
     const widthCm = parseFloat(photoWidth);
     const heightCm = parseFloat(photoHeight);
+    const copies = parseInt(photoQuantity, 10) || 0;
+
     if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
       return { previewPhotos: [], error: 'Invalid dimensions' };
     }
@@ -316,13 +318,15 @@ export default function PrintDeliveryPage() {
         return { previewPhotos: [], error: 'Photo size is too large to fit on A4.' };
     }
 
+    const totalCopiesToShow = Math.min(copies * uploadedPhotos.length, photosPerPage);
+
     return { 
-        previewPhotos: Array.from({ length: photosPerPage }), 
+        previewPhotos: Array.from({ length: totalCopiesToShow }), 
         photoWidthPx, 
         photoHeightPx, 
         error: null 
     };
-  }, [photoWidth, photoHeight]);
+  }, [photoWidth, photoHeight, photoQuantity, uploadedPhotos.length]);
   
   const photoOrderTotal = useMemo(() => {
     const numPhotos = uploadedPhotos.length;
@@ -983,19 +987,23 @@ export default function PrintDeliveryPage() {
                                  gap: '4px'
                              }}
                         >
-                            {a4Preview.previewPhotos.map((_, index) => (
-                                <div 
-                                    key={index} 
-                                    className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
-                                    style={{ height: `${a4Preview.photoHeightPx}px` }}
-                                >
-                                  {uploadedPhotos.length > 0 ? (
-                                    <img src={uploadedPhotos[0].url} alt="preview" className="w-full h-full object-cover"/>
-                                  ) : (
-                                    <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
-                                  )}
-                                </div>
-                            ))}
+                            {a4Preview.previewPhotos.map((_, index) => {
+                                const photoIndex = index % uploadedPhotos.length;
+                                const imageUrl = uploadedPhotos.length > 0 ? uploadedPhotos[photoIndex].url : null;
+                                return (
+                                  <div 
+                                      key={index} 
+                                      className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
+                                      style={{ height: `${a4Preview.photoHeightPx}px` }}
+                                  >
+                                    {imageUrl ? (
+                                      <img src={imageUrl} alt="preview" className="w-full h-full object-cover"/>
+                                    ) : (
+                                      <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
+                                    )}
+                                  </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
