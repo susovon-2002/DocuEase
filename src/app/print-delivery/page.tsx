@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import {
@@ -26,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText, Loader2 } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText, Loader2, Image as ImageIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -125,6 +124,8 @@ export default function PrintDeliveryPage() {
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
+
 
   // Document State
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
@@ -241,6 +242,7 @@ export default function PrintDeliveryPage() {
               const heightInCm = (img.height * 2.54) / dpi;
               setPhotoWidth(widthInCm.toFixed(1));
               setPhotoHeight(heightInCm.toFixed(1));
+              setUploadedPhotoUrl(img.src);
               toast({ title: 'Image Loaded', description: 'Photo dimensions have been set from the uploaded image.' });
           };
           img.src = e.target?.result as string;
@@ -628,6 +630,42 @@ export default function PrintDeliveryPage() {
     </>
   );
 
+  const a4Preview = useMemo(() => {
+    const widthCm = parseFloat(photoWidth);
+    const heightCm = parseFloat(photoHeight);
+    if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) {
+      return { previewPhotos: [], error: 'Invalid dimensions' };
+    }
+
+    const A4_WIDTH_PX = 595;
+    const A4_HEIGHT_PX = 842;
+    const CM_TO_PX = A4_WIDTH_PX / 21; // approx 28.35
+
+    const photoWidthPx = widthCm * CM_TO_PX;
+    const photoHeightPx = heightCm * CM_TO_PX;
+    
+    if (photoWidthPx > A4_WIDTH_PX || photoHeightPx > A4_HEIGHT_PX) {
+      return { previewPhotos: [], error: "Photo size exceeds A4." };
+    }
+
+    const cols = Math.floor(A4_WIDTH_PX / photoWidthPx);
+    const rows = Math.floor(A4_HEIGHT_PX / photoHeightPx);
+    const photosPerPage = cols * rows;
+
+    if (photosPerPage === 0) {
+        return { previewPhotos: [], error: "Photo size is too large to fit on A4." };
+    }
+
+    return { 
+        previewPhotos: Array.from({ length: photosPerPage }, (_, i) => i),
+        photoWidthPx,
+        photoHeightPx,
+        error: null 
+    };
+
+  }, [photoWidth, photoHeight]);
+
+
   return (
     <div className="py-12">
       <PagePreviewDialog
@@ -667,7 +705,7 @@ export default function PrintDeliveryPage() {
               </DialogFooter>
           </DialogContent>
       </Dialog>
-      <Card className="max-w-4xl mx-auto">
+      <Card className="max-w-7xl mx-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
             <Printer className="w-8 h-8 text-primary" />
@@ -862,27 +900,30 @@ export default function PrintDeliveryPage() {
 
             {/* Photo Printing Section */}
             <div>
-              <h3 className="text-xl font-semibold mb-4 text-center">Photo Printing</h3>
-                <div className="mb-4">
-                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
-                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                      <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
-                  </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                  <div className="space-y-2">
-                      <Label>Photo Size (in cm)</Label>
-                      <div className="flex items-center gap-2">
-                          <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
-                          <span>x</span>
-                          <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
+              <h3 className="text-xl font-semibold my-4 text-center">Photo Printing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <div className="mb-4">
+                    <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
+                    <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
+                      <div className="space-y-2 sm:col-span-2">
+                          <Label>Photo Size (in cm)</Label>
+                          <div className="flex items-center gap-2">
+                              <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
+                              <span>x</span>
+                              <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
+                          </div>
+                      </div>
+                      <div className="space-y-2">
+                          <Label htmlFor="photo-quantity">Quantity</Label>
+                          <Input id="photo-quantity" type="number" min="1" placeholder="Number" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
                       </div>
                   </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="photo-quantity">Quantity</Label>
-                      <Input id="photo-quantity" type="number" min="1" placeholder="Number of photos" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
+                   <div className="space-y-2 mt-6">
                       <Label htmlFor="paper-type">Paper Type</Label>
                       <Select value={paperType} onValueChange={setPaperType}>
                           <SelectTrigger id="paper-type">
@@ -897,24 +938,51 @@ export default function PrintDeliveryPage() {
                           </SelectContent>
                       </Select>
                   </div>
-              </div>
-               <div className="space-y-2 mt-6">
-                  <Label htmlFor="photo-delivery-option">Delivery Speed</Label>
-                  <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption}>
-                      <SelectTrigger id="photo-delivery-option">
-                          <SelectValue placeholder="Select delivery speed" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="standard">Standard (Rs. 45)</SelectItem>
-                          <SelectItem value="express">Express (Rs. 100)</SelectItem>
-                      </SelectContent>
-                  </Select>
+                   <div className="space-y-2 mt-6">
+                      <Label htmlFor="photo-delivery-option">Delivery Speed</Label>
+                      <Select value={photoDeliveryOption} onValueChange={setPhotoDeliveryOption}>
+                          <SelectTrigger id="photo-delivery-option">
+                              <SelectValue placeholder="Select delivery speed" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="standard">Standard (Rs. 45)</SelectItem>
+                              <SelectItem value="express">Express (Rs. 100)</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                </div>
+
+                <div>
+                    <Label className="text-center block mb-2">A4 Page Preview</Label>
+                    <div className="relative w-full aspect-[210/297] bg-white border-2 border-dashed rounded-md p-1 flex flex-wrap content-start gap-1 overflow-hidden">
+                        {a4Preview.error && (
+                            <div className="flex items-center justify-center w-full h-full text-destructive text-center p-4">
+                                {a4Preview.error}
+                            </div>
+                        )}
+                        {a4Preview.previewPhotos.map((_, index) => (
+                            <div key={index} 
+                                className="bg-muted flex items-center justify-center"
+                                style={{
+                                    width: `${a4Preview.photoWidthPx}px`,
+                                    height: `${a4Preview.photoHeightPx}px`
+                                }}
+                            >
+                                {uploadedPhotoUrl ? (
+                                    <img src={uploadedPhotoUrl} className="object-cover w-full h-full" alt="preview" />
+                                ) : (
+                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
               </div>
               
               <div className="mt-6">
                   <h4 className="text-md font-semibold mb-2 text-center">Photo Printing Cost</h4>
                   {photoPrice.error ? (
-                      <p className="text-center text-red-500 font-medium">{photoPrice.error}</p>
+                      <p className="text-center text-destructive font-medium">{photoPrice.error}</p>
                   ) : photoPrice.printingCost > 0 ? (
                       <Table>
                           <TableBody>
