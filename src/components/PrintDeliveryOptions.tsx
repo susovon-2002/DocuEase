@@ -54,12 +54,19 @@ const deliveryCharges: Record<string, number> = {
     'express': 100,
 };
 
+const BW_PRICE_PER_PAGE = 3;
+const COLOR_PRICE_PER_PAGE = 5;
+
+
 export function PrintDeliveryOptions() {
   const [photoWidth, setPhotoWidth] = useState('3.5');
   const [photoHeight, setPhotoHeight] = useState('4.5');
   const [photoQuantity, setPhotoQuantity] = useState('20');
   const [paperType, setPaperType] = useState('photo');
   const [deliveryOption, setDeliveryOption] = useState('standard');
+  
+  const [bwPages, setBwPages] = useState('');
+  const [colorPages, setColorPages] = useState('');
 
   const photoPrice = useMemo(() => {
     const width = parseFloat(photoWidth);
@@ -89,6 +96,16 @@ export function PrintDeliveryOptions() {
 
     return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, totalCost, deliveryCharge, error: null };
   }, [photoWidth, photoHeight, photoQuantity, paperType, deliveryOption]);
+  
+  const documentPrintingCost = useMemo(() => {
+    const bwCount = parseInt(bwPages, 10) || 0;
+    const colorCount = parseInt(colorPages, 10) || 0;
+    
+    const bwCost = bwCount * BW_PRICE_PER_PAGE;
+    const colorCost = colorCount * COLOR_PRICE_PER_PAGE;
+    
+    return bwCost + colorCost;
+  }, [bwPages, colorPages]);
 
 
   return (
@@ -107,38 +124,24 @@ export function PrintDeliveryOptions() {
         <div className="space-y-8">
           <div>
             <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
-            <div className="space-y-2 mb-6">
-                <Label htmlFor="paper-size" className="font-semibold text-center block">Choose Paper Size</Label>
-                <Select defaultValue="a4">
-                  <SelectTrigger id="paper-size" className="w-full md:w-1/2 mx-auto">
-                    <SelectValue placeholder="Select paper size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="a4">A4 (8.27" x 11.69")</SelectItem>
-                    <SelectItem value="a5">A5 (5.83" x 8.27")</SelectItem>
-                    <SelectItem value="legal">Legal (8.5" x 14")</SelectItem>
-                    <SelectItem value="letter">Letter (8.5" x 11")</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div className="space-y-2">
+                        <Label htmlFor="bw-pages">Black & White Pages (₹{BW_PRICE_PER_PAGE}/page)</Label>
+                        <Input id="bw-pages" type="number" placeholder="No. of B&W pages" value={bwPages} onChange={(e) => setBwPages(e.target.value)} min="0" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="color-pages">Color Pages (₹{COLOR_PRICE_PER_PAGE}/page)</Label>
+                        <Input id="color-pages" type="number" placeholder="No. of Color pages" value={colorPages} onChange={(e) => setColorPages(e.target.value)} min="0" />
+                    </div>
+                </div>
+                 {documentPrintingCost > 0 && (
+                    <div className="pt-4 text-center">
+                        <p className="text-md font-semibold">Document Printing Subtotal:</p>
+                        <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
+                    </div>
+                )}
             </div>
-            <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className="font-medium">Black & White Print</TableCell>
-                        <TableCell className="text-right">₹3 / page</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableCell className="font-medium">Color Print</TableCell>
-                        <TableCell className="text-right">₹5 / page</TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
           </div>
 
           <Separator />
