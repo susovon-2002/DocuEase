@@ -94,7 +94,7 @@ export function PrintDeliveryOptions() {
         setTotalDocPages(pdf.numPages);
         setColorPages(String(pdf.numPages));
         setBwPages('0');
-        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages. Please specify color/B&W counts.` });
+        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages. Price calculated assuming all pages are color.` });
     } catch (e) {
         console.error(e);
         toast({ variant: 'destructive', title: 'Error Reading PDF', description: 'Could not process the uploaded document.' });
