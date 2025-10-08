@@ -32,6 +32,7 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -65,6 +66,11 @@ const deliveryCharges: Record<string, number> = {
 const BW_PRICE_PER_PAGE = 3;
 const COLOR_PRICE_PER_PAGE = 5;
 
+type UploadedDoc = {
+  name: string;
+  pages: number;
+  thumbnailUrl: string;
+}
 
 export function PrintDeliveryOptions() {
   const [photoWidth, setPhotoWidth] = useState('3.5');
@@ -73,7 +79,7 @@ export function PrintDeliveryOptions() {
   const [paperType, setPaperType] = useState('photo');
   const [deliveryOption, setDeliveryOption] = useState('standard');
   
-  const [uploadedDocs, setUploadedDocs] = useState<{ name: string; pages: number }[]>([]);
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
   const [docQuantity, setDocQuantity] = useState('1');
 
@@ -90,7 +96,7 @@ export function PrintDeliveryOptions() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const newDocs: { name: string; pages: number }[] = [];
+    const newDocs: UploadedDoc[] = [];
     for (const file of Array.from(files)) {
         if(file.type !== 'application/pdf') {
             toast({ variant: 'destructive', title: 'Invalid File', description: `${file.name} is not a PDF.` });
@@ -99,8 +105,9 @@ export function PrintDeliveryOptions() {
         
         try {
             const fileBuffer = await file.arrayBuffer();
+            const [thumbnailUrl] = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer.slice(0)));
             const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-            newDocs.push({ name: file.name, pages: pdf.numPages });
+            newDocs.push({ name: file.name, pages: pdf.numPages, thumbnailUrl });
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
@@ -118,6 +125,10 @@ export function PrintDeliveryOptions() {
   };
 
   const handleRemoveDoc = (index: number) => {
+    const docToRemove = uploadedDocs[index];
+    if (docToRemove) {
+      URL.revokeObjectURL(docToRemove.thumbnailUrl);
+    }
     setUploadedDocs(currentDocs => currentDocs.filter((_, i) => i !== index));
   };
   
@@ -225,11 +236,13 @@ export function PrintDeliveryOptions() {
             {uploadedDocs.length > 0 && (
                 <div className="mb-4">
                     <h4 className="text-sm font-semibold mb-2">Uploaded Documents:</h4>
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border rounded-lg p-2">
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {uploadedDocs.map((doc, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                                <span className="text-sm truncate">{doc.name} ({doc.pages} pages)</span>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveDoc(index)}>
+                            <div key={index} className="relative group p-2 rounded-md bg-muted/50">
+                                <img src={doc.thumbnailUrl} alt={doc.name} className="rounded-md w-full aspect-[2/3] object-contain bg-white mb-2" />
+                                <div className="text-xs truncate font-medium">{doc.name}</div>
+                                <div className="text-xs text-muted-foreground">{doc.pages} pages</div>
+                                <Button variant="destructive" size="icon" className="absolute top-3 right-3 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleRemoveDoc(index)}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
