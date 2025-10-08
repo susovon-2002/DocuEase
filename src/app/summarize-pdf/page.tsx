@@ -1,6 +1,33 @@
+'use client';
+
 import SummarizeForm from './SummarizeForm';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { UpgradeProModal } from '@/components/UpgradeProModal';
+import { Loader2 } from 'lucide-react';
 
 export default function SummarizePdfPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, `users/${user.uid}`);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
+
+  const subscriptionQuery = useMemoFirebase(() => {
+    if (!firestore || !userProfile?.subscriptionId) return null;
+    return doc(firestore, 'subscriptions', userProfile.subscriptionId);
+  }, [firestore, userProfile?.subscriptionId]);
+
+  const { data: subscription, isLoading: isSubscriptionLoading } = useDoc(subscriptionQuery);
+
+  const isLoading = isUserLoading || isUserProfileLoading || isSubscriptionLoading;
+
+  const hasProPlan = subscription?.planType === 'Pro' || subscription?.planType === 'Business';
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="w-full max-w-4xl mx-auto">
@@ -10,7 +37,18 @@ export default function SummarizePdfPage() {
             Upload your PDF and let our AI provide a concise summary. Choose your desired length.
           </p>
         </div>
-        <SummarizeForm />
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : hasProPlan ? (
+          <SummarizeForm />
+        ) : (
+          <UpgradeProModal 
+            title="Unlock Smart Summarizer"
+            description="You need a Pro or Business plan to use the AI-powered PDF summarizer. Upgrade your plan to start generating summaries."
+          />
+        )}
       </div>
     </div>
   );

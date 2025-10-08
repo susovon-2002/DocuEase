@@ -303,8 +303,8 @@ export default function DashboardPage() {
                   <CardDescription>Upgrade your plan to access our most powerful features.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <h3 className="font-semibold text-lg mb-2">AI Cover Letter Generator</h3>
-                  <p className="text-muted-foreground mb-4">Let our AI create a professional cover letter from your resume in seconds. Impress employers and land your dream job faster.</p>
+                  <h3 className="font-semibold text-lg mb-2">AI Smart Summarizer</h3>
+                  <p className="text-muted-foreground mb-4">Let our AI create a professional summary from your PDF in seconds. Perfect for students, researchers, and professionals.</p>
                 </CardContent>
                 <CardFooter>
                   <Button asChild>
