@@ -26,17 +26,17 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin } from "lucide-react";
-import { Separator } from "./ui/separator";
+import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
-import { ScrollArea, ScrollBar } from "./ui/scroll-area";
-import { PagePreviewDialog } from "./PagePreviewDialog";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { Checkbox } from "./ui/checkbox";
-import { Textarea } from "./ui/textarea";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { PagePreviewDialog } from "@/components/PagePreviewDialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -84,7 +84,7 @@ const initialAddressState = {
   pincode: '',
 };
 
-export function PrintDeliveryOptions() {
+export default function PrintDeliveryPage() {
   // Photo State
   const [photoWidth, setPhotoWidth] = useState('3.5');
   const [photoHeight, setPhotoHeight] = useState('4.5');
@@ -338,7 +338,7 @@ export function PrintDeliveryOptions() {
   );
 
   return (
-    <>
+    <div className="py-12">
       <PagePreviewDialog
         imageUrl={previewImageUrl}
         onOpenChange={(isOpen) => {
@@ -352,7 +352,7 @@ export function PrintDeliveryOptions() {
           <div className="flex justify-center items-center mb-4">
             <Printer className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl">Print & Delivery Service</CardTitle>
+          <CardTitle className="text-3xl">Print &amp; Delivery Service</CardTitle>
           <CardDescription>
             Get physical copies of your documents delivered right to your
             doorstep.
@@ -647,6 +647,6 @@ export function PrintDeliveryOptions() {
           </div>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

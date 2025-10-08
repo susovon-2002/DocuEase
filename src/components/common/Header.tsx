@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn } from 'lucide-react';
+import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -106,7 +106,10 @@ const Header = () => {
 
         <div className="flex flex-1 items-center justify-end space-x-4">
           <Button asChild variant="ghost">
-            <Link href="/pricing">Pricing</Link>
+            <Link href="/print-delivery">
+              <Printer className="mr-2 h-4 w-4" />
+              Print &amp; Delivery
+            </Link>
           </Button>
           
           <AuthContent />

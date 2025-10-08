@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check } from 'lucide-react';
-import { PrintDeliveryOptions } from '@/components/PrintDeliveryOptions';
 
 const plans = [
   {
@@ -44,7 +43,7 @@ const plans = [
     name: 'Pro',
     price: '₹99',
     period: '/ 2 months',
-    description: 'For professionals & creators.',
+    description: 'For professionals &amp; creators.',
     features: [
       'Upload up to 100 pages per PDF',
       'Unlimited PDFs/day',
@@ -61,7 +60,7 @@ const plans = [
     name: 'Premium',
     price: '₹159',
     period: '/ 2 months',
-    description: 'For power users & small offices.',
+    description: 'For power users &amp; small offices.',
     features: [
       'Unlimited pages per PDF',
       'Unlimited PDFs/day',
@@ -121,10 +120,6 @@ export default function PricingPage() {
             </CardFooter>
           </Card>
         ))}
-      </div>
-
-      <div className="mt-16">
-        <PrintDeliveryOptions />
       </div>
     </div>
   );
