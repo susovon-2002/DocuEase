@@ -75,6 +75,8 @@ export function PrintDeliveryOptions() {
   
   const [totalDocPages, setTotalDocPages] = useState(0);
   const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
+  const [docQuantity, setDocQuantity] = useState('1');
+
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +96,7 @@ export function PrintDeliveryOptions() {
         const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
         setTotalDocPages(pdf.numPages);
         setDocPrintType('color'); // Default to color
+        setDocQuantity('1'); // Reset quantity
         toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages.` });
     } catch (e) {
         console.error(e);
@@ -158,9 +161,12 @@ export function PrintDeliveryOptions() {
   
   const documentPrintingCost = useMemo(() => {
     if (totalDocPages === 0) return 0;
+    const quantity = parseInt(docQuantity, 10);
+    if(isNaN(quantity) || quantity <= 0) return 0;
+
     const pricePerPage = docPrintType === 'bw' ? BW_PRICE_PER_PAGE : COLOR_PRICE_PER_PAGE;
-    return totalDocPages * pricePerPage;
-  }, [totalDocPages, docPrintType]);
+    return totalDocPages * pricePerPage * quantity;
+  }, [totalDocPages, docPrintType, docQuantity]);
 
 
   return (
@@ -179,11 +185,24 @@ export function PrintDeliveryOptions() {
         <div className="space-y-8">
           <div>
             <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
-             <div className="mb-4">
-                 <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf"/>
-                 <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
-                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Calculate Price
-                 </Button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                 <div className="md:col-span-2">
+                    <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf"/>
+                    <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
+                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Calculate
+                    </Button>
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="doc-quantity">Number of Copies</Label>
+                    <Input 
+                        id="doc-quantity" 
+                        type="number" 
+                        min="1" 
+                        value={docQuantity} 
+                        onChange={(e) => setDocQuantity(e.target.value)}
+                        disabled={totalDocPages === 0}
+                    />
+                 </div>
             </div>
             {totalDocPages > 0 && (
                  <div className="space-y-4 mb-6">
@@ -197,7 +216,7 @@ export function PrintDeliveryOptions() {
                             >
                                 <p>Black & White</p>
                                 <p className="font-bold text-lg">₹{(totalDocPages * BW_PRICE_PER_PAGE).toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">({`₹${BW_PRICE_PER_PAGE}/page`})</p>
+                                <p className="text-xs text-muted-foreground">per copy</p>
                             </Label>
                         </div>
 
@@ -209,7 +228,7 @@ export function PrintDeliveryOptions() {
                             >
                                 <p>Color</p>
                                 <p className="font-bold text-lg">₹{(totalDocPages * COLOR_PRICE_PER_PAGE).toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">({`₹${COLOR_PRICE_PER_PAGE}/page`})</p>
+                                <p className="text-xs text-muted-foreground">per copy</p>
                             </Label>
                         </div>
                     </RadioGroup>
@@ -330,4 +349,3 @@ export function PrintDeliveryOptions() {
     </Card>
   );
 }
-
