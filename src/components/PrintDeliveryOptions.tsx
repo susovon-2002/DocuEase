@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -30,6 +31,7 @@ import { useState, useMemo, useRef } from "react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -71,9 +73,8 @@ export function PrintDeliveryOptions() {
   const [paperType, setPaperType] = useState('photo');
   const [deliveryOption, setDeliveryOption] = useState('standard');
   
-  const [bwPages, setBwPages] = useState('0');
-  const [colorPages, setColorPages] = useState('');
   const [totalDocPages, setTotalDocPages] = useState(0);
+  const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
@@ -92,9 +93,8 @@ export function PrintDeliveryOptions() {
         const fileBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
         setTotalDocPages(pdf.numPages);
-        setColorPages(String(pdf.numPages));
-        setBwPages('0');
-        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages. Price calculated assuming all pages are color.` });
+        setDocPrintType('color'); // Default to color
+        toast({ title: 'Document Loaded', description: `Detected ${pdf.numPages} pages.` });
     } catch (e) {
         console.error(e);
         toast({ variant: 'destructive', title: 'Error Reading PDF', description: 'Could not process the uploaded document.' });
@@ -157,14 +157,10 @@ export function PrintDeliveryOptions() {
   }, [photoWidth, photoHeight, photoQuantity, paperType, deliveryOption]);
   
   const documentPrintingCost = useMemo(() => {
-    const bwCount = parseInt(bwPages, 10) || 0;
-    const colorCount = parseInt(colorPages, 10) || 0;
-    
-    const bwCost = bwCount * BW_PRICE_PER_PAGE;
-    const colorCost = colorCount * COLOR_PRICE_PER_PAGE;
-    
-    return bwCost + colorCost;
-  }, [bwPages, colorPages]);
+    if (totalDocPages === 0) return 0;
+    const pricePerPage = docPrintType === 'bw' ? BW_PRICE_PER_PAGE : COLOR_PRICE_PER_PAGE;
+    return totalDocPages * pricePerPage;
+  }, [totalDocPages, docPrintType]);
 
 
   return (
@@ -186,28 +182,46 @@ export function PrintDeliveryOptions() {
              <div className="mb-4">
                  <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf"/>
                  <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
-                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Auto-fill Pages
+                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Document to Calculate Price
                  </Button>
             </div>
-            <div className="space-y-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    <div className="space-y-2">
-                        <Label htmlFor="bw-pages">Black & White Pages (₹{BW_PRICE_PER_PAGE}/page)</Label>
-                        <Input id="bw-pages" type="number" placeholder="No. of B&W pages" value={bwPages} onChange={(e) => setBwPages(e.target.value)} min="0" />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="color-pages">Color Pages (₹{COLOR_PRICE_PER_PAGE}/page)</Label>
-                        <Input id="color-pages" type="number" placeholder="No. of Color pages" value={colorPages} onChange={(e) => setColorPages(e.target.value)} min="0" />
-                    </div>
+            {totalDocPages > 0 && (
+                 <div className="space-y-4 mb-6">
+                    <p className="text-sm text-center text-muted-foreground">Total pages detected: {totalDocPages}. Select your printing option.</p>
+                     <RadioGroup value={docPrintType} onValueChange={(v) => setDocPrintType(v as 'bw' | 'color')} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <RadioGroupItem value="bw" id="bw" className="peer sr-only" />
+                            <Label
+                                htmlFor="bw"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                                <p>Black & White</p>
+                                <p className="font-bold text-lg">₹{(totalDocPages * BW_PRICE_PER_PAGE).toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground">({`₹${BW_PRICE_PER_PAGE}/page`})</p>
+                            </Label>
+                        </div>
+
+                         <div>
+                            <RadioGroupItem value="color" id="color" className="peer sr-only" />
+                             <Label
+                                htmlFor="color"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                                <p>Color</p>
+                                <p className="font-bold text-lg">₹{(totalDocPages * COLOR_PRICE_PER_PAGE).toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground">({`₹${COLOR_PRICE_PER_PAGE}/page`})</p>
+                            </Label>
+                        </div>
+                    </RadioGroup>
+
+                    {documentPrintingCost > 0 && (
+                        <div className="pt-4 text-center">
+                            <p className="text-md font-semibold">Document Printing Subtotal:</p>
+                            <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
+                        </div>
+                    )}
                 </div>
-                 {totalDocPages > 0 && <p className="text-sm text-center text-muted-foreground">Total pages detected: {totalDocPages}. Please allocate them between B&W and Color.</p>}
-                 {documentPrintingCost > 0 && (
-                    <div className="pt-4 text-center">
-                        <p className="text-md font-semibold">Document Printing Subtotal:</p>
-                        <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
-                    </div>
-                )}
-            </div>
+            )}
           </div>
 
           <Separator />
@@ -316,3 +330,4 @@ export function PrintDeliveryOptions() {
     </Card>
   );
 }
+
