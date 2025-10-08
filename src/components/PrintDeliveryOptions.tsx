@@ -86,7 +86,7 @@ export function PrintDeliveryOptions() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    let totalPages = 0;
+    let newPages = 0;
     for (const file of Array.from(files)) {
         if(file.type !== 'application/pdf') {
             toast({ variant: 'destructive', title: 'Invalid File', description: `${file.name} is not a PDF.` });
@@ -96,17 +96,20 @@ export function PrintDeliveryOptions() {
         try {
             const fileBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-            totalPages += pdf.numPages;
+            newPages += pdf.numPages;
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Error Reading PDF', description: `Could not process ${file.name}.` });
         }
     }
     
-    if (totalPages > 0) {
-        setTotalDocPages(currentTotal => currentTotal + totalPages);
-        setDocPrintType('color'); // Default to color
-        toast({ title: 'Documents Loaded', description: `Added ${totalPages} pages.` });
+    if (newPages > 0) {
+        setTotalDocPages(currentTotal => currentTotal + newPages);
+        toast({ title: 'Documents Added', description: `Added ${newPages} pages.` });
+    }
+    // Clear the input so the same file can be uploaded again if needed
+    if (docFileInputRef.current) {
+        docFileInputRef.current.value = '';
     }
   };
   
