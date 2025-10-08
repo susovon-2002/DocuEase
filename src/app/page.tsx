@@ -1,49 +1,151 @@
 import { tools } from '@/lib/tools';
 import ToolCard from '@/components/ToolCard';
-import { groupBy } from 'lodash';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { ArrowRight, Check } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+const popularTools = tools.filter(t => ['Merge PDF', 'Split PDF', 'Compress PDF', 'Edit PDF'].includes(t.title));
 
 export default function Home() {
-  const groupedTools = groupBy(tools, 'category');
-  const categoryOrder = [
-    'Organize PDF',
-    'Optimize PDF',
-    'Convert to PDF',
-    'Convert from PDF',
-    'Edit PDF',
-    'PDF Security',
-    'AI Tools',
-  ];
-
   return (
-    <div className="container mx-auto px-4 py-12">
-      <header className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
-          The All-in-One PDF Toolkit
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-          Effortlessly convert, compress, merge, edit, and secure your documents. Simple, fast, and reliable.
-        </p>
-      </header>
+    <div className="flex flex-col">
+      {/* Hero Section */}
+      <section className="py-20 md:py-32 bg-secondary/50">
+        <div className="container mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
+            The All-in-One PDF Toolkit
+          </h1>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
+            Effortlessly convert, compress, merge, edit, and secure your documents. Simple, fast, and reliable for all your PDF needs.
+          </p>
+          <div className="flex justify-center gap-4">
+            <Button asChild size="lg">
+              <Link href="/dashboard">
+                Get Started for Free <ArrowRight className="ml-2" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="#all-tools">View All Tools</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      <div className="space-y-12">
-        {categoryOrder.map((category) => {
-          const categoryTools = groupedTools[category];
-          if (!categoryTools) return null;
+      {/* How it works */}
+      <section className="py-20">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold">How It Works</h2>
+            <p className="text-muted-foreground mt-2">Three simple steps to manage your PDFs.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-2xl mb-4">1</div>
+              <h3 className="text-xl font-semibold mb-2">Upload Your File</h3>
+              <p className="text-muted-foreground">Select or drag and drop your document into the tool of your choice.</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-2xl mb-4">2</div>
+              <h3 className="text-xl font-semibold mb-2">Configure and Process</h3>
+              <p className="text-muted-foreground">Adjust the settings and let our powerful tools handle the rest.</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-2xl mb-4">3</div>
+              <h3 className="text-xl font-semibold mb-2">Download Your PDF</h3>
+              <p className="text-muted-foreground">Your new document is ready to download in seconds.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          return (
-            <section key={category}>
-              <h2 className="text-2xl font-semibold border-b pb-2 mb-6">
-                {category}
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {categoryTools.map((tool) => (
-                  <ToolCard key={tool.path} tool={tool} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      {/* Popular Tools Section */}
+      <section className="py-20 bg-secondary/50" id="all-tools">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold">Our Most Popular Tools</h2>
+            <p className="text-muted-foreground mt-2">The features our users love the most, all in one place.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {popularTools.map((tool) => (
+              <ToolCard key={tool.path} tool={tool} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20">
+        <div className="container mx-auto">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold">Loved by Professionals Worldwide</h2>
+                <p className="text-muted-foreground mt-2">Don't just take our word for it. Here's what our users are saying.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <Card>
+                    <CardContent className="p-6">
+                        <p className="mb-4">"DocuEase has been a game-changer for my workflow. The batch processing features save me hours every week!"</p>
+                        <div className="flex items-center">
+                            <Avatar className="h-10 w-10 mr-4">
+                                <AvatarImage src="https://picsum.photos/seed/user1/100/100" />
+                                <AvatarFallback>JS</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold">Jane Smith</p>
+                                <p className="text-sm text-muted-foreground">Freelance Designer</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-6">
+                        <p className="mb-4">"The PDF compression tool is the best I've ever used. It reduces file size significantly without losing quality."</p>
+                         <div className="flex items-center">
+                            <Avatar className="h-10 w-10 mr-4">
+                                <AvatarImage src="https://picsum.photos/seed/user2/100/100" />
+                                <AvatarFallback>MD</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold">Michael Davis</p>
+                                <p className="text-sm text-muted-foreground">Real Estate Agent</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-6">
+                        <p className="mb-4">"I rely on the 'Merge PDF' tool daily. It's incredibly fast and intuitive. Highly recommended for any office professional."</p>
+                         <div className="flex items-center">
+                            <Avatar className="h-10 w-10 mr-4">
+                                <AvatarImage src="https://picsum.photos/seed/user3/100/100" />
+                                <AvatarFallback>LS</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold">Laura Stone</p>
+                                <p className="text-sm text-muted-foreground">Administrative Assistant</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-20 bg-secondary/50">
+        <div className="container mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Simplify Your Documents?</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+            Join thousands of happy users and take control of your PDF workflow today. No credit card required.
+          </p>
+          <Button asChild size="lg">
+            <Link href="/login">
+              Sign Up Now <ArrowRight className="ml-2" />
+            </Link>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
