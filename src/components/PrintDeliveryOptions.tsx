@@ -34,6 +34,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "./ui/scroll-area";
+import { PagePreviewDialog } from "./PagePreviewDialog";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -83,6 +84,8 @@ export function PrintDeliveryOptions() {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [docPrintType, setDocPrintType] = useState<'bw' | 'color'>('color');
   const [docQuantity, setDocQuantity] = useState('1');
+
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
@@ -222,222 +225,241 @@ export function PrintDeliveryOptions() {
 
 
   return (
-    <Card className="max-w-4xl mx-auto">
-      <CardHeader className="text-center">
-        <div className="flex justify-center items-center mb-4">
-          <Printer className="w-8 h-8 text-primary" />
-        </div>
-        <CardTitle className="text-3xl">Print & Delivery Service</CardTitle>
-        <CardDescription>
-          Get physical copies of your documents delivered right to your
-          doorstep.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                 <div className="md:col-span-2">
-                    <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf" multiple />
-                    <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
-                        <UploadCloud className="mr-2 h-4 w-4" /> Upload Document(s)
-                    </Button>
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="doc-quantity">Number of Copies</Label>
-                    <Input 
-                        id="doc-quantity" 
-                        type="number" 
-                        min="1" 
-                        value={docQuantity} 
-                        onChange={(e) => setDocQuantity(e.target.value)}
-                        disabled={totalDocPages === 0}
-                    />
-                 </div>
-            </div>
+    <>
+      <PagePreviewDialog
+        imageUrl={previewImageUrl}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPreviewImageUrl(null);
+          }
+        }}
+      />
+      <Card className="max-w-4xl mx-auto">
+        <CardHeader className="text-center">
+          <div className="flex justify-center items-center mb-4">
+            <Printer className="w-8 h-8 text-primary" />
+          </div>
+          <CardTitle className="text-3xl">Print & Delivery Service</CardTitle>
+          <CardDescription>
+            Get physical copies of your documents delivered right to your
+            doorstep.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-center">Document Printing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="md:col-span-2">
+                      <input type="file" ref={docFileInputRef} onChange={handleDocFileUpload} className="hidden" accept="application/pdf" multiple />
+                      <Button variant="outline" className="w-full" onClick={() => docFileInputRef.current?.click()}>
+                          <UploadCloud className="mr-2 h-4 w-4" /> Upload Document(s)
+                      </Button>
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="doc-quantity">Number of Copies</Label>
+                      <Input 
+                          id="doc-quantity" 
+                          type="number" 
+                          min="1" 
+                          value={docQuantity} 
+                          onChange={(e) => setDocQuantity(e.target.value)}
+                          disabled={totalDocPages === 0}
+                      />
+                  </div>
+              </div>
 
-            {uploadedDocs.length > 0 && (
-                <div className="mb-4 space-y-4">
-                    <h4 className="text-sm font-semibold mb-2">Uploaded Documents ({uploadedDocs.length}):</h4>
-                     {uploadedDocs.map((doc, docIndex) => (
-                        <div key={docIndex} className="relative group p-4 rounded-md bg-muted/50 border">
-                           <div className="flex justify-between items-center mb-2">
-                             <div>
-                               <p className="text-sm truncate font-medium">{doc.name}</p>
-                               <p className="text-xs text-muted-foreground">{doc.thumbnailUrls.length} pages</p>
-                             </div>
-                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleRemoveDoc(docIndex)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                           </div>
-                           <ScrollArea>
-                            <div className="flex space-x-4 pb-4">
-                                {doc.thumbnailUrls.map((url, pageIndex) => (
-                                    <div key={pageIndex} className="w-32 flex-shrink-0 group/page relative">
-                                        <img src={url} alt={`${doc.name} page ${pageIndex + 1}`} className="rounded-md w-full aspect-[2/3] object-contain bg-white border" />
-                                        <p className="text-center text-xs mt-1 text-muted-foreground">Page {pageIndex + 1}</p>
-                                        <Button 
-                                            variant="destructive" 
-                                            size="icon" 
-                                            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity"
-                                            onClick={() => handleRemovePage(docIndex, pageIndex)}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                ))}
+              {uploadedDocs.length > 0 && (
+                  <div className="mb-4 space-y-4">
+                      <h4 className="text-sm font-semibold mb-2">Uploaded Documents ({uploadedDocs.length}):</h4>
+                      {uploadedDocs.map((doc, docIndex) => (
+                          <div key={docIndex} className="relative group p-4 rounded-md bg-muted/50 border">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <p className="text-sm truncate font-medium">{doc.name}</p>
+                                <p className="text-xs text-muted-foreground">{doc.thumbnailUrls.length} pages</p>
+                              </div>
+                              <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleRemoveDoc(docIndex)}>
+                                  <X className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <ScrollBar orientation="horizontal" />
-                           </ScrollArea>
-                        </div>
-                    ))}
-                </div>
-            )}
+                            <ScrollArea>
+                              <div className="flex space-x-4 pb-4">
+                                  {doc.thumbnailUrls.map((url, pageIndex) => (
+                                      <div key={pageIndex} className="w-32 flex-shrink-0 group/page relative">
+                                          <img
+                                            src={url}
+                                            alt={`${doc.name} page ${pageIndex + 1}`}
+                                            className="rounded-md w-full aspect-[2/3] object-contain bg-white border cursor-pointer"
+                                            onClick={() => setPreviewImageUrl(url)}
+                                          />
+                                          <p className="text-center text-xs mt-1 text-muted-foreground">Page {pageIndex + 1}</p>
+                                          <Button 
+                                              variant="destructive" 
+                                              size="icon" 
+                                              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover/page:opacity-100 transition-opacity"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemovePage(docIndex, pageIndex);
+                                              }}
+                                          >
+                                              <X className="h-3 w-3" />
+                                          </Button>
+                                      </div>
+                                  ))}
+                              </div>
+                              <ScrollBar orientation="horizontal" />
+                            </ScrollArea>
+                          </div>
+                      ))}
+                  </div>
+              )}
 
-            {totalDocPages > 0 && (
-                 <div className="space-y-4 mb-6">
-                    <p className="text-sm text-center text-muted-foreground">Total pages to print: {totalDocPages}. Select your printing option.</p>
-                     <RadioGroup value={docPrintType} onValueChange={(v) => setDocPrintType(v as 'bw' | 'color')} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <RadioGroupItem value="bw" id="bw" className="peer sr-only" />
-                            <Label
-                                htmlFor="bw"
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                                <p>Black & White</p>
-                                <p className="font-bold text-lg">₹{(totalDocPages * BW_PRICE_PER_PAGE).toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">per copy</p>
-                            </Label>
-                        </div>
+              {totalDocPages > 0 && (
+                  <div className="space-y-4 mb-6">
+                      <p className="text-sm text-center text-muted-foreground">Total pages to print: {totalDocPages}. Select your printing option.</p>
+                      <RadioGroup value={docPrintType} onValueChange={(v) => setDocPrintType(v as 'bw' | 'color')} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <RadioGroupItem value="bw" id="bw" className="peer sr-only" />
+                              <Label
+                                  htmlFor="bw"
+                                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                              >
+                                  <p>Black & White</p>
+                                  <p className="font-bold text-lg">₹{(totalDocPages * BW_PRICE_PER_PAGE).toFixed(2)}</p>
+                                  <p className="text-xs text-muted-foreground">per copy</p>
+                              </Label>
+                          </div>
 
-                         <div>
-                            <RadioGroupItem value="color" id="color" className="peer sr-only" />
-                             <Label
-                                htmlFor="color"
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                                <p>Color</p>
-                                <p className="font-bold text-lg">₹{(totalDocPages * COLOR_PRICE_PER_PAGE).toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">per copy</p>
-                            </Label>
-                        </div>
-                    </RadioGroup>
+                          <div>
+                              <RadioGroupItem value="color" id="color" className="peer sr-only" />
+                              <Label
+                                  htmlFor="color"
+                                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                              >
+                                  <p>Color</p>
+                                  <p className="font-bold text-lg">₹{(totalDocPages * COLOR_PRICE_PER_PAGE).toFixed(2)}</p>
+                                  <p className="text-xs text-muted-foreground">per copy</p>
+                              </Label>
+                          </div>
+                      </RadioGroup>
 
-                    {documentPrintingCost > 0 && (
-                        <div className="pt-4 text-center">
-                            <p className="text-md font-semibold">Document Printing Subtotal:</p>
-                            <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
-                        </div>
-                    )}
-                </div>
-            )}
+                      {documentPrintingCost > 0 && (
+                          <div className="pt-4 text-center">
+                              <p className="text-md font-semibold">Document Printing Subtotal:</p>
+                              <p className="text-2xl font-bold">₹{documentPrintingCost.toFixed(2)}</p>
+                          </div>
+                      )}
+                  </div>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing Calculator</h3>
+                <div className="mb-4">
+                  <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
+                  <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
+                      <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
+                  </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                  <div className="space-y-2">
+                      <Label>Photo Size (in cm)</Label>
+                      <div className="flex items-center gap-2">
+                          <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
+                          <span>x</span>
+                          <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
+                      </div>
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="photo-quantity">Quantity</Label>
+                      <Input id="photo-quantity" type="number" min="1" placeholder="Number of photos" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="paper-type">Paper Type</Label>
+                      <Select value={paperType} onValueChange={setPaperType}>
+                          <SelectTrigger id="paper-type">
+                              <SelectValue placeholder="Select paper type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="photo">Standard Photo Paper</SelectItem>
+                              <SelectItem value="matte">Matte (+₹1/photo)</SelectItem>
+                              <SelectItem value="glossy">Glossy (+₹2/photo)</SelectItem>
+                              <SelectItem value="premium">Premium Luster (+₹3/photo)</SelectItem>
+                              <SelectItem value="hd">HD Paper (+₹4/photo)</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+              </div>
+              
+              <div className="mt-6">
+                  <h4 className="text-md font-semibold mb-2 text-center">Cost Breakdown</h4>
+                  {photoPrice.error ? (
+                      <p className="text-center text-red-500 font-medium">{photoPrice.error}</p>
+                  ) : photoPrice.totalCost > 0 ? (
+                      <Table>
+                          <TableBody>
+                              <TableRow>
+                                  <TableCell>Photos per A4 Sheet</TableCell>
+                                  <TableCell className="text-right">{photoPrice.photosPerPage} photos</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                  <TableCell>A4 Pages Required</TableCell>
+                                  <TableCell className="text-right">{photoPrice.pagesRequired} pages</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                  <TableCell>Price per Photo</TableCell>
+                                  <TableCell className="text-right">₹{photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                  <TableCell>Printing Subtotal</TableCell>
+                                  <TableCell className="text-right">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                  <TableCell>Delivery Fee ({deliveryOption})</TableCell>
+                                  <TableCell className="text-right">₹{photoPrice.deliveryCharge.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow className="font-bold bg-muted/50">
+                                  <TableCell>Total Estimated Cost</TableCell>
+                                  <TableCell className="text-right text-lg">₹{photoPrice.totalCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                          </TableBody>
+                      </Table>
+                  ) : (
+                      <p className="text-center text-muted-foreground">Enter dimensions and quantity to see the price.</p>
+                  )}
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-center">Delivery</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                  <div className="space-y-2">
+                      <Label htmlFor="delivery-option">Delivery Speed</Label>
+                      <Select value={deliveryOption} onValueChange={setDeliveryOption}>
+                          <SelectTrigger id="delivery-option">
+                              <SelectValue placeholder="Select delivery speed" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="standard">Standard (₹45)</SelectItem>
+                              <SelectItem value="express">Express (₹100)</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
+                      Standard delivery takes 5-7 business days. Express delivery takes 2-3 business days.
+                  </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4 text-center">
+                  Delivery fees may vary based on your final location and order weight. Service available for all plans.
+              </p>
+            </div>
           </div>
-
-          <Separator />
-
-          <div>
-             <h3 className="text-lg font-semibold mb-4 text-center">Photo Printing Calculator</h3>
-              <div className="mb-4">
-                 <input type="file" ref={photoFileInputRef} onChange={handlePhotoFileUpload} className="hidden" accept="image/*"/>
-                 <Button variant="outline" className="w-full" onClick={() => photoFileInputRef.current?.click()}>
-                     <UploadCloud className="mr-2 h-4 w-4" /> Upload Photo to Auto-fill Dimensions
-                 </Button>
-            </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                <div className="space-y-2">
-                    <Label>Photo Size (in cm)</Label>
-                    <div className="flex items-center gap-2">
-                        <Input id="photo-width" type="number" placeholder="Width" value={photoWidth} onChange={(e) => setPhotoWidth(e.target.value)} />
-                        <span>x</span>
-                        <Input id="photo-height" type="number" placeholder="Height" value={photoHeight} onChange={(e) => setPhotoHeight(e.target.value)} />
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="photo-quantity">Quantity</Label>
-                    <Input id="photo-quantity" type="number" min="1" placeholder="Number of photos" value={photoQuantity} onChange={(e) => setPhotoQuantity(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="paper-type">Paper Type</Label>
-                    <Select value={paperType} onValueChange={setPaperType}>
-                        <SelectTrigger id="paper-type">
-                            <SelectValue placeholder="Select paper type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="photo">Standard Photo Paper</SelectItem>
-                            <SelectItem value="matte">Matte (+₹1/photo)</SelectItem>
-                            <SelectItem value="glossy">Glossy (+₹2/photo)</SelectItem>
-                            <SelectItem value="premium">Premium Luster (+₹3/photo)</SelectItem>
-                            <SelectItem value="hd">HD Paper (+₹4/photo)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-             </div>
-             
-             <div className="mt-6">
-                <h4 className="text-md font-semibold mb-2 text-center">Cost Breakdown</h4>
-                {photoPrice.error ? (
-                    <p className="text-center text-red-500 font-medium">{photoPrice.error}</p>
-                ) : photoPrice.totalCost > 0 ? (
-                    <Table>
-                        <TableBody>
-                             <TableRow>
-                                <TableCell>Photos per A4 Sheet</TableCell>
-                                <TableCell className="text-right">{photoPrice.photosPerPage} photos</TableCell>
-                            </TableRow>
-                             <TableRow>
-                                <TableCell>A4 Pages Required</TableCell>
-                                <TableCell className="text-right">{photoPrice.pagesRequired} pages</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell>Price per Photo</TableCell>
-                                <TableCell className="text-right">₹{photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell>Printing Subtotal</TableCell>
-                                <TableCell className="text-right">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
-                            </TableRow>
-                             <TableRow>
-                                <TableCell>Delivery Fee ({deliveryOption})</TableCell>
-                                <TableCell className="text-right">₹{photoPrice.deliveryCharge.toFixed(2)}</TableCell>
-                            </TableRow>
-                            <TableRow className="font-bold bg-muted/50">
-                                <TableCell>Total Estimated Cost</TableCell>
-                                <TableCell className="text-right text-lg">₹{photoPrice.totalCost.toFixed(2)}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                ) : (
-                    <p className="text-center text-muted-foreground">Enter dimensions and quantity to see the price.</p>
-                )}
-            </div>
-          </div>
-           <Separator />
-           <div>
-            <h3 className="text-lg font-semibold mb-2 text-center">Delivery</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                <div className="space-y-2">
-                    <Label htmlFor="delivery-option">Delivery Speed</Label>
-                     <Select value={deliveryOption} onValueChange={setDeliveryOption}>
-                        <SelectTrigger id="delivery-option">
-                            <SelectValue placeholder="Select delivery speed" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="standard">Standard (₹45)</SelectItem>
-                            <SelectItem value="express">Express (₹100)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
-                    Standard delivery takes 5-7 business days. Express delivery takes 2-3 business days.
-                </div>
-            </div>
-             <p className="text-xs text-muted-foreground mt-4 text-center">
-                Delivery fees may vary based on your final location and order weight. Service available for all plans.
-            </p>
-           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   );
 }
+
