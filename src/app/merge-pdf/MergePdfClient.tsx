@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { PageThumbnail } from './PageThumbnail';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { Input } from '@/components/ui/input';
+import { useUser, useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 type PageObject = {
   id: number;
@@ -39,7 +41,8 @@ export function MergePdfClient() {
   const [step, setStep] = useState<MergeStep>('select_files');
   const [pageOrderInput, setPageOrderInput] = useState('');
 
-
+  const { user } = useUser();
+  const firestore = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -193,6 +196,10 @@ export function MergePdfClient() {
   };
   
   const handleFinalizePdf = async () => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save your work.' });
+      return;
+    }
     setIsProcessing(true);
     setProcessingMessage('Finalizing PDF...');
     try {
@@ -206,6 +213,21 @@ export function MergePdfClient() {
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       setFinalPdfUrl(url);
+
+      // Log to Firestore
+      const docRef = await addDoc(collection(firestore, `users/${user.uid}/documents`), {
+        userId: user.uid,
+        originalFileName: selectedFiles.map(f => f.file.name).join(', '),
+        uploadDate: serverTimestamp(),
+        storageLocation: `merged_${Date.now()}.pdf`, // Placeholder
+      });
+
+      await addDoc(collection(firestore, `users/${user.uid}/toolUsages`), {
+        documentId: docRef.id,
+        toolName: 'Merge PDF',
+        usageTimestamp: serverTimestamp(),
+      });
+
       setStep('preview_final');
       toast({
         title: 'PDF Finalized',
