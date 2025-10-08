@@ -35,26 +35,14 @@ import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PagePreviewDialog } from "@/components/PagePreviewDialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { CheckoutForm } from '@/components/CheckoutForm';
+import { useUser } from '@/firebase';
 import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const DPI = 96;
-const CM_TO_INCH = 0.393701;
 
 const A4_PRINTABLE_WIDTH = 20; // cm
 const A4_PRINTABLE_HEIGHT = 28; // cm
@@ -122,20 +110,14 @@ type PhotoInvoiceDetails = {
     pricePerPhoto: number;
 };
 
-type PaymentDetails = {
-  orderType: 'Document' | 'Photo' | null;
-  amount: number;
-  orderId: string;
-  address: typeof initialAddressState;
-}
 
 function PrintDeliveryContent() {
+  const { user } = useUser();
   // Photo State
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [paperType, setPaperType] = useState('photo');
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
-  const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
   const [photoOrderStep, setPhotoOrderStep] = useState<'configure' | 'address' | 'payment'>('configure');
@@ -147,15 +129,12 @@ function PrintDeliveryContent() {
   const [colorPages, setColorPages] = useState('0');
   const [docQuantity, setDocQuantity] = useState('1');
   const [docDeliveryOption, setDocDeliveryOption] = useState('standard');
-  const [docPaymentMethod, setDocPaymentMethod] = useState('upi');
   const [docDeliveryAddress, setDocDeliveryAddress] = useState(initialAddressState);
 
 
   // General State
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -674,60 +653,42 @@ function PrintDeliveryContent() {
   };
 
   const handleProceedToPay = async (orderType: 'Document' | 'Photo', amount: number) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Not Logged In', description: 'Please log in to proceed with payment.' });
+      return;
+    }
     setIsPaying(true);
     try {
-      const response = await fetch('/api/create-razorpay-order', {
+      const response = await fetch('/api/create-phonepe-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, userId: user.uid, orderType }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create Razorpay order');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create PhonePe payment');
       }
 
-      const { order } = await response.json();
-      setPaymentDetails({ 
-        orderType, 
-        amount, 
-        orderId: order.id, 
-        address: orderType === 'Document' ? docDeliveryAddress : photoDeliveryAddress 
-      });
-      setPaymentDialogOpen(true);
+      const { redirectUrl } = await response.json();
+      if (redirectUrl) {
+          window.location.href = redirectUrl;
+      } else {
+          throw new Error('No redirect URL received from payment gateway.');
+      }
     } catch (error) {
       console.error(error);
       toast({
         variant: 'destructive',
         title: 'Payment Error',
-        description: 'Could not initiate payment. Please try again.',
+        description: error instanceof Error ? error.message : 'Could not initiate payment. Please try again.',
       });
-    } finally {
       setIsPaying(false);
     }
   };
 
-  const handlePaymentSuccess = () => {
-    setPaymentDialogOpen(false);
-    setPaymentDetails(null);
-    // Here you would typically save the order to your database.
-    // For now, we'll just show a success message and reset the form.
-    
-    if (paymentDetails?.orderType === 'Document') {
-        setUploadedDocs([]);
-        setBwPages('0');
-        setColorPages('0');
-        setDocQuantity('1');
-        setDocDeliveryAddress(initialAddressState);
-    } else {
-        setUploadedPhotos([]);
-        setPhotoDeliveryAddress(initialAddressState);
-        setPhotoOrderStep('configure');
-    }
-  };
-
-  
   const renderAddressForm = (
     type: 'doc' | 'photo',
     address: typeof initialAddressState,
@@ -771,27 +732,6 @@ function PrintDeliveryContent() {
           }
         }}
       />
-      <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Complete Your Payment</DialogTitle>
-                  <DialogDescription>
-                      Securely enter your payment details below to complete the order for your {paymentDetails?.orderType} printing.
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                  {paymentDetails && (
-                      <CheckoutForm
-                        orderId={paymentDetails.orderId}
-                        amount={paymentDetails.amount}
-                        orderType={paymentDetails.orderType!}
-                        address={paymentDetails.address}
-                        onSuccess={handlePaymentSuccess}
-                      />
-                  )}
-              </div>
-          </DialogContent>
-      </Dialog>
       <Card className="max-w-7xl mx-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
