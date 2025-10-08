@@ -1,18 +1,38 @@
-
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Loader2, Package } from 'lucide-react';
+import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle } from 'lucide-react';
 import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 function AdminOrdersContent() {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
+  const [rejectionTarget, setRejectionTarget] = useState<string | null>(null);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -21,14 +41,39 @@ function AdminOrdersContent() {
 
   const { data: orders, isLoading, error } = useCollection(ordersQuery);
 
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    if (!firestore) return;
+    setUpdatingOrders(prev => new Set(prev).add(orderId));
+    try {
+      const orderRef = doc(firestore, 'orders', orderId);
+      await setDoc(orderRef, { status }, { merge: true });
+      toast({ title: 'Success', description: `Order status updated to ${status}.` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
+    } finally {
+      setUpdatingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
+      if (rejectionTarget) setRejectionTarget(null);
+    }
+  };
+  
+  const handleRejectOrder = () => {
+    if (rejectionTarget) {
+      handleUpdateOrderStatus(rejectionTarget, 'Cancelled');
+    }
+  }
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'delivered':
         return 'default';
       case 'shipped':
+      case 'processing':
         return 'secondary';
       case 'pending':
-      case 'processing':
         return 'outline';
       case 'cancelled':
         return 'destructive';
@@ -56,6 +101,23 @@ function AdminOrdersContent() {
 
   return (
     <div className="container mx-auto px-4 py-12">
+      <AlertDialog open={!!rejectionTarget} onOpenChange={(open) => !open && setRejectionTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to reject this order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will mark the order as "Cancelled". You must manually process the refund through your payment provider's dashboard. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRejectOrder} className="bg-destructive hover:bg-destructive/90">
+              Yes, Reject Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardHeader>
           <CardTitle>All User Orders</CardTitle>
@@ -71,7 +133,8 @@ function AdminOrdersContent() {
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -84,8 +147,39 @@ function AdminOrdersContent() {
                     </TableCell>
                     <TableCell>{order.orderType}</TableCell>
                     <TableCell>₹{order.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell>
+                        <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
+                       {updatingOrders.has(order.id) ? (
+                         <Loader2 className="h-4 w-4 animate-spin" />
+                       ) : (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleUpdateOrderStatus(order.id, 'Shipped')}
+                                disabled={order.status === 'Shipped' || order.status === 'Delivered' || order.status === 'Cancelled'}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                Confirm Order (Ship)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                onClick={() => setRejectionTarget(order.id)}
+                                disabled={order.status === 'Cancelled'}
+                               >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject Order
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                       )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -102,7 +196,6 @@ function AdminOrdersContent() {
     </div>
   );
 }
-
 
 export default function AdminOrdersPage() {
     return (
