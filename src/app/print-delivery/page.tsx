@@ -30,7 +30,6 @@ import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import { renderPdfPagesToImageUrls } from "@/lib/pdf-utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -40,8 +39,6 @@ import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 import { doc, serverTimestamp } from 'firebase/firestore';
 
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const DPI = 96;
 
