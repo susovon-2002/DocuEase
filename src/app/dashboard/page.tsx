@@ -296,7 +296,7 @@ export default function DashboardPage() {
             </Card>
 
 
-            {subscription?.planType !== 'Pro' && (
+            {(subscription?.planType !== 'Pro' && subscription?.planType !== 'Business') && (
               <Card className="bg-primary/10 border-primary/20">
                 <CardHeader>
                   <CardTitle className="flex items-center"><Zap className="w-5 h-5 mr-2 text-primary"/> Unlock Premium Tool</CardTitle>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Current Plan</span>
-                                <Badge variant={subscription.planType === 'Pro' ? 'default' : 'secondary'}>{subscription.planType}</Badge>
+                                <Badge variant={(subscription.planType === 'Pro' || subscription.planType === 'Business') ? 'default' : 'secondary'}>{subscription.planType}</Badge>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Renews On</span>
@@ -472,3 +472,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
