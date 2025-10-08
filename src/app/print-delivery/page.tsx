@@ -47,9 +47,14 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { CheckoutForm } from '@/components/CheckoutForm';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const DPI = 96;
 const CM_TO_INCH = 0.393701;
@@ -123,6 +128,7 @@ type PhotoInvoiceDetails = {
 type PaymentDetails = {
   orderType: 'Document' | 'Photo' | null;
   amount: number;
+  clientSecret: string;
 }
 
 export default function PrintDeliveryPage() {
@@ -151,7 +157,7 @@ export default function PrintDeliveryPage() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ orderType: null, amount: 0 });
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({ orderType: null, amount: 0, clientSecret: '' });
 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -669,34 +675,52 @@ export default function PrintDeliveryPage() {
     );
   };
 
-  const handleProceedToPay = (orderType: 'Document' | 'Photo', amount: number) => {
-    setPaymentDetails({ orderType, amount });
-    setPaymentDialogOpen(true);
+  const handleProceedToPay = async (orderType: 'Document' | 'Photo', amount: number) => {
+    setIsPaying(true);
+    try {
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent');
+      }
+
+      const { clientSecret } = await response.json();
+      setPaymentDetails({ orderType, amount, clientSecret });
+      setPaymentDialogOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Payment Error',
+        description: 'Could not initiate payment. Please try again.',
+      });
+    } finally {
+      setIsPaying(false);
+    }
   };
 
-  const handleConfirmPayment = () => {
-    setIsPaying(true);
-    // Simulate API call
-    setTimeout(() => {
-        setIsPaying(false);
-        setPaymentDialogOpen(false);
-        toast({
-            title: "Payment Successful!",
-            description: `Your order for ${paymentDetails.orderType} printing has been placed.`,
-        });
-        // Reset the relevant form
-        if (paymentDetails.orderType === 'Document') {
-            setUploadedDocs([]);
-            setBwPages('0');
-            setColorPages('0');
-            setDocQuantity('1');
-            setDocDeliveryAddress(initialAddressState);
-        } else {
-            setUploadedPhotos([]);
-            setPhotoDeliveryAddress(initialAddressState);
-            setPhotoOrderStep('configure');
-        }
-    }, 2000);
+  const handlePaymentSuccess = () => {
+    setPaymentDialogOpen(false);
+    // Here you would typically save the order to your database.
+    // For now, we'll just show a success message and reset the form.
+    
+    if (paymentDetails.orderType === 'Document') {
+        setUploadedDocs([]);
+        setBwPages('0');
+        setColorPages('0');
+        setDocQuantity('1');
+        setDocDeliveryAddress(initialAddressState);
+    } else {
+        setUploadedPhotos([]);
+        setPhotoDeliveryAddress(initialAddressState);
+        setPhotoOrderStep('configure');
+    }
   };
 
   
@@ -746,30 +770,18 @@ export default function PrintDeliveryPage() {
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
           <DialogContent>
               <DialogHeader>
-                  <DialogTitle>Confirm Payment</DialogTitle>
+                  <DialogTitle>Complete Your Payment</DialogTitle>
                   <DialogDescription>
-                      You are about to pay for your {paymentDetails.orderType} printing order.
+                      Securely enter your payment details below to complete the order for your {paymentDetails.orderType} printing.
                   </DialogDescription>
               </DialogHeader>
-              <div className="py-4 text-center">
-                  <p className="text-muted-foreground">Total Amount</p>
-                  <p className="text-4xl font-bold">Rs. {paymentDetails.amount.toFixed(2)}</p>
+              <div className="py-4">
+                  {paymentDetails.clientSecret && (
+                      <Elements stripe={stripePromise} options={{ clientSecret: paymentDetails.clientSecret }}>
+                          <CheckoutForm onSuccess={handlePaymentSuccess} />
+                      </Elements>
+                  )}
               </div>
-              <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" disabled={isPaying}>Cancel</Button>
-                  </DialogClose>
-                  <Button onClick={handleConfirmPayment} disabled={isPaying}>
-                      {isPaying ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        'Confirm Payment'
-                      )}
-                  </Button>
-              </DialogFooter>
           </DialogContent>
       </Dialog>
       <Card className="max-w-7xl mx-auto">
@@ -937,24 +949,13 @@ export default function PrintDeliveryPage() {
                   <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Documents</h4>
-                    <RadioGroup value={docPaymentMethod} onValueChange={setDocPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {/* Payment Options */}
-                        <RadioGroupItem value="upi" id="doc-upi" className="peer sr-only" />
-                        <Label htmlFor="doc-upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><Wallet className="mb-2 h-6 w-6" />UPI</Label>
-                        <RadioGroupItem value="netbanking" id="doc-netbanking" className="peer sr-only" />
-                        <Label htmlFor="doc-netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><CreditCard className="mb-2 h-6 w-6" />Net Banking</Label>
-                        <RadioGroupItem value="qrcode" id="doc-qrcode" className="peer sr-only" />
-                        <Label htmlFor="doc-qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><QrCode className="mb-2 h-6 w-6" />QR Code</Label>
-                        <RadioGroupItem value="cod" id="doc-cod" className="peer sr-only" />
-                        <Label htmlFor="doc-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
-                    </RadioGroup>
                     <div className="flex justify-center gap-4 mt-6">
                         <Button size="lg" variant="outline" onClick={handleGenerateDocInvoice} disabled={!isDocAddressComplete}>
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={documentOrderTotal <= 0 || !isDocAddressComplete} onClick={() => handleProceedToPay('Document', documentOrderTotal)}>
-                            <ShoppingCart className="mr-2 h-5 w-5" />
+                        <Button size="lg" disabled={isPaying || documentOrderTotal <= 0 || !isDocAddressComplete} onClick={() => handleProceedToPay('Document', documentOrderTotal)}>
+                            {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Proceed to Pay Rs. {documentOrderTotal.toFixed(2)}
                         </Button>
                     </div>
@@ -1155,24 +1156,13 @@ export default function PrintDeliveryPage() {
                   <Separator className="my-6" />
                   <div>
                     <h4 className="text-md font-semibold mb-4 text-center">Payment for Photos</h4>
-                    <RadioGroup value={photoPaymentMethod} onValueChange={setPhotoPaymentMethod} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {/* Payment Options */}
-                        <RadioGroupItem value="upi" id="photo-upi" className="peer sr-only" />
-                        <Label htmlFor="photo-upi" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><Wallet className="mb-2 h-6 w-6" />UPI</Label>
-                        <RadioGroupItem value="netbanking" id="photo-netbanking" className="peer sr-only" />
-                        <Label htmlFor="photo-netbanking" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><CreditCard className="mb-2 h-6 w-6" />Net Banking</Label>
-                        <RadioGroupItem value="qrcode" id="photo-qrcode" className="peer sr-only" />
-                        <Label htmlFor="photo-qrcode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><QrCode className="mb-2 h-6 w-6" />QR Code</Label>
-                        <RadioGroupItem value="cod" id="photo-cod" className="peer sr-only" />
-                        <Label htmlFor="photo-cod" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><HandCoins className="mb-2 h-6 w-6" />COD</Label>
-                    </RadioGroup>
                     <div className="flex justify-center gap-4 mt-6">
                         <Button size="lg" variant="outline" onClick={handleGeneratePhotoInvoice} disabled={!isPhotoAddressComplete}>
                             <FileText className="mr-2 h-5 w-5" />
                             Invoice
                         </Button>
-                        <Button size="lg" disabled={photoOrderTotal <= 0 || !isPhotoAddressComplete} onClick={() => handleProceedToPay('Photo', photoOrderTotal)}>
-                            <ShoppingCart className="mr-2 h-5 w-5" />
+                        <Button size="lg" disabled={isPaying || photoOrderTotal <= 0 || !isPhotoAddressComplete} onClick={() => handleProceedToPay('Photo', photoOrderTotal)}>
+                            {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <ShoppingCart className="mr-2 h-5 w-5" />}
                             Proceed to Pay Rs. {photoOrderTotal.toFixed(2)}
                         </Button>
                     </div>
