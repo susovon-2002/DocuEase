@@ -221,7 +221,7 @@ export function PrintDeliveryOptions() {
     const quantity = parseInt(photoQuantity, 10);
 
     if (isNaN(width) || isNaN(height) || isNaN(quantity) || width <= 0 || height <= 0 || quantity <= 0) {
-      return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, totalCost: 0 };
+      return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: null };
     }
 
     const photosPerPageX = Math.floor(A4_PRINTABLE_WIDTH / width);
@@ -229,7 +229,7 @@ export function PrintDeliveryOptions() {
     const photosPerPage = photosPerPageX * photosPerPageY;
 
     if (photosPerPage === 0) {
-         return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, totalCost: 0, error: "Photo size is too large for an A4 sheet." };
+         return { photosPerPage: 0, pagesRequired: 0, pricePerPhoto: 0, printingCost: 0, error: "Photo size is too large for an A4 sheet." };
     }
 
     const pagesRequired = Math.ceil(quantity / photosPerPage);
@@ -238,11 +238,9 @@ export function PrintDeliveryOptions() {
     const finalPricePerPhoto = basePricePerPhoto + paperAddon;
     
     const printingCost = quantity * finalPricePerPhoto;
-    const deliveryCharge = deliveryCharges[deliveryOption] || 0;
-    const totalCost = printingCost + deliveryCharge;
 
-    return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, totalCost, deliveryCharge, error: null };
-  }, [photoWidth, photoHeight, photoQuantity, paperType, deliveryOption]);
+    return { photosPerPage, pagesRequired, pricePerPhoto: finalPricePerPhoto, printingCost, error: null };
+  }, [photoWidth, photoHeight, photoQuantity, paperType]);
   
  const documentPrintingCost = useMemo(() => {
     const numBw = parseInt(bwPages, 10) || 0;
@@ -250,22 +248,45 @@ export function PrintDeliveryOptions() {
     const quantity = parseInt(docQuantity, 10) || 1;
 
     if ((numBw + numColor) > totalDocPages) {
-      return { bwCost: 0, colorCost: 0, printingSubtotal: 0, totalCost: 0, deliveryCharge: 0, error: "Page count exceeds total pages." };
+      return { bwCost: 0, colorCost: 0, printingSubtotal: 0, error: "Page count exceeds total pages." };
     }
     
     if (totalDocPages === 0 || quantity <=0) {
-        return { bwCost: 0, colorCost: 0, printingSubtotal: 0, totalCost: 0, deliveryCharge: 0, error: null };
+        return { bwCost: 0, colorCost: 0, printingSubtotal: 0, error: null };
     }
     
     const bwCost = numBw * BW_PRICE_PER_PAGE;
     const colorCost = numColor * COLOR_PRICE_PER_PAGE;
-    const printingSubtotal = bwCost + colorCost;
-    const totalWithCopies = printingSubtotal * quantity;
-    const deliveryCharge = deliveryCharges[deliveryOption] || 0;
-    const totalCost = totalWithCopies + deliveryCharge;
+    const printingSubtotal = (bwCost + colorCost) * quantity;
     
-    return { bwCost, colorCost, printingSubtotal, totalCost, deliveryCharge, error: null };
-  }, [bwPages, colorPages, docQuantity, totalDocPages, deliveryOption]);
+    return { bwCost, colorCost, printingSubtotal, error: null };
+  }, [bwPages, colorPages, docQuantity, totalDocPages]);
+
+  const finalCost = useMemo(() => {
+      const docSubtotal = documentPrintingCost.printingSubtotal;
+      const photoSubtotal = photoPrice.printingCost;
+      
+      const subtotal = docSubtotal + photoSubtotal;
+      
+      if (subtotal === 0) {
+          return {
+              docSubtotal,
+              photoSubtotal,
+              deliveryCharge: 0,
+              grandTotal: 0
+          };
+      }
+      
+      const deliveryCharge = deliveryCharges[deliveryOption] || 0;
+      const grandTotal = subtotal + deliveryCharge;
+      
+      return {
+          docSubtotal,
+          photoSubtotal,
+          deliveryCharge,
+          grandTotal
+      };
+  }, [documentPrintingCost, photoPrice, deliveryOption]);
 
 
   return (
@@ -389,7 +410,7 @@ export function PrintDeliveryOptions() {
                     <p className="text-sm text-destructive">Total page count cannot exceed {totalDocPages}.</p>
                   )}
 
-                  {documentPrintingCost.totalCost > 0 && (
+                  {documentPrintingCost.printingSubtotal > 0 && (
                     <div className="mt-6">
                       <h4 className="text-md font-semibold mb-2 text-center">Document Printing Cost</h4>
                       <Table>
@@ -403,20 +424,16 @@ export function PrintDeliveryOptions() {
                                 <TableCell className="text-right">₹{documentPrintingCost.colorCost.toFixed(2)}</TableCell>
                             </TableRow>
                             <TableRow>
-                                <TableCell>Printing Subtotal</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.printingSubtotal.toFixed(2)}</TableCell>
+                                <TableCell>Subtotal</TableCell>
+                                <TableCell className="text-right">₹{(documentPrintingCost.bwCost + documentPrintingCost.colorCost).toFixed(2)}</TableCell>
                             </TableRow>
                              <TableRow>
                                 <TableCell>Copies</TableCell>
                                 <TableCell className="text-right">x {docQuantity}</TableCell>
                               </TableRow>
-                             <TableRow>
-                                <TableCell>Delivery Fee ({deliveryOption})</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.deliveryCharge.toFixed(2)}</TableCell>
-                            </TableRow>
-                            <TableRow className="font-bold bg-muted/50 text-lg">
-                                <TableCell>Document Grand Total</TableCell>
-                                <TableCell className="text-right">₹{documentPrintingCost.totalCost.toFixed(2)}</TableCell>
+                             <TableRow className="font-bold bg-muted/50">
+                                <TableCell>Document Printing Total</TableCell>
+                                <TableCell className="text-right">₹{documentPrintingCost.printingSubtotal.toFixed(2)}</TableCell>
                             </TableRow>
                         </TableBody>
                       </Table>
@@ -470,7 +487,7 @@ export function PrintDeliveryOptions() {
                   <h4 className="text-md font-semibold mb-2 text-center">Photo Printing Cost</h4>
                   {photoPrice.error ? (
                       <p className="text-center text-red-500 font-medium">{photoPrice.error}</p>
-                  ) : photoPrice.totalCost > 0 ? (
+                  ) : photoPrice.printingCost > 0 ? (
                       <Table>
                           <TableBody>
                               <TableRow>
@@ -485,17 +502,9 @@ export function PrintDeliveryOptions() {
                                   <TableCell>Price per Photo</TableCell>
                                   <TableCell className="text-right">₹{photoPrice.pricePerPhoto.toFixed(2)}</TableCell>
                               </TableRow>
-                              <TableRow>
-                                  <TableCell>Printing Subtotal</TableCell>
-                                  <TableCell className="text-right">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
-                              </TableRow>
-                              <TableRow>
-                                  <TableCell>Delivery Fee ({deliveryOption})</TableCell>
-                                  <TableCell className="text-right">₹{photoPrice.deliveryCharge.toFixed(2)}</TableCell>
-                              </TableRow>
                               <TableRow className="font-bold bg-muted/50">
-                                  <TableCell>Photo Subtotal</TableCell>
-                                  <TableCell className="text-right text-lg">₹{photoPrice.totalCost.toFixed(2)}</TableCell>
+                                  <TableCell>Photo Printing Total</TableCell>
+                                  <TableCell className="text-right text-lg">₹{photoPrice.printingCost.toFixed(2)}</TableCell>
                               </TableRow>
                           </TableBody>
                       </Table>
@@ -531,11 +540,29 @@ export function PrintDeliveryOptions() {
             <Separator />
              <div>
                 <h3 className="text-xl font-semibold mb-4 text-center">Grand Total</h3>
-                <Table>
+                 <Table>
                     <TableBody>
+                        {finalCost.docSubtotal > 0 && (
+                            <TableRow>
+                                <TableCell>Document Printing Subtotal</TableCell>
+                                <TableCell className="text-right">₹{finalCost.docSubtotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )}
+                        {finalCost.photoSubtotal > 0 && (
+                            <TableRow>
+                                <TableCell>Photo Printing Subtotal</TableCell>
+                                <TableCell className="text-right">₹{finalCost.photoSubtotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )}
+                         {finalCost.grandTotal > 0 && (
+                            <TableRow>
+                                <TableCell>Delivery Fee ({deliveryOption})</TableCell>
+                                <TableCell className="text-right">₹{finalCost.deliveryCharge.toFixed(2)}</TableCell>
+                            </TableRow>
+                         )}
                         <TableRow className="font-bold bg-primary/10 text-lg">
                             <TableCell>Total Order Cost</TableCell>
-                            <TableCell className="text-right">₹{(documentPrintingCost.totalCost + photoPrice.totalCost).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">₹{finalCost.grandTotal.toFixed(2)}</TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -574,9 +601,9 @@ export function PrintDeliveryOptions() {
                     </div>
                 </RadioGroup>
                 <div className="flex justify-center mt-6">
-                    <Button size="lg" disabled={(documentPrintingCost.totalCost + photoPrice.totalCost) <= 0}>
+                    <Button size="lg" disabled={finalCost.grandTotal <= 0}>
                         <ShoppingCart className="mr-2 h-5 w-5" />
-                        Proceed to Pay ₹{(documentPrintingCost.totalCost + photoPrice.totalCost).toFixed(2)}
+                        Proceed to Pay ₹{finalCost.grandTotal.toFixed(2)}
                     </Button>
                 </div>
             </div>
