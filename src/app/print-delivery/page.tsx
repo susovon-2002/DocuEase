@@ -399,6 +399,21 @@ export default function PrintDeliveryPage() {
     page.drawText(address.email, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
     billToY -= 15;
     page.drawText(address.mobile, { x: 50, y: billToY, font: font, size: 10, color: grayColor });
+    
+    // Company Address
+    let companyY = height - 140;
+    page.drawText('FROM', { x: 350, y: companyY, font: boldFont, size: 12, color: primaryColor });
+    companyY -= 20;
+    page.drawText('DocuEase', { x: 350, y: companyY, font: boldFont, size: 11 });
+    companyY -= 15;
+    page.drawText('Sector v, Bidhannagar, Near Technopolis', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
+    companyY -= 15;
+    page.drawText('kolkata 700091', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
+    companyY -= 15;
+    page.drawText('susovonsantra4@gmail.com', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
+    companyY -= 15;
+    page.drawText('ph.no 8910819035', { x: 350, y: companyY, font: font, size: 10, color: grayColor });
+
 
     // Table Header
     let tableY = billToY - 50;
@@ -460,13 +475,6 @@ export default function PrintDeliveryPage() {
     let footerY = 40;
     page.drawRectangle({ x: 0, y: 0, width, height: 60, color: lightGrayColor });
     page.drawText('Thank you for your business!', { x: 50, y: footerY, font: boldFont, size: 12, color: grayColor });
-    footerY -= 15;
-    page.drawText('Sector v, Bidhannagar, Near Technopolis, kolkata 700091', { x: 50, y: footerY, font: font, size: 9, color: grayColor });
-
-    const contactText = 'susovonsantra4@gmail.com | ph.no 8910819035';
-    const contactTextWidth = font.widthOfTextAtSize(contactText, 9);
-    page.drawText(contactText, { x: width - contactTextWidth - 50, y: 30, font: font, size: 9, color: grayColor });
-
 
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
