@@ -986,10 +986,14 @@ export default function PrintDeliveryPage() {
                             {a4Preview.previewPhotos.map((_, index) => (
                                 <div 
                                     key={index} 
-                                    className="bg-muted-foreground/20 flex items-center justify-center"
+                                    className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
                                     style={{ height: `${a4Preview.photoHeightPx}px` }}
                                 >
-                                  <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
+                                  {uploadedPhotos.length > 0 ? (
+                                    <img src={uploadedPhotos[0].url} alt="preview" className="w-full h-full object-cover"/>
+                                  ) : (
+                                    <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
+                                  )}
                                 </div>
                             ))}
                         </div>
