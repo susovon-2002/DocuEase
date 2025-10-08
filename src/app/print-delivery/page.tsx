@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText, Loader2, Image as ImageIcon } from "lucide-react";
+import { Printer, UploadCloud, X, CreditCard, QrCode, Wallet, HandCoins, ShoppingCart, User, Phone, Mail, MapPin, FileText, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -133,6 +133,7 @@ export default function PrintDeliveryPage() {
   const [photoDeliveryOption, setPhotoDeliveryOption] = useState('standard');
   const [photoPaymentMethod, setPhotoPaymentMethod] = useState('upi');
   const [photoDeliveryAddress, setPhotoDeliveryAddress] = useState(initialAddressState);
+  const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
 
 
   // Document State
@@ -307,7 +308,8 @@ export default function PrintDeliveryPage() {
    const a4Preview = useMemo(() => {
     const A4_WIDTH_PX = 595;
     const A4_HEIGHT_PX = 842;
-    const CM_TO_PX = A4_WIDTH_PX / 21;
+    const CM_TO_PX = A4_WIDTH_PX / 21; // Approx. conversion for display
+    const PADDING = 5;
 
     let allPhotosToRender: { url: string; widthPx: number; heightPx: number}[] = [];
     
@@ -316,37 +318,77 @@ export default function PrintDeliveryPage() {
       const heightCm = parseFloat(photo.height);
       if (isNaN(widthCm) || isNaN(heightCm) || widthCm <= 0 || heightCm <= 0) return;
       
+      const widthPx = widthCm * CM_TO_PX;
+      const heightPx = heightCm * CM_TO_PX;
+
+      if (widthPx > A4_WIDTH_PX - PADDING * 2 || heightPx > A4_HEIGHT_PX - PADDING * 2) {
+        // Skip photos larger than the printable area for this preview
+        return;
+      }
+      
       for (let i = 0; i < photo.copies; i++) {
         allPhotosToRender.push({
           url: photo.url,
-          widthPx: widthCm * CM_TO_PX,
-          heightPx: heightCm * CM_TO_PX,
+          widthPx: widthPx,
+          heightPx: heightPx,
         });
       }
     });
+
+    if (allPhotosToRender.length === 0) {
+      return { pages: [], error: null };
+    }
     
-    // Naive packing algorithm for preview. A more complex algorithm would be needed for optimal packing.
-    const previewPhotos: { url: string; widthPx: number; heightPx: number}[] = [];
-    let currentX = 0;
-    let currentY = 0;
+    // Naive packing algorithm for preview.
+    const pages: { url: string; x: number; y: number; widthPx: number; heightPx: number }[][] = [];
+    let currentPage: { url: string; x: number; y: number; widthPx: number; heightPx: number }[] = [];
+    let currentX = PADDING;
+    let currentY = PADDING;
     let rowMaxHeight = 0;
 
     for (const photo of allPhotosToRender) {
-      if (currentX + photo.widthPx > A4_WIDTH_PX) {
-        currentX = 0;
-        currentY += rowMaxHeight;
+      if (currentY + photo.heightPx > A4_HEIGHT_PX - PADDING) {
+        // Doesn't fit on this page, push current page and start a new one
+        pages.push(currentPage);
+        currentPage = [];
+        currentX = PADDING;
+        currentY = PADDING;
         rowMaxHeight = 0;
       }
-      if (currentY + photo.heightPx > A4_HEIGHT_PX) {
-        continue; // Doesn't fit on this page
+      
+      if (currentX + photo.widthPx > A4_WIDTH_PX - PADDING) {
+        currentX = PADDING;
+        currentY += rowMaxHeight + PADDING;
+        rowMaxHeight = 0;
+        
+        // After moving to a new row, check again if it fits vertically
+         if (currentY + photo.heightPx > A4_HEIGHT_PX - PADDING) {
+            pages.push(currentPage);
+            currentPage = [];
+            currentX = PADDING;
+            currentY = PADDING;
+            rowMaxHeight = 0;
+         }
       }
-      previewPhotos.push(photo);
-      currentX += photo.widthPx;
+      
+      currentPage.push({ ...photo, x: currentX, y: currentY });
+      currentX += photo.widthPx + PADDING;
       rowMaxHeight = Math.max(rowMaxHeight, photo.heightPx);
     }
     
-    return { previewPhotos, error: null };
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+    
+    return { pages, error: null };
   }, [uploadedPhotos]);
+
+  useEffect(() => {
+    // Reset preview page if it becomes out of bounds
+    if (currentPreviewPage >= a4Preview.pages.length) {
+      setCurrentPreviewPage(Math.max(0, a4Preview.pages.length - 1));
+    }
+  }, [currentPreviewPage, a4Preview.pages.length]);
 
   
   const photoOrderTotal = useMemo(() => {
@@ -1005,23 +1047,58 @@ export default function PrintDeliveryPage() {
                 {/* Right Column: A4 Preview */}
                 <div>
                    <h4 className="text-md font-semibold mb-2 text-center">A4 Page Layout Preview</h4>
-                    {a4Preview.error ? (
-                        <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md flex items-center justify-center text-destructive text-center p-4">
-                            {a4Preview.error}
-                        </div>
-                    ) : (
-                        <div className="aspect-[210/297] bg-muted/20 border-2 border-dashed rounded-md p-1 flex flex-wrap content-start items-start gap-1">
-                          {a4Preview.previewPhotos.map((photo, index) => (
-                                <div 
-                                    key={index} 
-                                    className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden"
-                                    style={{ width: `${photo.widthPx}px`, height: `${photo.heightPx}px` }}
-                                >
-                                  <img src={photo.url} alt="preview" className="w-full h-full object-cover"/>
+                    <div className="relative">
+                        {a4Preview.error ? (
+                            <div className="aspect-[210/297] bg-muted/50 border-2 border-dashed rounded-md flex items-center justify-center text-destructive text-center p-4">
+                                {a4Preview.error}
+                            </div>
+                        ) : (
+                            <div className="aspect-[210/297] bg-muted/20 border-2 border-dashed rounded-md relative overflow-hidden">
+                              {a4Preview.pages.length > 0 && a4Preview.pages[currentPreviewPage]?.map((photo, index) => (
+                                    <div 
+                                        key={index} 
+                                        className="bg-muted-foreground/20 flex items-center justify-center overflow-hidden absolute"
+                                        style={{ 
+                                            left: `${photo.x}px`,
+                                            top: `${photo.y}px`,
+                                            width: `${photo.widthPx}px`, 
+                                            height: `${photo.heightPx}px` 
+                                        }}
+                                    >
+                                      <img src={photo.url} alt="preview" className="w-full h-full object-cover"/>
+                                    </div>
+                              ))}
+                               {a4Preview.pages.length === 0 && (
+                                <div className="flex items-center justify-center h-full">
+                                  <p className="text-muted-foreground">Photos will be arranged here</p>
                                 </div>
-                          ))}
-                        </div>
-                    )}
+                              )}
+                            </div>
+                        )}
+                        {a4Preview.pages.length > 1 && (
+                          <div className="flex items-center justify-center gap-4 mt-2">
+                              <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => setCurrentPreviewPage(p => Math.max(0, p - 1))}
+                                  disabled={currentPreviewPage === 0}
+                              >
+                                  <ChevronLeft className="h-4 w-4" />
+                              </Button>
+                              <span className="text-sm font-medium">
+                                  Page {currentPreviewPage + 1} of {a4Preview.pages.length}
+                              </span>
+                              <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => setCurrentPreviewPage(p => Math.min(a4Preview.pages.length - 1, p + 1))}
+                                  disabled={currentPreviewPage === a4Preview.pages.length - 1}
+                              >
+                                  <ChevronRight className="h-4 w-4" />
+                              </Button>
+                          </div>
+                        )}
+                    </div>
                 </div>
               </div>
               
