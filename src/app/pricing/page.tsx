@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check } from 'lucide-react';
+import { PrintDeliveryOptions } from '@/components/PrintDeliveryOptions';
 
 const plans = [
   {
@@ -120,6 +121,10 @@ export default function PricingPage() {
             </CardFooter>
           </Card>
         ))}
+      </div>
+
+      <div className="mt-16">
+        <PrintDeliveryOptions />
       </div>
     </div>
   );
