@@ -231,7 +231,7 @@ export default function PrintDeliveryPage() {
   
  const handlePhotoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
     const newPhotos: UploadedPhoto[] = [];
     let firstImageProcessed = false;
@@ -262,9 +262,9 @@ export default function PrintDeliveryPage() {
         }
 
         // When the last file is read, update the state
-        if (newPhotos.length === files.length) {
+        if (newPhotos.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
             setUploadedPhotos(prev => [...prev, ...newPhotos]);
-            toast({ title: `${files.length} Image(s) Loaded` });
+            toast({ title: `${newPhotos.length} Image(s) Loaded` });
         }
       };
       reader.readAsDataURL(file);
