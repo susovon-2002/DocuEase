@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts, PDFImage } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, PenLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -10,8 +9,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { Rnd } from 'react-rnd';
 import { SignaturePad } from './SignaturePad';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type SignStep = 'upload' | 'sign' | 'download';
 

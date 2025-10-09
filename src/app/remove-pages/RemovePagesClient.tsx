@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, File as FileIcon, Download, RefreshCw, Trash2, ArrowRight, Search, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -15,10 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-
-
-// Configure the pdf.js worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 type PageObject = {
   id: number;
@@ -177,44 +172,7 @@ export function RemovePagesClient() {
   };
   
   const handleSelectFromText = async () => {
-    if (!textToSearch.trim()) {
-      toast({ variant: 'destructive', title: 'Empty Search', description: 'Please enter text to search for.' });
-      return;
-    }
-    if (!originalFile) return;
-
-    setIsProcessing(true);
-    setProcessingMessage('Searching pages...');
-
-    try {
-      const fileBuffer = await originalFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-      const pagesFound: number[] = [];
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
-
-        if (pageText.toLowerCase().includes(textToSearch.toLowerCase())) {
-          pagesFound.push(i);
-        }
-      }
-      
-      if(pagesFound.length > 0) {
-        setFoundPagesByText(pagesFound);
-        setPagesToSelectFromSearch(new Set());
-        setIsReviewDialogOpen(true);
-      } else {
-        toast({ title: 'No Pages Found', description: `No pages were found containing the specified text.` });
-      }
-
-    } catch (error) {
-       console.error(error);
-       toast({ variant: 'destructive', title: 'Search Failed', description: 'Could not search the PDF for text.' });
-    } finally {
-        setIsProcessing(false);
-    }
+    toast({ variant: 'destructive', title: 'Feature Not Available', description: 'Text-based page selection is not yet implemented.' });
   };
 
   const handleReviewDialogConfirm = () => {
