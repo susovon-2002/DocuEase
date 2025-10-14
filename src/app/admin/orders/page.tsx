@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, setDoc, where } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle, User, Phone, Mail, MapPin, Printer } from 'lucide-react';
+import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle, User, Phone, Mail, MapPin, Printer, ShieldAlert } from 'lucide-react';
 import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
 import {
   DropdownMenu,
@@ -37,6 +37,7 @@ function AdminOrdersContent() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // Admins query the entire collection
     return query(collection(firestore, 'orders'), orderBy('orderDate', 'desc'));
   }, [firestore]);
 
@@ -93,9 +94,11 @@ function AdminOrdersContent() {
 
   if (error) {
     return (
-      <div className="text-center text-destructive">
-        <p>Error loading orders: {error.message}</p>
-        <p>Please ensure you have permission to view this data.</p>
+      <div className="container mx-auto px-4 py-12 text-center text-destructive">
+        <ShieldAlert className="h-16 w-16 mx-auto text-destructive mb-4" />
+        <h2 className="text-xl font-bold">Permission Error</h2>
+        <p>Could not load orders. This can happen if Firestore Security Rules are not yet deployed or do not allow admin access.</p>
+        <p className="text-sm mt-2">Please wait a moment and refresh the page. If the issue persists, check your Firestore rules.</p>
       </div>
     );
   }
