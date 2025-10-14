@@ -8,13 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Loader2, User, ShieldCheck, ShieldOff } from 'lucide-react';
-import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-function AdminUsersContent() {
+export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
@@ -80,7 +79,7 @@ function AdminUsersContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>User Management</CardTitle>
@@ -154,13 +153,4 @@ function AdminUsersContent() {
       </Card>
     </div>
   );
-}
-
-
-export default function AdminUsersPage() {
-    return (
-        <AdminAuthWrapper>
-            <AdminUsersContent />
-        </AdminAuthWrapper>
-    )
 }

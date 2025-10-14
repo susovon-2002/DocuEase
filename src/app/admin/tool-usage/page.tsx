@@ -6,14 +6,13 @@ import { collectionGroup, query } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Wrench } from 'lucide-react';
-import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
 import { countBy, map } from 'lodash';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28'];
 
 
-function AdminToolUsageContent() {
+export default function AdminToolUsagePage() {
   const firestore = useFirestore();
 
   const allToolUsagesQuery = useMemoFirebase(() => {
@@ -48,7 +47,7 @@ function AdminToolUsageContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Tool Usage Analytics</CardTitle>
@@ -78,13 +77,4 @@ function AdminToolUsageContent() {
       </Card>
     </div>
   );
-}
-
-
-export default function AdminToolUsagePage() {
-    return (
-        <AdminAuthWrapper>
-            <AdminToolUsageContent />
-        </AdminAuthWrapper>
-    )
 }

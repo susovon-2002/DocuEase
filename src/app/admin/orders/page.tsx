@@ -7,7 +7,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle, User, Phone, Mail, MapPin, Printer, ShieldAlert } from 'lucide-react';
-import { AdminAuthWrapper } from '@/components/AdminAuthWrapper';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 
-function AdminOrdersContent() {
+export default function AdminOrdersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
@@ -104,7 +103,7 @@ function AdminOrdersContent() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div>
       <AlertDialog open={!!rejectionTarget} onOpenChange={(open) => !open && setRejectionTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -226,12 +225,4 @@ function AdminOrdersContent() {
       </Card>
     </div>
   );
-}
-
-export default function AdminOrdersPage() {
-    return (
-        <AdminAuthWrapper>
-            <AdminOrdersContent />
-        </AdminAuthWrapper>
-    )
 }
