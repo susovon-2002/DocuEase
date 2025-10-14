@@ -74,6 +74,7 @@ export default function AdminUsersPage() {
     return (
       <div className="text-center text-destructive">
         <p>Error loading users: {error.message}</p>
+        <p className="text-sm mt-2">Please wait a moment and refresh the page. If the issue persists, check your Firestore rules.</p>
       </div>
     );
   }
