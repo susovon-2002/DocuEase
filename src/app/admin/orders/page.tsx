@@ -1,12 +1,14 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, setDoc, where } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle, User, Phone, Mail, MapPin, Printer, ShieldAlert } from 'lucide-react';
+import { Loader2, Package, MoreHorizontal, CheckCircle, XCircle, User, Phone, Mail, MapPin, Printer, ShieldAlert, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,18 +27,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 export default function AdminOrdersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
   const [rejectionTarget, setRejectionTarget] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Admins query the entire collection
     return query(collection(firestore, 'orders'), orderBy('orderDate', 'desc'));
   }, [firestore]);
 
@@ -72,10 +74,11 @@ export default function AdminOrdersPage() {
       case 'delivered':
         return 'default';
       case 'shipped':
-      case 'processing':
         return 'secondary';
-      case 'pending':
+      case 'processing':
         return 'outline';
+       case 'pending':
+        return 'secondary';
       case 'cancelled':
         return 'destructive';
       default:
@@ -128,93 +131,106 @@ export default function AdminOrdersPage() {
         </CardHeader>
         <CardContent>
           {orders && orders.length > 0 ? (
-             <Accordion type="single" collapsible className="w-full">
-              {orders.map((order) => (
-                <AccordionItem value={order.id} key={order.id}>
-                  <AccordionTrigger>
-                    <div className="flex justify-between items-center w-full pr-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left">
-                            <span className="font-medium text-sm truncate max-w-[120px]">ID: {order.id}</span>
-                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">User: {order.userId}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                             <span className="text-sm hidden md:inline">
-                                {order.orderDate ? format(order.orderDate.toDate(), 'PP') : 'N/A'}
-                            </span>
-                            <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
-                            <span className="font-semibold text-lg hidden sm:inline">₹{order.totalAmount.toFixed(2)}</span>
-                        </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="p-4 bg-muted/20">
-                     <div className="grid md:grid-cols-3 gap-6">
-                        <div className="md:col-span-1 space-y-4">
-                            <h4 className="font-semibold">Delivery Details</h4>
-                            <div className="space-y-2 text-sm text-muted-foreground">
-                                <p className="flex items-start"><User className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.name}</p>
-                                <p className="flex items-start"><Mail className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.email}</p>
-                                <p className="flex items-start"><Phone className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.mobile}</p>
-                                <p className="flex items-start"><MapPin className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.address}, {order.deliveryAddress?.pincode}</p>
-                            </div>
-                             <Separator />
-                             <h4 className="font-semibold">Payment Details</h4>
-                              <div className="space-y-2 text-sm text-muted-foreground">
-                                 <p><strong>Provider:</strong> {order.paymentDetails?.paymentProvider}</p>
-                                 <p><strong>Method:</strong> {order.paymentDetails?.paymentMethod}</p>
-                                 <p className="truncate"><strong>Transaction ID:</strong> {order.paymentDetails?.transactionId}</p>
-                             </div>
-                             <Separator />
-                              <h4 className="font-semibold">Order Actions</h4>
-                                {updatingOrders.has(order.id) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="w-full">
-                                          <MoreHorizontal className="mr-2 h-4 w-4" />
-                                          Manage Order
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          onClick={() => handleUpdateOrderStatus(order.id, 'Shipped')}
-                                          disabled={order.status === 'Shipped' || order.status === 'Delivered' || order.status === 'Cancelled'}
-                                        >
-                                          <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                          Confirm & Ship Order
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                          onClick={() => setRejectionTarget(order.id)}
-                                          disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
-                                         >
-                                          <XCircle className="mr-2 h-4 w-4" />
-                                          Reject Order
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                        </div>
-                        <div className="md:col-span-2">
-                             <h4 className="font-semibold mb-4">Order Items ({order.orderType})</h4>
-                            <div className="space-y-4 max-h-96 overflow-y-auto">
-                                {order.items?.map((item: any, index: number) => (
-                                    <div key={index} className="flex gap-4 p-2 border rounded-md bg-background">
-                                        <img src={item.thumbnail} alt={item.name} className="w-24 h-24 object-contain rounded-md bg-muted" />
-                                        <div className="flex-grow">
-                                            <p className="font-medium text-sm truncate">{item.name}</p>
-                                            <p className="text-xs text-muted-foreground">{item.type}</p>
-                                            <p className="text-xs text-muted-foreground">{item.details}</p>
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[80px]"></TableHead>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {orders.map((order) => (
+                        <React.Fragment key={order.id}>
+                            <TableRow onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)} className="cursor-pointer">
+                                <TableCell>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        {expandedOrderId === order.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                    </Button>
+                                </TableCell>
+                                <TableCell className="font-medium truncate max-w-[120px]">{order.id}</TableCell>
+                                <TableCell className="truncate max-w-[150px]">{order.deliveryAddress?.name || order.userId}</TableCell>
+                                <TableCell>{order.orderDate ? format(order.orderDate.toDate(), 'PP') : 'N/A'}</TableCell>
+                                <TableCell><Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge></TableCell>
+                                <TableCell className="text-right font-medium">₹{order.totalAmount.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">
+                                     {updatingOrders.has(order.id) ? (
+                                        <Loader2 className="h-4 w-4 animate-spin ml-auto" />
+                                    ) : (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                onClick={(e) => { e.stopPropagation(); handleUpdateOrderStatus(order.id, 'Shipped'); }}
+                                                disabled={order.status === 'Shipped' || order.status === 'Delivered' || order.status === 'Cancelled'}
+                                                >
+                                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                                Confirm & Ship
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                onClick={(e) => { e.stopPropagation(); setRejectionTarget(order.id); }}
+                                                disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
+                                                >
+                                                <XCircle className="mr-2 h-4 w-4" />
+                                                Reject Order
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                             {expandedOrderId === order.id && (
+                                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                    <TableCell colSpan={7} className="p-0">
+                                         <div className="p-6 grid md:grid-cols-3 gap-6">
+                                            <div className="md:col-span-1 space-y-4">
+                                                <h4 className="font-semibold">Delivery Details</h4>
+                                                <div className="space-y-2 text-sm text-muted-foreground">
+                                                    <p className="flex items-start"><User className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.name}</p>
+                                                    <p className="flex items-start"><Mail className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.email}</p>
+                                                    <p className="flex items-start"><Phone className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.mobile}</p>
+                                                    <p className="flex items-start"><MapPin className="w-4 h-4 mr-2 mt-1 shrink-0"/> {order.deliveryAddress?.address}, {order.deliveryAddress?.pincode}</p>
+                                                </div>
+                                                <Separator />
+                                                <h4 className="font-semibold">Payment Details</h4>
+                                                <div className="space-y-2 text-sm text-muted-foreground">
+                                                    <p><strong>Provider:</strong> {order.paymentDetails?.paymentProvider}</p>
+                                                    <p><strong>Method:</strong> {order.paymentDetails?.paymentMethod}</p>
+                                                    <p className="truncate"><strong>Transaction ID:</strong> {order.paymentDetails?.transactionId}</p>
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <h4 className="font-semibold mb-4">Order Items ({order.orderType})</h4>
+                                                <div className="space-y-4 max-h-64 overflow-y-auto">
+                                                    {order.items?.map((item: any, index: number) => (
+                                                        <div key={index} className="flex gap-4 p-2 border rounded-md bg-background">
+                                                            <img src={item.thumbnail} alt={item.name} className="w-20 h-20 object-contain rounded-md bg-muted" />
+                                                            <div className="flex-grow">
+                                                                <p className="font-medium text-sm truncate">{item.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{item.type}</p>
+                                                                <p className="text-xs text-muted-foreground">{item.details}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </React.Fragment>
+                    ))}
+                </TableBody>
+             </Table>
           ) : (
             <div className="text-center py-20">
               <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -226,3 +242,5 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+    
