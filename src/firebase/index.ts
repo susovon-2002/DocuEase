@@ -34,17 +34,26 @@ export function initializeFirebase() {
 
 export function getSdks(firebaseApp: FirebaseApp) {
   const firestore = getFirestore(firebaseApp);
-  enableIndexedDbPersistence(firestore).catch((err) => {
-    if (err.code == 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled
-      // in one tab at a time.
-      console.warn('Firestore persistence failed: multiple tabs open.');
-    } else if (err.code == 'unimplemented') {
-      // The current browser does not support all of the
-      // features required to enable persistence
-      console.warn('Firestore persistence not available in this browser.');
+  try {
+    enableIndexedDbPersistence(firestore).catch((err) => {
+      if (err.code == 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled
+        // in one tab at a time.
+        // Silently fail here.
+      } else if (err.code == 'unimplemented') {
+        // The current browser does not support all of the
+        // features required to enable persistence
+        console.warn('Firestore persistence not available in this browser.');
+      }
+    });
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+        // This can happen with multiple tabs open.
+    } else if (err.code !== 'already-started') {
+        console.error('Error enabling Firestore persistence:', err);
     }
-  });
+  }
+
 
   return {
     firebaseApp,
