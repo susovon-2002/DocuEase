@@ -1,21 +1,25 @@
 import { NextResponse } from 'next/server';
-import { doc, setDoc, collection, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
 import { createHash } from 'crypto';
+import * as admin from 'firebase-admin';
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
 
 // Initialize Firebase Admin SDK
+try {
+  if (!admin.apps.length) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
+} catch (error: any) {
+  console.error('Firebase Admin Initialization Error in API route:', error.message);
+}
+
+
 const getDb = () => {
-    if (getApps().length) {
-        return getFirestore(getApp());
-    } else {
-        const app = initializeApp(firebaseConfig);
-        return getFirestore(app);
-    }
+    return admin.firestore();
 };
 
 export async function POST(request: Request) {
@@ -43,10 +47,10 @@ export async function POST(request: Request) {
     const firestore = getDb();
     
     // Retrieve the stored order details from Firestore
-    const pendingPaymentRef = doc(firestore, 'pendingPayments', merchantTransactionId);
-    const pendingPaymentSnap = await getDoc(pendingPaymentRef);
+    const pendingPaymentRef = firestore.collection('pendingPayments').doc(merchantTransactionId);
+    const pendingPaymentSnap = await pendingPaymentRef.get();
     
-    if (!pendingPaymentSnap.exists()) {
+    if (!pendingPaymentSnap.exists) {
         console.error(`No pending payment found for transaction ID: ${merchantTransactionId}`);
         // Can't redirect from here, but client will poll.
         return NextResponse.json({ status: 'error', message: 'Session expired or invalid transaction ID' }, { status: 404 });
@@ -54,12 +58,17 @@ export async function POST(request: Request) {
     
     const orderDetails = pendingPaymentSnap.data();
 
+    if (!orderDetails) {
+      console.error(`Order details are empty for transaction ID: ${merchantTransactionId}`);
+      return NextResponse.json({ status: 'error', message: 'Order details not found.' }, { status: 500 });
+    }
+
     if (code === 'PAYMENT_SUCCESS') {
-      const orderRef = doc(collection(firestore, 'orders'));
-      await setDoc(orderRef, {
+      const orderRef = firestore.collection('orders').doc();
+      await orderRef.set({
         id: orderRef.id,
         userId: orderDetails.userId,
-        orderDate: serverTimestamp(),
+        orderDate: admin.firestore.FieldValue.serverTimestamp(),
         orderType: orderDetails.orderType,
         totalAmount: orderDetails.amount,
         status: 'Processing',
@@ -73,10 +82,10 @@ export async function POST(request: Request) {
         }
       });
       // Update the temporary doc so client-side polling can confirm success.
-      await updateDoc(pendingPaymentRef, { status: 'SUCCESS' });
+      await pendingPaymentRef.update({ status: 'SUCCESS' });
     } else {
       // Update temp doc to reflect failure
-      await updateDoc(pendingPaymentRef, { status: 'FAILED', reason: code });
+      await pendingPaymentRef.update({ status: 'FAILED', reason: code });
     }
     
     // Server-to-server callback should just return a success response to PhonePe
