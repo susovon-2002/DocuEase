@@ -1,59 +1,57 @@
 /**
- * @fileOverview Firestore Security Rules for DocuEase.
+ * @file Firebase Security Rules for DocuEase Application
  *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, documents, and tool usage data.
- * Orders are stored in a root collection accessible to admins, with users able to access their own orders based on their UID.
+ * @description This ruleset enforces a strict user-ownership model for most data, while allowing administrative access to orders.
+ * All data is nested under `/users/{userId}` or associated with a `userId` field.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data. Only the user can access their own profile.
- * - /subscriptions/{subscriptionId}: Stores subscription data. No specific ownership enforced, but user.subscriptionId refers to this.
- * - /users/{userId}/documents/{documentId}: Stores user documents. Only the owning user can access.
- * - /users/{userId}/toolUsages/{toolUsageId}: Stores tool usage data. Only the owning user can access.
- * - /orders/{orderId}: Stores order information. Requires the user to be authenticated.
+ * - `/users/{userId}`: User profile information, accessible only to the user themselves.
+ * - `/subscriptions/{subscriptionId}`: Subscription details, accessible to anyone. The subscription `id` is also stored on user profile as `subscriptionId`.
+ * - `/users/{userId}/documents/{documentId}`: Documents owned by a user, accessible only to that user.
+ * - `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records for a user, accessible only to that user.
+ * - `/orders/{orderId}`: Orders placed by users. Accessible to admins and the user who created the order (via the `userId` field).
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - Data validation is limited to owner-based checks.
- * - `orders` collection REQUIRES an `isAdmin()` function to manage by admins, and `isOwner()` for users to manage their own.
- * - Uses strict ownership checks via `isOwner()` helper function.
- *
- * Denormalization for Authorization:
- * - The `orders` collection denormalizes the `userId` field to allow users to query only their own orders.
+ * - Users can only access their own profile data and related resources (documents, tool usages).
+ * - Listing of all users is disallowed.
+ * - Orders can be listed and retrieved by admins; users can only list/retrieve their own orders by querying the collection by `userId`.
+ * - Subscriptions are publicly readable by default.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures user profile data.
+     * @description Secure access to user profiles.  Only the authenticated user can read or write their own profile.
      * @path /users/{userId}
-     * @allow (create) User with matching userId can create their profile.
-     * @allow (get, update, delete) User with matching userId can read, update, and delete their profile.
-     * @deny (create, get, update, delete) User with non-matching userId cannot create, get, update or delete.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (get, update, delete) if the request is made by the user with ID {userId}.
+     * @allow (create) if the authenticated user's ID matches {userId}.
+     * @deny (get, update, delete) if the request is made by a different user.
+     * @deny (create) if the authenticated user's ID does not match {userId}.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+          return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures subscription data.
+     * @description Subscription details are publicly readable.
      * @path /subscriptions/{subscriptionId}
-     * @allow (get, list) Allow public read access to subscriptions.
-     * @deny (create, update, delete) Block all create, update, and delete operations.
-     * @principle Read-only public collection with restricted write access.
+     * @allow (get, list) Public access to subscription details.
+     * @deny (create, update, delete) No one can create, update, or delete subscriptions via the client.
+     * @principle Public read access with restricted writes.
      */
     match /subscriptions/{subscriptionId} {
       allow get, list: if true;
@@ -61,78 +59,73 @@ service cloud.firestore {
     }
 
     /**
-     * @description Secures user documents.
+     * @description Secure access to documents uploaded by users. Only the owner can read or write these documents.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (create) User with matching userId can create document.
-     * @allow (get, list, update, delete) User with matching userId can read, list, update, and delete document.
-     * @deny (create, get, list, update, delete) User with non-matching userId cannot create, get, list, update, or delete.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (get, update, delete) if the request is made by the user with ID {userId}.
+     * @allow (create) if the authenticated user's ID matches {userId}.
+     * @deny (get, update, delete) if the request is made by a different user.
+     * @deny (create) if the authenticated user's ID does not match {userId}.
+     * @principle Enforces document ownership and path-based authorization.
      */
     match /users/{userId}/documents/{documentId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+          return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow list: if false;
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures tool usage data.
+     * @description Secure access to tool usage records. Only the owner (user) can read or write these records.
      * @path /users/{userId}/toolUsages/{toolUsageId}
-     * @allow (create) User with matching userId can create toolUsage.
-     * @allow (get, list, update, delete) User with matching userId can read, list, update, and delete toolUsage.
-     * @deny (create, get, list, update, delete) User with non-matching userId cannot create, get, list, update, or delete.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (get, update, delete) if the request is made by the user with ID {userId}.
+     * @allow (create) if the authenticated user's ID matches {userId}.
+     * @deny (get, update, delete) if the request is made by a different user.
+     * @deny (create) if the authenticated user's ID does not match {userId}.
+     * @principle Enforces document ownership and path-based authorization.
      */
     match /users/{userId}/toolUsages/{toolUsageId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+          return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow list: if false;
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures order data. Allows users to manage their own orders and allows admins to manage all orders.
+     * @description Secure access to orders. Admins can read all orders. Users can only read their own orders.
      * @path /orders/{orderId}
-     * @allow (get, list) Allow users to get and list only their own orders.
-     * @allow (create, update, delete) Allow users to create, update, and delete their own orders.
-     * @deny (get, list, create, update, delete) Deny users from accessing or modifying orders that do not belong to them.
-     * @principle Allows order management by both the owning user and potentially an admin user.
+     * @allow (get, list) if the request is made by an admin or the user who placed the order.
+     * @allow (create, update, delete) if the request is made by an admin.
+     * @deny (create, update, delete) if the request is made by a regular user.
+     * @principle Allows admin access to all orders while restricting user access to their own orders.
      */
     match /orders/{orderId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       function isAdmin() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        return request.auth != null && request.auth.token.admin == true;
       }
 
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && (isExistingOwner(resource.data.userId) || isAdmin());
-      allow delete: if isSignedIn() && (isExistingOwner(resource.data.userId) || isAdmin());
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

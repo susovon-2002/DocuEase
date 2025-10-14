@@ -1,6 +1,6 @@
 
 'use client';
-
+import React from 'react';
 import { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, setDoc, where } from 'firebase/firestore';
@@ -242,5 +242,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
-    
