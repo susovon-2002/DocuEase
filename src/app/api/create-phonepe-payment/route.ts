@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 const PHONEPE_HOST_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
 const MERCHANT_ID = process.env.NEXT_PUBLIC_PHONEPE_MERCHANT_ID;
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
-const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
+const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : 1;
 
 
 export async function POST(request: Request) {
@@ -14,14 +14,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
   }
   
-  if (!MERCHANT_ID || !SALT_KEY) {
-      console.error("PhonePe environment variables are not set.");
-      return NextResponse.json({ error: 'Payment provider not configured on the server.' }, { status: 500 });
+  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX) {
+      console.error("PhonePe environment variables are not set. Please check your .env file.");
+      return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
   }
 
   try {
-    const callbackUrl = `${request.headers.get('origin')}/api/phonepe-callback`;
-    const redirectUrl = `${request.headers.get('origin')}/payment/${merchantTransactionId}`;
+    const callbackUrl = `${new URL(request.url).origin}/api/phonepe-callback`;
+    const redirectUrl = `${new URL(request.url).origin}/payment/${merchantTransactionId}`;
 
     const payload = {
       merchantId: MERCHANT_ID,
@@ -49,6 +49,11 @@ export async function POST(request: Request) {
       body: JSON.stringify({ request: base64Payload }),
     });
 
+    if (!response.ok) {
+        console.error("PhonePe API response error:", await response.text());
+        throw new Error(`PhonePe API responded with status ${response.status}`);
+    }
+
     const responseData = await response.json();
 
     if (responseData.success) {
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating PhonePe payment:', error);
     return NextResponse.json(
-      { error: 'Failed to create PhonePe payment due to a server error.' },
+      { error: 'Failed to create PhonePe payment due to a server error. Check server logs for details.' },
       { status: 500 }
     );
   }
