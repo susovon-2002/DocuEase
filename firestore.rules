@@ -1,145 +1,120 @@
-/**
- * @file Firebase Security Rules for DocuEase Application
- *
- * @description This ruleset enforces a strict user-ownership model for user profiles,
- * documents, and tool usage records.  All user-specific data is nested under the
- * `/users/{userId}` path. The `/orders` collection allows admin-level queries across all users.
- *
- * Data Structure:
- * - /users/{userId}: User profile information, accessible only to the user.
- * - /subscriptions/{subscriptionId}: Subscription details.
- * - /users/{userId}/documents/{documentId}: Documents owned by a specific user.
- * - /users/{userId}/toolUsages/{toolUsageId}: Tool usage records for a specific user.
- * - /orders/{orderId}: Print delivery orders; accessible with user ID or admin role.
- *
- * Key Security Decisions:
- * - User data is private and only accessible to the authenticated user.
- * - Listing of all users is disallowed.
- * - The /orders collection is secured by checking that the requesting user owns the order (via the userId field) unless the user is an admin.
- *
- * Denormalization for Authorization:
- * - The `Order` entity requires the `userId` field to exist for authorization purposes.  This allows a user to query only their own orders.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the requesting user is signed in.
-     * @path N/A (Helper Function)
-     * @allow N/A (Helper Function)
-     * @deny N/A (Helper Function)
-     * @principle Requires the user to be authenticated.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the requesting user is the owner of the resource.
-     * @path N/A (Helper Function)
-     * @allow N/A (Helper Function)
-     * @deny N/A (Helper Function)
-     * @principle Compares the requested user ID with the authenticated user's ID.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the requesting user is the owner of the resource, and that the resource exists
-     * @path N/A (Helper Function)
-     * @allow N/A (Helper Function)
-     * @deny N/A (Helper Function)
-     * @principle Compares the requested user ID with the authenticated user's ID.
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Security rules for user profiles.
+     * @description Allows access to user profile information, restricted to the user themselves.
      * @path /users/{userId}
-     * @allow (create) - If the authenticated user's UID matches the userId in the path.
-     * @allow (get, update, delete) - If the authenticated user's UID matches the userId in the path.
-     * @deny (create) - If the authenticated user's UID does not match the userId in the path.
-     * @deny (get, update, delete) - If the authenticated user's UID does not match the userId in the path.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, update, delete) User with matching {userId} can access their own profile.
+     * @allow (create) A new user can create their own profile if the document ID matches their UID.
+     * @deny (get, update, delete) User cannot access another user's profile.
+     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isExistingOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Security rules for subscriptions.
+     * @description Allows access to subscription information.
      * @path /subscriptions/{subscriptionId}
-     * @allow (get) - If true.
-     * @allow (create, update, delete) - If false.
-     * @deny (create, update, delete) - Always.
-     * @principle No write access is granted for subscriptions.
+     * @allow (get) Anyone can read the subscription.
+     * @deny (create, update, delete) No one can create, update, or delete subscriptions.
+     * @principle Restricts write access to subscriptions.
      */
     match /subscriptions/{subscriptionId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Security rules for documents.
+     * @description Allows access to documents uploaded by the user.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (get, list) - If the authenticated user's UID matches the userId in the path.
-     * @allow (create) - If the authenticated user's UID matches the userId in the path.
-     * @allow (update, delete) - If the authenticated user's UID matches the userId in the path.
-     * @deny (get, list, create, update, delete) - If the authenticated user's UID does not match the userId in the path.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, update, delete) User with matching {userId} can access their own documents.
+     * @allow (create) User with matching {userId} can create documents under their user ID.
+     * @deny (get, update, delete) User cannot access another user's documents.
+     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId}/documents/{documentId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-    /**
-     * @description Security rules for tool usages.
-     * @path /users/{userId}/toolUsages/{toolUsageId}
-     * @allow (get, list) - If the authenticated user's UID matches the userId in the path.
-     * @allow (create) - If the authenticated user's UID matches the userId in the path.
-     * @allow (update, delete) - If the authenticated user's UID matches the userId in the path.
-     * @deny (get, list, create, update, delete) - If the authenticated user's UID does not match the userId in the path.
-     * @principle Enforces document ownership for all operations.
-     */
-    match /users/{userId}/toolUsages/{toolUsageId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isExistingOwner(userId);
+      allow list: if false;
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Security rules for orders.
+     * @description Allows access to tool usage records for each user.
+     * @path /users/{userId}/toolUsages/{toolUsageId}
+     * @allow (get, update, delete) User with matching {userId} can access their own tool usage records.
+     * @allow (create) User with matching {userId} can create tool usage records under their user ID.
+     * @deny (get, update, delete) User cannot access another user's tool usage records.
+     * @principle Enforces document ownership for reads and writes.
+     */
+    match /users/{userId}/toolUsages/{toolUsageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+
+      allow get: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows access to user print delivery orders.
      * @path /orders/{orderId}
-     * @allow (get) - If the authenticated user owns the order (userId matches) OR the user is an admin.
-     * @allow (list) - If the authenticated user owns the order (userId matches) OR the user is an admin.
-     * @allow (create) - If the authenticated user is creating the order. The rule validates that the order's userId matches the authenticated user's UID.
-     * @allow (update, delete) - If false.
-     * @deny (update, delete) - Always.
-     * @principle Limits read access to order owners or admins, and restricts write access.
+     * @allow (get, list) Anyone can get or list all orders.
+     * @allow (create) Any authenticated user can create an order
+     * @deny (update, delete) No one can update or delete orders.
+     * @principle Allows public read access but restricts write access.
      */
     match /orders/{orderId} {
-      allow get: if request.auth.uid == resource.data.userId;
-      allow list: if request.auth.uid == resource.data.userId;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if false;
-      allow delete: if false;
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if true;
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if false;
     }
   }
 }
