@@ -65,12 +65,12 @@ export default function DashboardPage() {
 
   const toolUsagesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, `users/${user.uid}/toolUsages`);
+    return query(collection(firestore, `users/${user.uid}/toolUsages`));
   }, [firestore, user]);
 
   const documentsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, `users/${user.uid}/documents`);
+    return query(collection(firestore, `users/${user.uid}/documents`));
   }, [firestore, user]);
   
   const ordersQuery = useMemoFirebase(() => {
@@ -397,20 +397,6 @@ export default function DashboardPage() {
                     </Button>
                  </CardFooter>
             </Card>
-
-            {(userProfile?.isAdmin || isSuperAdmin) && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center"><Shield className="w-5 h-5 mr-2"/> Admin Panel</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground mb-4">Access the admin panel to manage users, view analytics, and more.</p>
-                        <Button asChild className="w-full">
-                            <Link href="/admin/users">Go to Admin Panel</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
 
             <Card>
                 <CardHeader>
