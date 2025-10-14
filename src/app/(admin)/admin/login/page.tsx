@@ -12,9 +12,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signInWithEmailAndPassword, User } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -29,6 +29,7 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
 
   const form = useForm<FormValues>({
@@ -40,24 +41,32 @@ export default function AdminLoginPage() {
   });
 
   const onSubmit = async (data: FormValues) => {
-    
-    if (data.email !== 'susovonsantra4@gmail.com') {
-      toast({
-        variant: 'destructive',
-        title: 'Unauthorized',
-        description: 'This email address is not authorized for admin access.',
-      });
-      return;
-    }
-    
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      toast({
-        title: 'Logged In',
-        description: 'Admin login successful.',
-      });
-      router.push('/admin/users');
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      
+      if (firestore) {
+        const userRef = doc(firestore, 'users', userCredential.user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists() && userSnap.data().isAdmin) {
+            toast({
+                title: 'Logged In',
+                description: 'Admin login successful.',
+            });
+            router.push('/admin/users');
+        } else {
+            await auth.signOut();
+            toast({
+                variant: 'destructive',
+                title: 'Unauthorized',
+                description: 'This account does not have admin privileges.',
+            });
+        }
+      } else {
+        throw new Error("Firestore is not available.");
+      }
+
     } catch (error: any) {
       let description = 'An unexpected error occurred.';
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
