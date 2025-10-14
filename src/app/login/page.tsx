@@ -68,13 +68,17 @@ export default function LoginPage() {
   const createUserProfile = (user: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, `users/${user.uid}`);
+    
+    // Check if the user's email is the admin email
+    const isAdmin = user.email === 'susovonsantra4@gmail.com';
+
     setDocumentNonBlocking(userRef, {
         id: user.uid,
         email: user.email,
         name: user.displayName || user.email?.split('@')[0],
         photoURL: user.photoURL,
         registrationDate: serverTimestamp(),
-        isAdmin: false,
+        isAdmin: isAdmin,
         isRestricted: false,
     }, { merge: true });
   }
