@@ -20,7 +20,7 @@ function AdminSidebar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/login');
+      router.push('/admin/login');
     } catch (error) {
       console.error('Error signing out: ', error);
     }
@@ -72,6 +72,11 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  if (pathname === '/admin/login') {
+    return <>{children}</>
+  }
+  
   return (
     <AdminAuthWrapper>
       <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">

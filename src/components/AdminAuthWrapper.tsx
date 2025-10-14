@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -31,7 +32,7 @@ export function AdminAuthWrapper({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    router.push('/login');
+    router.push('/admin/login');
     return null;
   }
   
