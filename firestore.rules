@@ -1,135 +1,110 @@
-/**
- * @file Firebase Security Rules for DocuEase
- *
- * @description This ruleset enforces a strict user-ownership model for most data,
- * with the exception of orders, which are accessible for administrative purposes.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles; accessible only by the user.
- * - /subscriptions/{subscriptionId}: Stores subscription details; accessible by anyone since it will be referenced from user profile.
- * - /users/{userId}/documents/{documentId}: Stores user documents; accessible only by the user.
- * - /users/{userId}/toolUsages/{toolUsageId}: Stores tool usage data; accessible only by the user.
- * - /orders/{orderId}: Stores order information; requires admin role to manage all orders, but allows users to access their own order using a `userId` query.
- *
- * Key Security Decisions:
- * - Users can only access their own profile and data (documents, tool usages).
- * - Listing all users is disallowed for privacy reasons.
- * - Admins are not explicitly defined in this prototype. Adding admin roles would require modifying the /orders collection rules.
- *
- * Denormalization for Authorization:
- * - Orders contain a `userId` field to allow users to query only their own orders from the root-level `/orders` collection.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure access to user profiles.
+     * @description Enforces access control for user profile data.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their profile.
-     * @allow (get) User with ID 'user123' can read their profile.
-     * @allow (update) User with ID 'user123' can update their profile.
-     * @allow (delete) User with ID 'user123' can delete their profile.
-     * @deny (create) User with ID 'user123' cannot create another user's profile.
-     * @deny (get) User with ID 'user123' cannot read another user's profile.
-     * @deny (update) User with ID 'user123' cannot update another user's profile.
-     * @deny (delete) User with ID 'user123' cannot delete another user's profile.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with ID 'user123' can create their own profile.
+     *          Request: auth.uid = 'user123'
+     * @allow (get, update, delete) User with ID 'user123' can read, update, and delete their own profile.
+     *          Request: auth.uid = 'user123'
+     * @deny  (get, update, delete) User with ID 'user456' cannot access user 'user123' profile.
+     *          Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.auth.uid == userId;
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure access to subscriptions.
+     * @description Enforces access control for subscription data.
      * @path /subscriptions/{subscriptionId}
-     * @allow (get) Any signed-in user can read subscription details.
-     * @deny (create) No user can create subscription using rules, it is a server functionality.
-     * @deny (update) No user can update subscription using rules, it is a server functionality.
-     * @deny (delete) No user can delete subscription using rules, it is a server functionality.
-     * @principle Allows read access to all signed-in users.
+     * @allow (get) Anyone can read subscription data
+     *          Request: None
+     * @deny (create, update, delete) Nobody can modify subscription data.
+     *          Request: None
+     * @principle Restricts creation, modification, and deletion of Subscriptions
      */
     match /subscriptions/{subscriptionId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+        allow get: if true;
+        allow list: if false; // Listing subscriptions is disabled for now
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
     }
 
     /**
-     * @description Secure access to user documents.
+     * @description Enforces access control for documents stored under a specific user.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (create) User with ID 'user123' can create a document in their own path.
-     * @allow (get) User with ID 'user123' can read a document in their own path.
-     * @allow (update) User with ID 'user123' can update a document in their own path.
-     * @allow (delete) User with ID 'user123' can delete a document in their own path.
-     * @deny (create) User with ID 'user123' cannot create a document in another user's path.
-     * @deny (get) User with ID 'user123' cannot read a document in another user's path.
-     * @deny (update) User with ID 'user123' cannot update a document in another user's path.
-     * @deny (delete) User with ID 'user123' cannot delete a document in another user's path.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with ID 'user123' can create a document under their own user ID.
+     *          Request: auth.uid = 'user123', path = '/users/user123/documents/doc1'
+     * @allow (get, update, delete) User with ID 'user123' can read, update, and delete their own documents.
+     *          Request: auth.uid = 'user123', path = '/users/user123/documents/doc1'
+     * @deny  (get, update, delete) User with ID 'user456' cannot access documents under user 'user123'.
+     *          Request: auth.uid = 'user456', path = '/users/user123/documents/doc1'
+     * @principle Enforces document ownership and restricts access to a user's own documents.
      */
     match /users/{userId}/documents/{documentId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow list: if false;
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure access to user tool usages.
+     * @description Enforces access control for tool usage records stored under a specific user.
      * @path /users/{userId}/toolUsages/{toolUsageId}
-     * @allow (create) User with ID 'user123' can create a tool usage record in their own path.
-     * @allow (get) User with ID 'user123' can read a tool usage record in their own path.
-     * @allow (update) User with ID 'user123' can update a tool usage record in their own path.
-     * @allow (delete) User with ID 'user123' can delete a tool usage record in their own path.
-     * @deny (create) User with ID 'user123' cannot create a tool usage record in another user's path.
-     * @deny (get) User with ID 'user123' cannot read a tool usage record in another user's path.
-     * @deny (update) User with ID 'user123' cannot update a tool usage record in another user's path.
-     * @deny (delete) User with ID 'user123' cannot delete a tool usage record in another user's path.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with ID 'user123' can create a tool usage record under their own user ID.
+     *          Request: auth.uid = 'user123', path = '/users/user123/toolUsages/tool1'
+     * @allow (get, update, delete) User with ID 'user123' can read, update, and delete their own tool usage records.
+     *          Request: auth.uid = 'user123', path = '/users/user123/toolUsages/tool1'
+     * @deny  (get, update, delete) User with ID 'user456' cannot access tool usage records under user 'user123'.
+     *          Request: auth.uid = 'user456', path = '/users/user123/toolUsages/tool1'
+     * @principle Enforces document ownership and restricts access to a user's own tool usage records.
      */
     match /users/{userId}/toolUsages/{toolUsageId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow list: if false;
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Secure access to orders.
+     * @description Enforces access control for orders.
      * @path /orders/{orderId}
-     * @allow (get) Any user can read orders using query based userId.
-     * @allow (create) Any signed in user can create an order.
-     * @deny (update) Only an admin can update an order (Not Implemented).
-     * @deny (delete) Only an admin can delete an order (Not Implemented).
-     * @principle Allows creating order to all signed-in users.
+     * @allow (create) Any authenticated user can create an order.
+     *          Request: auth.uid != null
+     * @allow (get, update, delete) Only the user who placed the order can access or modify it.
+     *          Request: auth.uid = order.userId
+     * @deny  (get, update, delete) Another user cannot access or modify an order.
+     *          Request: auth.uid != order.userId
+     * @principle Enforces user-specific access to orders based on the userId field.
      */
     match /orders/{orderId} {
-        allow get: if isSignedIn() && request.query.userId == request.auth.uid;
-        allow list: if false;
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow update: if false; // TODO: Add admin check
-        allow delete: if false; // TODO: Add admin check
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource.data.id == userId;
+      allow get: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow list: if false;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }
