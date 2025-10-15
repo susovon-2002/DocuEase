@@ -1,18 +1,21 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
 import PptxGenJS from 'pptxgenjs';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, PlusSquare, GripVertical } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, PlusSquare, GripVertical, Replace } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { cn } from '@/lib/utils';
+import { PDFDocument } from 'pdf-lib';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type Slide = {
   id: number;
   imageUrl: string; // data URL
-  type: 'pdf-page' | 'blank';
+  type: 'pdf-page' | 'blank' | 'custom';
 };
 
 type ConvertStep = 'upload' | 'edit' | 'download';
@@ -39,6 +42,10 @@ export function PdfToPowerpointClient() {
   const [outputFileName, setOutputFileName] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replacementFileInputRef = useRef<HTMLInputElement>(null);
+  const [isReplaceDialogOpen, setIsReplaceDialogOpen] = useState(false);
+  const [slideToReplaceIndex, setSlideToReplaceIndex] = useState<number | null>(null);
+
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
@@ -102,7 +109,6 @@ export function PdfToPowerpointClient() {
   };
   
   const handleAddBlankSlide = () => {
-    // Create a blank data URL for a white slide (aspect ratio 16:9)
     const canvas = document.createElement('canvas');
     canvas.width = 1280;
     canvas.height = 720;
@@ -139,6 +145,60 @@ export function PdfToPowerpointClient() {
   };
   const handleDragEnd = () => setDraggedSlideIndex(null);
 
+  const openReplaceDialog = (index: number) => {
+    setSlideToReplaceIndex(index);
+    setIsReplaceDialogOpen(true);
+  };
+
+  const handleReplacementFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || slideToReplaceIndex === null) return;
+    
+    setIsReplaceDialogOpen(false);
+    setProcessingMessage('Replacing page...');
+    setIsProcessing(true);
+
+    try {
+      let newImageUrl: string;
+
+      if (file.type.startsWith('image/')) {
+        newImageUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      } else if (file.type === 'application/pdf') {
+        const fileBuffer = await file.arrayBuffer();
+        const loadedPdf = await PDFDocument.load(fileBuffer);
+        if (loadedPdf.getPageCount() !== 1) {
+            throw new Error("Replacement PDF must have only one page.");
+        }
+        const [imageUrl] = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
+        newImageUrl = imageUrl;
+      } else {
+        throw new Error("Unsupported file type. Use an image or single-page PDF.");
+      }
+
+      setSlides(currentSlides => {
+        const newSlides = [...currentSlides];
+        const slideToUpdate = newSlides[slideToReplaceIndex];
+        if (slideToUpdate) {
+            newSlides[slideToReplaceIndex] = { ...slideToUpdate, imageUrl: newImageUrl, type: 'custom' };
+        }
+        return newSlides;
+      });
+
+      toast({ title: "Slide Replaced", description: `Slide ${slideToReplaceIndex + 1} has been updated.` });
+    } catch(e: any) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Replacement Failed", description: e.message || "Could not process the replacement file." });
+    } finally {
+      setIsProcessing(false);
+      setSlideToReplaceIndex(null);
+      if (replacementFileInputRef.current) replacementFileInputRef.current.value = '';
+    }
+  };
 
   const handleExportPresentation = async () => {
     if (slides.length === 0) return;
@@ -148,15 +208,15 @@ export function PdfToPowerpointClient() {
     try {
         const pptx = new PptxGenJS();
         
-        // Define a master slide based on the selected design
         pptx.defineLayout({ name: selectedDesign.name, background: { color: selectedDesign.colors.bg.replace('#','') } });
         pptx.layout = selectedDesign.name;
 
         for (const slideData of slides) {
             const newSlide = pptx.addSlide();
-            // For blank slides from our generator, the background is already set by the master.
-            // For PDF pages, we add them as images covering the slide.
-            if(slideData.type === 'pdf-page') {
+            
+            // For 'blank' slides, the background is set by the master slide layout, so we don't need to do anything extra
+            // For 'pdf-page' and 'custom' slides, we add the image.
+            if (slideData.type === 'pdf-page' || slideData.type === 'custom') {
                 newSlide.addImage({
                     data: slideData.imageUrl,
                     x: 0,
@@ -233,13 +293,35 @@ export function PdfToPowerpointClient() {
     case 'edit':
         return (
             <div className="w-full max-w-7xl mx-auto">
+                <Dialog open={isReplaceDialogOpen} onOpenChange={setIsReplaceDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Replace Slide {slideToReplaceIndex !== null ? slideToReplaceIndex + 1 : ''}</DialogTitle>
+                            <DialogDescription>
+                            Upload an image or a single-page PDF to replace the current slide content.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <input
+                                type="file"
+                                ref={replacementFileInputRef}
+                                onChange={handleReplacementFileSelected}
+                                className="hidden"
+                                accept="image/jpeg,image/png,application/pdf"
+                            />
+                            <Button onClick={() => replacementFileInputRef.current?.click()} className="w-full">
+                                Choose Replacement File...
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
                  <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold">Build Your Presentation</h1>
                     <p className="text-muted-foreground mt-2">Reorder slides, choose a design, and export your PPTX.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Left Column: Slide sorter & Designs */}
                     <div className="lg:col-span-1 space-y-6">
                        <Card>
                          <CardHeader><CardTitle className="text-lg">Slide Sorter</CardTitle></CardHeader>
@@ -253,7 +335,7 @@ export function PdfToPowerpointClient() {
                                     <div 
                                         key={slide.id}
                                         className={cn(
-                                            "p-2 rounded-md border bg-background flex items-center gap-2 cursor-grab transition-opacity",
+                                            "p-2 rounded-md border bg-background flex items-center gap-2 cursor-grab transition-opacity group/slide",
                                             draggedSlideIndex === index && "opacity-50"
                                         )}
                                         draggable
@@ -265,9 +347,16 @@ export function PdfToPowerpointClient() {
                                         <GripVertical className="h-5 w-5 text-muted-foreground" />
                                         <span className="font-mono text-sm text-muted-foreground w-6">{index + 1}</span>
                                         <img src={slide.imageUrl} alt={`Slide ${index+1}`} className="w-20 aspect-video object-contain rounded-sm bg-muted" />
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={() => handleDeleteSlide(slide.id)}>
-                                            <X className="h-4 w-4" />
-                                        </Button>
+                                        <div className="ml-auto flex flex-col gap-1">
+                                            {slide.type === 'blank' && (
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openReplaceDialog(index)}>
+                                                    <Replace className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteSlide(slide.id)}>
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -290,7 +379,6 @@ export function PdfToPowerpointClient() {
                        </Card>
                     </div>
 
-                    {/* Right Column: Main preview and actions */}
                     <div className="lg:col-span-3 flex-grow flex flex-col gap-6">
                         <Card className="flex-grow">
                              <CardContent className="p-4 h-full" style={{ backgroundColor: selectedDesign.colors.bg }}>
@@ -322,3 +410,5 @@ export function PdfToPowerpointClient() {
         return null;
   }
 }
+
+    
