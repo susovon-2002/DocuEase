@@ -20,9 +20,11 @@ export function JpgToPdfClient() {
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addMoreFilesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
+  const handleAddMoreFilesClick = () => addMoreFilesInputRef.current?.click();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -39,8 +41,8 @@ export function JpgToPdfClient() {
     setSelectedFiles(prev => [...prev, ...imageFiles]);
     
     // Reset file input to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -113,6 +115,7 @@ export function JpgToPdfClient() {
     setSelectedFiles([]);
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (addMoreFilesInputRef.current) addMoreFilesInputRef.current.value = '';
   };
 
   const handleDownloadFile = () => {
@@ -184,7 +187,15 @@ export function JpgToPdfClient() {
                     ))}
                   </div>
                   <div className="flex justify-center gap-4 pt-4">
-                    <Button onClick={handleFileSelectClick} variant="outline">Add More Files</Button>
+                    <input
+                        type="file"
+                        ref={addMoreFilesInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/jpeg"
+                        multiple
+                    />
+                    <Button onClick={handleAddMoreFilesClick} variant="outline">Add More Files</Button>
                     <Button onClick={handleConvert} size="lg">
                       <Wand2 className="mr-2 h-4 w-4" />
                       Convert to PDF
