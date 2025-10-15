@@ -7,6 +7,7 @@ import { Loader2, UploadCloud, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ConvertStep = 'upload' | 'download';
 
@@ -21,6 +22,7 @@ export function PdfToPowerpointClient() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
@@ -163,7 +165,7 @@ export function PdfToPowerpointClient() {
                     </Button>
                     <Button onClick={handleDownloadFile} size="lg">
                         <Download className="mr-2 h-4 w-4" />
-                        Download .pptx File
+                        {isMobile ? 'Download Presentation' : 'Download .pptx File'}
                     </Button>
                 </div>
             </div>
