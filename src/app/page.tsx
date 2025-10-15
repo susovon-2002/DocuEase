@@ -1,24 +1,15 @@
 
 import { tools } from '@/lib/tools';
-import ToolCard from '@/components/ToolCard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
-const popularToolPaths = [
-  '/merge-pdf',
-  '/remove-pages',
-  '/jpg-to-pdf',
-  '/scan-to-pdf',
-  '/pdf-to-jpg',
-];
-
-const popularTools = tools.filter(tool => popularToolPaths.includes(tool.path));
+import { ArrowRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { groupBy } from 'lodash';
 
 
 export default function Home() {
+  const toolsByCategory = groupBy(tools, 'category');
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -74,16 +65,28 @@ export default function Home() {
       <section className="py-20 bg-secondary/50" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">Explore Most Popular Tools</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">All Our Tools</h2>
             <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularTools.map((tool) => (
-              <ToolCard key={tool.path} tool={tool} />
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+              {Object.entries(toolsByCategory).map(([category, categoryTools]) => (
+                <div key={category}>
+                  <h3 className="text-xl font-semibold mb-4">{category}</h3>
+                  <ul className="space-y-3">
+                    {categoryTools.map(tool => (
+                      <li key={tool.path}>
+                        <Link href={tool.path} className="text-muted-foreground hover:text-primary transition-colors">
+                          {tool.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
           </div>
         </div>
       </section>
+
 
       {/* Testimonials */}
       <section className="py-20">
