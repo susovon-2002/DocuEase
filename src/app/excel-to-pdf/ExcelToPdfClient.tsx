@@ -91,12 +91,33 @@ export function ExcelToPdfClient() {
     let y = height - margin;
 
     for (const line of textLines) {
+      let currentLine = line;
+      while (currentLine.length > 0) {
         if (y < margin) {
-            page = pdfDoc.addPage();
-            y = page.getHeight() - margin;
+          page = pdfDoc.addPage();
+          y = page.getHeight() - margin;
         }
-        page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+
+        let breakIndex = currentLine.length;
+        let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
+
+        if (lineWidth > maxWidth) {
+          let charCount = 0;
+          while(charCount < currentLine.length) {
+              const nextCharWidth = font.widthOfTextAtSize(currentLine.substring(0, charCount + 1), fontSize);
+              if (nextCharWidth > maxWidth) {
+                  break;
+              }
+              charCount++;
+          }
+          breakIndex = charCount;
+        }
+        
+        const lineToDraw = currentLine.substring(0, breakIndex);
+        page.drawText(lineToDraw, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
         y -= lineHeight;
+        currentLine = currentLine.substring(breakIndex);
+      }
     }
     
     const pdfBytes = await pdfDoc.save();
