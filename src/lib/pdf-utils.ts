@@ -1,14 +1,40 @@
 import { PDFDocument } from "pdf-lib";
+import * as pdfjs from 'pdfjs-dist';
 
-// The 'pdfjs-dist' library has been removed as it was causing build failures.
-// This function needs to be reimplemented using a browser-safe library
-// or by moving the rendering to a serverless function if needed.
-// For now, it returns an empty array to prevent build errors.
+// Set up the worker source for pdf.js
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+
 export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<string[]> {
-    console.warn("renderPdfPagesToImageUrls is not fully implemented and will not produce images.");
+    const imageUrls: string[] = [];
+    const loadingTask = pdfjs.getDocument(pdfBytes);
+    const pdfDoc = await loadingTask.promise;
+
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        
+        // Use a high-resolution viewport
+        const viewport = page.getViewport({ scale: 2.0 }); 
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport,
+        };
+
+        await page.render(renderContext).promise;
+        // Use JPEG for better performance with photos, and a high quality setting
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9); 
+        imageUrls.push(dataUrl);
+
+        // Clean up page resources
+        page.cleanup();
+    }
     
-    // Fallback to prevent app crashes, but will not render previews.
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    const numPages = pdfDoc.getPageCount();
-    return Array(numPages).fill(''); 
+    return imageUrls;
 }
