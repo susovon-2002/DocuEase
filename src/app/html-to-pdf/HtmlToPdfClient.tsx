@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileCode, Printer } from 'lucide-react';
 
 export function HtmlToPdfClient() {
 
