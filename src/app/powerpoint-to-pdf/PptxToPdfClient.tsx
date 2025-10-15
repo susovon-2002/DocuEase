@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef } from 'react';
@@ -138,12 +137,17 @@ export function PptxToPdfClient() {
         const textContent = await extractTextFromPptx(file);
         
         if (!textContent) {
-            throw new Error('No text content could be extracted from the presentation. It might be image-based.');
+             toast({
+              title: 'No Text Found',
+              description: 'No text was extracted. The presentation might be image-based. An empty PDF will be created.',
+            });
         }
         
         setExtractedText(textContent);
         setStep('preview');
-        toast({ title: 'Text Extracted', description: `Review the text from your presentation.` });
+        if (textContent) {
+          toast({ title: 'Text Extracted', description: `Review the text from your presentation.` });
+        }
       } catch(e) {
           console.error(e);
           toast({ variant: 'destructive', title: 'Extraction Failed', description: e instanceof Error ? e.message : 'Could not read the content of the PowerPoint file.' });
@@ -166,7 +170,7 @@ export function PptxToPdfClient() {
   };
   
   const handleConvert = async () => {
-    if (!originalFile || !extractedText) return;
+    if (!originalFile) return;
     
     setIsProcessing(true);
     setProcessingMessage('Creating PDF...');
@@ -262,7 +266,7 @@ export function PptxToPdfClient() {
                             readOnly
                             value={extractedText}
                             className="w-full h-96 rounded-md border bg-muted p-4 text-base font-body"
-                            placeholder="Extracted text will appear here."
+                            placeholder="No text was found in the presentation. The output will be an empty PDF."
                         />
                     </CardContent>
                 </Card>
