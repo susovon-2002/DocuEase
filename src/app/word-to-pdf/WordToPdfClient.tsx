@@ -1,0 +1,219 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import JSZip from 'jszip';
+import { Button } from '@/components/ui/button';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+
+type ConvertStep = 'upload' | 'download';
+
+export function WordToPdfClient() {
+  const [step, setStep] = useState<ConvertStep>('upload');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('Processing...');
+  
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  
+  const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, textContent: string } | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileSelectClick = () => fileInputRef.current?.click();
+  
+  const extractTextFromDocx = async (file: File): Promise<string> => {
+    const zip = await JSZip.loadAsync(file);
+    const docXml = await zip.file('word/document.xml')?.async('string');
+    if (!docXml) {
+      throw new Error('Could not find document.xml in the Word file.');
+    }
+
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(docXml, 'application/xml');
+    const paragraphs = xmlDoc.getElementsByTagName('w:p');
+    let fullText = '';
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      const texts = paragraphs[i].getElementsByTagName('w:t');
+      let lineText = '';
+      for (let j = 0; j < texts.length; j++) {
+        lineText += texts[j].textContent;
+      }
+      fullText += lineText + '\n';
+    }
+    
+    return fullText.trim();
+  };
+
+  const createPdfFromText = async (text: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontSize = 12;
+    const margin = 50;
+
+    const textLines = text.split('\n');
+    let y = height - margin;
+
+    for (const line of textLines) {
+      if (y < margin) {
+        const newPage = pdfDoc.addPage();
+        y = newPage.getHeight() - margin;
+        page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+        y -= fontSize * 1.2;
+      } else {
+         page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+         y -= fontSize * 1.2;
+      }
+    }
+    
+    const pdfBytes = await pdfDoc.save();
+    return new Blob([pdfBytes], { type: 'application/pdf' });
+  };
+
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        handleConvert(file);
+    } else if (file) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Only .docx Word files are supported.',
+      });
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+       handleConvert(file);
+    } else if (file) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Only .docx Word files are supported for dropping.',
+      });
+    }
+  };
+  
+  const handleConvert = async (file: File) => {
+    setOriginalFile(file);
+    setIsProcessing(true);
+    setProcessingMessage('Extracting text from Word file...');
+
+    try {
+        const textContent = await extractTextFromDocx(file);
+        setProcessingMessage('Creating PDF...');
+        const pdfBlob = await createPdfFromText(textContent);
+        
+        setOutputFile({ 
+            name: `${file.name.replace(/\.docx$/i, '')}.pdf`, 
+            blob: pdfBlob,
+            textContent: textContent
+        });
+        setStep('download');
+        toast({ title: 'Conversion Complete!', description: 'Your Word document has been converted to a PDF.' });
+
+    } catch (error) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not convert the Word file.' });
+      handleStartOver();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleStartOver = () => {
+    setStep('upload');
+    setOriginalFile(null);
+    setOutputFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDownloadFile = () => {
+    if (!outputFile) return;
+    const url = URL.createObjectURL(outputFile.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = outputFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  if (isProcessing) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-20">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg font-medium">{processingMessage}</p>
+        <p className="text-muted-foreground">Please wait a moment...</p>
+      </div>
+    );
+  }
+
+  switch (step) {
+    case 'upload':
+      return (
+        <div className="w-full max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Word to PDF</h1>
+            <p className="text-muted-foreground mt-2">Convert your Microsoft Word documents to PDF format with high fidelity.</p>
+          </div>
+          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+            <CardContent className="p-10 text-center">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="bg-secondary p-4 rounded-full">
+                  <UploadCloud className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <p className="text-lg font-medium">Drag & drop a .docx file here</p>
+                <p className="text-muted-foreground">or</p>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".docx"
+                />
+                <Button size="lg" onClick={handleFileSelectClick}>Select File</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    
+    case 'download':
+        return (
+            <div className="w-full max-w-4xl mx-auto text-center">
+                 <div className="mb-8">
+                    <h1 className="text-3xl font-bold">Conversion Complete</h1>
+                    <p className="text-muted-foreground mt-2">The text from your Word document has been converted into a PDF.</p>
+                </div>
+                <Card className="mb-8">
+                    <CardContent className="p-2">
+                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Generated PDF Preview" />}
+                    </CardContent>
+                </Card>
+                <div className="flex justify-center gap-4">
+                    <Button onClick={handleStartOver} variant="outline">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Convert Another
+                    </Button>
+                    <Button onClick={handleDownloadFile} size="lg">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                    </Button>
+                </div>
+                 <p className="text-xs text-muted-foreground mt-4">Note: This tool converts text content only. Formatting like images, tables, and complex styles may not be preserved.</p>
+            </div>
+        )
+  }
+}
