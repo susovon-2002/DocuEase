@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -57,14 +58,6 @@ export function JpgToPdfClient() {
     }));
 
     setSelectedImages(prev => {
-       // Clean up old URLs before adding new ones
-      const newUrls = new Set(newImages.map(i => i.url));
-      prev.forEach(p => {
-        if (!newUrls.has(p.url)) {
-           // This logic is slightly complex as we are adding, not replacing.
-           // A better approach might be to just clean up everything on unmount.
-        }
-      });
       return [...prev, ...newImages];
     });
   };
@@ -223,7 +216,7 @@ export function JpgToPdfClient() {
                   >
                     {selectedImages.map((image, index) => (
                       <div 
-                        key={image.file.name + index} 
+                        key={image.url} 
                         className={cn(
                           "relative group aspect-square cursor-grab transition-opacity",
                           draggedImageIndex === index && "opacity-50"
