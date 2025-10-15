@@ -12,8 +12,8 @@ export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<s
     for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
         
-        // Use a high-resolution viewport
-        const viewport = page.getViewport({ scale: 2.0 }); 
+        // Use a higher resolution viewport for "HD" quality
+        const viewport = page.getViewport({ scale: 3.0 }); 
 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -28,8 +28,8 @@ export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<s
         };
 
         await page.render(renderContext).promise;
-        // Use JPEG for better performance with photos, and a high quality setting
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9); 
+        // Use PNG for lossless quality, which is better for text clarity
+        const dataUrl = canvas.toDataURL('image/png'); 
         imageUrls.push(dataUrl);
 
         // Clean up page resources
