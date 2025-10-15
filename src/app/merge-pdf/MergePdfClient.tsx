@@ -143,7 +143,7 @@ export function MergePdfClient() {
       setProcessingMessage('Generating thumbnails...');
       
       const tempMergedBytes = await mergedPdfDoc.save();
-      setMergedPdfBytes(tempMergedBytes); // Preserve the merged PDF data
+      setMergedPdfBytes(tempMergedBytes);
       
       const imageUrls = await renderPdfPagesToImageUrls(tempMergedBytes);
       const pageObjects: PageObject[] = imageUrls.map((url, i) => ({
