@@ -60,7 +60,7 @@ const AuthContent = () => {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={userProfile?.photoURL || user.photoURL || "https://picsum.photos/seed/user/100/100"} alt={userProfile?.name || user.email || 'User'} />
+              <AvatarImage src="" alt={userProfile?.name || user.email || 'User'} />
               <AvatarFallback>
                 <UserCircle />
               </AvatarFallback>
