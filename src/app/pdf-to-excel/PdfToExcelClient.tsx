@@ -60,7 +60,7 @@ export function PdfToExcelClient() {
         setStep('download');
         toast({
           title: 'Tables Extracted!',
-          description: 'Your data is ready to be downloaded as a CSV file.',
+          description: 'Your data is ready to be downloaded as a CSV file for Excel.',
         });
 
       } catch (error) {
@@ -107,11 +107,11 @@ export function PdfToExcelClient() {
         <div className="w-full max-w-4xl mx-auto">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold">Extraction Complete</h1>
-                <p className="text-muted-foreground mt-2">Your table data has been extracted and is ready for download.</p>
+                <p className="text-muted-foreground mt-2">Your table data has been extracted. Download the CSV file to open it in Excel.</p>
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>CSV Data Preview</CardTitle>
+                    <CardTitle>CSV Data Preview for Excel</CardTitle>
                     <CardDescription>
                         This is a preview of the data extracted from your PDF. Download it to open in Excel or another spreadsheet program.
                     </CardDescription>
@@ -120,7 +120,7 @@ export function PdfToExcelClient() {
                     <Textarea 
                         readOnly 
                         value={csvData} 
-                        className="w-full h-80 font-mono text-xs bg-muted"
+                        className="w-full h-80 font-mono text-base bg-muted"
                     />
                 </CardContent>
             </Card>
@@ -131,7 +131,7 @@ export function PdfToExcelClient() {
                 </Button>
                 <Button onClick={handleDownloadCsv} size="lg">
                     <Download className="mr-2 h-4 w-4" />
-                    Download CSV
+                    Download CSV for Excel
                 </Button>
             </div>
         </div>
@@ -143,7 +143,7 @@ export function PdfToExcelClient() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold">PDF to Excel</h1>
         <p className="text-muted-foreground mt-2">
-          Use AI to extract tables from your PDF and convert them into a downloadable CSV file.
+          Use AI to extract tables from your PDF and convert them into a CSV file for Excel.
         </p>
       </div>
       <Card>
