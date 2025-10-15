@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -234,7 +235,7 @@ export function WordToPdfClient() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".docx"
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   multiple
                 />
                 <Button size="lg" onClick={handleFileSelectClick}>Select Files</Button>
@@ -301,3 +302,5 @@ export function WordToPdfClient() {
         )
   }
 }
+
+    
