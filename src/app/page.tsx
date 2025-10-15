@@ -103,7 +103,6 @@ export default function Home() {
                             </Avatar>
                             <div>
                                 <p className="font-semibold">Ankit Adhikary</p>
-                                <p className="text-sm text-muted-foreground">Freelance Designer</p>
                             </div>
                         </div>
                     </CardContent>
@@ -118,7 +117,6 @@ export default function Home() {
                             </Avatar>
                             <div>
                                 <p className="font-semibold">Subajit Pal</p>
-                                <p className="text-sm text-muted-foreground">Real Estate Agent</p>
                             </div>
                         </div>
                     </CardContent>
@@ -133,7 +131,6 @@ export default function Home() {
                             </Avatar>
                             <div>
                                 <p className="font-semibold">Akash Roy</p>
-                                <p className="text-sm text-muted-foreground">Administrative Assistant</p>
                             </div>
                         </div>
                     </CardContent>
