@@ -96,42 +96,24 @@ export default function Home() {
                 <Card>
                     <CardContent className="p-6">
                         <p className="mb-4">"DocuEase has been a game-changer for my workflow. The batch processing features save me hours every week!"</p>
-                        <div className="flex items-center">
-                            <Avatar className="h-10 w-10 mr-4">
-                                <AvatarImage src="https://picsum.photos/seed/user1/100/100" />
-                                <AvatarFallback>AA</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">Ankit Adhikary</p>
-                            </div>
+                        <div>
+                            <p className="font-semibold">Ankit Adhikary</p>
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="p-6">
                         <p className="mb-4">"The PDF compression tool is the best I've ever used. It reduces file size significantly without losing quality."</p>
-                         <div className="flex items-center">
-                            <Avatar className="h-10 w-10 mr-4">
-                                <AvatarImage src="https://picsum.photos/seed/user2/100/100" />
-                                <AvatarFallback>SP</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">Subajit Pal</p>
-                            </div>
+                         <div>
+                            <p className="font-semibold">Subajit Pal</p>
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="p-6">
                         <p className="mb-4">"I rely on the 'Merge PDF' tool daily. It's incredibly fast and intuitive. Highly recommended for any office professional."</p>
-                         <div className="flex items-center">
-                            <Avatar className="h-10 w-10 mr-4">
-                                <AvatarImage src="https://picsum.photos/seed/user3/100/100" />
-                                <AvatarFallback>AR</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">Akash Roy</p>
-                            </div>
+                         <div>
+                            <p className="font-semibold">Akash Roy</p>
                         </div>
                     </CardContent>
                 </Card>
