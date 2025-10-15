@@ -50,24 +50,21 @@ export function MergePdfClient() {
 
     if (pdfFiles.length === 0) return;
     
-    await processNewFiles(pdfFiles);
-  };
-  
-  const processNewFiles = async (newFilesToProcess: File[]) => {
     setIsProcessing(true);
     setProcessingMessage('Processing files...');
     
     const startingFileIndex = selectedFiles.length;
-    setSelectedFiles(current => [...current, ...newFilesToProcess]);
+    // We update the selectedFiles state *before* processing to ensure correct indexing.
+    setSelectedFiles(current => [...current, ...pdfFiles]);
     setStep('reorder');
 
     try {
       const newPageObjects: PageObject[] = [];
+      // Use a counter that won't conflict with existing page IDs.
       let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
 
-
-      for (let i = 0; i < newFilesToProcess.length; i++) {
-        const file = newFilesToProcess[i];
+      for (let i = 0; i < pdfFiles.length; i++) {
+        const file = pdfFiles[i];
         const fileIndex = startingFileIndex + i;
         setProcessingMessage(`Reading ${file.name}...`);
         
@@ -117,7 +114,8 @@ export function MergePdfClient() {
     const newPages = pages.filter(p => p.id !== idToRemove);
     setPages(newPages);
 
-    // If removing the last page, check if any files are left
+    // If removing the last page of a file, we might need to adjust selectedFiles state in a more complex scenario,
+    // but for now, we just check if any pages are left at all.
     if (newPages.length === 0) {
       setSelectedFiles([]);
       setStep('upload');
@@ -150,6 +148,7 @@ export function MergePdfClient() {
       try {
         const finalPdf = await PDFDocument.create();
 
+        // Use a cache to avoid reloading the same source PDF multiple times
         const sourcePdfCache = new Map<number, PDFDocument>();
 
         for (const page of pages) {
@@ -262,6 +261,7 @@ export function MergePdfClient() {
             <CardContent className="p-6">
               <div
                 onDragOver={e => e.preventDefault()}
+                onDrop={handleDrop}
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
               >
                 {pages.map((page, index) => (
@@ -296,7 +296,7 @@ export function MergePdfClient() {
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
             </Button>
-             <Button onClick={handleFileSelectClick} variant="outline">
+             <Button onClick={handleFileSelectClick} variant="secondary">
                 <UploadCloud className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
