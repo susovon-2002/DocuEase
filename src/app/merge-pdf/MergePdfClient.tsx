@@ -194,8 +194,8 @@ export function MergePdfClient() {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save your work.' });
       return;
     }
-    if (!mergedPdfBytes) {
-        toast({ variant: 'destructive', title: 'Processing Error', description: 'Initial merged document not found.'});
+    if (pages.length === 0) {
+        toast({ variant: 'destructive', title: 'Processing Error', description: 'No pages available to create a PDF.'});
         return;
     }
 
@@ -203,11 +203,15 @@ export function MergePdfClient() {
     setProcessingMessage('Finalizing PDF...');
     try {
       const finalPdf = await PDFDocument.create();
-      const sourcePdf = await PDFDocument.load(mergedPdfBytes);
+      const sourcePdf = await PDFDocument.load(mergedPdfBytes!);
 
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
+      
       const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
-      copiedPages.forEach(page => finalPdf.addPage(page));
+      
+      copiedPages.forEach(page => {
+          finalPdf.addPage(page)
+      });
       
       const finalPdfBytes = await finalPdf.save();
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
@@ -298,28 +302,26 @@ export function MergePdfClient() {
 
     const reorderedPages: PageObject[] = [];
     let isValid = true;
+    
+    // Create a map for quick lookup
+    const originalPagesMap = new Map(pages.map(p => [p.originalPageIndex + 1, p]));
+
     for (const pageNum of newOrder) {
-      const pageIndex = pageNum - 1;
-      if (pageIndex >= 0 && pageIndex < pages.length) {
-        const foundPage = pages[pageIndex]; // Directly use index
+        const foundPage = originalPagesMap.get(pageNum);
         if (foundPage) {
            reorderedPages.push(foundPage);
         } else {
            isValid = false;
            break;
         }
-      } else {
-        isValid = false;
-        break;
-      }
     }
     
-    if(isValid) {
+    if(isValid && reorderedPages.length === pages.length) {
         setPages(reorderedPages);
         toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
         toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
-        setPageOrderInput(Array.from({ length: pages.length }, (_, i) => i + 1).join(', '));
+        setPageOrderInput(pages.map(p => p.originalPageIndex + 1).join(', '));
     }
   };
 
@@ -463,9 +465,14 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
+                 <div className="flex items-center justify-center">
+                    <Button variant="outline" className="w-full h-full" onClick={handleFileSelectClick}>
+                        <UploadCloud className="mr-2 h-4 w-4" /> Add More Files
+                    </Button>
+                </div>
               </div>
               <div className="flex justify-center gap-4 mt-6">
-                 <Button onClick={handleFileSelectClick} variant="outline">Add More Files</Button>
+                 <Button onClick={handleClearFiles} variant="outline">Clear All</Button>
                  <Button size="lg" disabled={isProcessing} onClick={handleInitialMerge}>
                   {isProcessing ? (
                     <>
