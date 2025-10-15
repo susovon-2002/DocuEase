@@ -299,46 +299,10 @@ export function MergePdfClient() {
       toast({ variant: 'destructive', title: 'Invalid Page Number', description: `The maximum page number is ${pages.length}.` });
       return;
     }
-    
-    const pageMap = new Map(pages.map((p, i) => [i + 1, p]));
-    const reorderedPages: PageObject[] = [];
-    
-    for (const pageNum of newOrder) {
-        const originalPageIndex = pages[pageNum - 1].originalPageIndex;
-        const pageToPlace = pages.find(p => p.originalPageIndex === originalPageIndex);
-        
-        const foundPage = pages[pageNum-1];
-        reorderedPages.push(foundPage);
-    }
 
-    const newPages: PageObject[] = newOrder.map(num => pages[num - 1]);
+    const reorderedPages = newOrder.map(num => pages[num - 1]);
+    setPages(reorderedPages);
 
-    const a = new Set(newPages.map(p => p.id));
-    
-    const originalPagesById = new Map(pages.map(p => [p.originalPageIndex, p]));
-    const finalPages: PageObject[] = [];
-
-    for (const pageNum of newOrder) {
-      const pageToMove = pages.find(p => p.originalPageIndex === pageNum - 1);
-      const currentPageObject = pages[pageNum-1];
-      if (currentPageObject) {
-          finalPages.push(currentPageObject);
-      }
-    }
-    
-    const pageOriginalOrder = pages.map(p => p.originalPageIndex + 1);
-    
-    const finalReorderedPages: PageObject[] = newOrder.map(orderNumber => {
-      // Find the page that was originally at this position
-      return pages[orderNumber - 1];
-    });
-
-
-    // Create a map of original page objects for quick lookup
-    const originalPagesMap = new Map(pages.map(p => [p.originalPageIndex, p]));
-    const reorderedPagesById: PageObject[] = newOrder.map(num => originalPagesMap.get(num - 1)!);
-
-    setPages(reorderedPagesById);
     toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
   };
 
@@ -365,6 +329,12 @@ export function MergePdfClient() {
             <iframe src={finalPdfUrl!} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
           </CardContent>
         </Card>
+         <div className="flex justify-center mt-4">
+            <Button onClick={handleStartOver} variant="link">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Merge Another
+            </Button>
+        </div>
       </div>
     )
   }
