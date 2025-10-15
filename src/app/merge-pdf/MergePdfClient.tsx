@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -36,28 +37,27 @@ export function MergePdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const processFiles = useCallback(async (filesToProcess: File[]) => {
-    if (filesToProcess.length === 0) return;
+  const processAndAddFiles = useCallback(async (filesToAdd: File[]) => {
+    if (filesToAdd.length === 0) return;
     
     setIsProcessing(true);
-    setProcessingMessage('Processing files...');
     
-    pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
-    
-    const allPageObjects: PageObject[] = [];
-    let pageIdCounter = 0;
+    const startingFileIndex = selectedFiles.length;
+    const newPages: PageObject[] = [];
+    let pageIdCounter = pages.length;
 
     try {
-      for (let fileIndex = 0; fileIndex < filesToProcess.length; fileIndex++) {
-        const file = filesToProcess[fileIndex];
-        setProcessingMessage(`Reading ${file.name}...`);
+      for (let i = 0; i < filesToAdd.length; i++) {
+        const file = filesToAdd[i];
+        const fileIndex = startingFileIndex + i;
+        setProcessingMessage(`Processing ${file.name}...`);
         
         const fileBuffer = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(fileBuffer);
         const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
-          allPageObjects.push({
+          newPages.push({
             id: Date.now() + pageIdCounter++,
             thumbnailUrl: imageUrls[pageIndex],
             originalFileIndex: fileIndex,
@@ -67,13 +67,14 @@ export function MergePdfClient() {
         }
       }
       
-      setPages(allPageObjects);
-      if (allPageObjects.length > 0) {
+      setPages(currentPages => [...currentPages, ...newPages]);
+      setSelectedFiles(currentFiles => [...currentFiles, ...filesToAdd]);
+
+      if (step === 'upload') {
         setStep('reorder');
-      } else {
-        setStep('upload');
       }
-      toast({ title: `${filesToProcess.length} file(s) loaded`, description: 'You can now reorder the pages.' });
+
+      toast({ title: `${filesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
 
     } catch (error) {
       console.error(error);
@@ -81,57 +82,32 @@ export function MergePdfClient() {
     } finally {
       setIsProcessing(false);
     }
-  }, [pages]);
+  }, [selectedFiles, pages, step]);
 
-  const handleFilesSelected = (newFiles: File[]) => {
-    const pdfFiles = newFiles.filter(file => file.type === 'application/pdf');
-    if (pdfFiles.length !== newFiles.length) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files were added. Other file types were ignored.',
-      });
-    }
-    if (pdfFiles.length === 0) return;
-
-    const updatedFiles = [...selectedFiles, ...pdfFiles];
-    setSelectedFiles(updatedFiles);
-    processFiles(updatedFiles);
-  };
-  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    handleFilesSelected(Array.from(event.target.files || []));
+    processAndAddFiles(Array.from(event.target.files || []));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    handleFilesSelected(Array.from(event.dataTransfer.files || []));
+    processAndAddFiles(Array.from(event.dataTransfer.files || []));
   };
   
   const handleRemovePage = (idToRemove: number) => {
-    const pageToRemove = pages.find(p => p.id === idToRemove);
-    if (!pageToRemove) return;
+    setPages(currentPages => {
+        const pageToRemove = currentPages.find(p => p.id === idToRemove);
+        if (pageToRemove) {
+            URL.revokeObjectURL(pageToRemove.thumbnailUrl);
+        }
+        const newPages = currentPages.filter(p => p.id !== idToRemove);
 
-    URL.revokeObjectURL(pageToRemove.thumbnailUrl);
-    
-    const newPages = pages.filter(p => p.id !== idToRemove);
-    
-    // Check if this was the last page of a specific file
-    const fileIndexToRemove = pageToRemove.originalFileIndex;
-    const wasLastPageOfFile = !newPages.some(p => p.originalFileIndex === fileIndexToRemove);
-    
-    setPages(newPages);
+        if (newPages.length === 0) {
+            handleStartOver();
+        }
 
-    if (wasLastPageOfFile) {
-        const newSelectedFiles = selectedFiles.filter((_, index) => index !== fileIndexToRemove);
-        setSelectedFiles(newSelectedFiles);
-        processFiles(newSelectedFiles);
-    }
-
-    if (newPages.length === 0) {
-      handleStartOver();
-    }
+        return newPages;
+    });
   };
   
   const handlePageDragStart = (index: number) => setDraggedPageIndex(index);
@@ -139,12 +115,13 @@ export function MergePdfClient() {
   const handlePageDragEnter = (index: number) => {
     if (draggedPageIndex === null || draggedPageIndex === index) return;
     
-    const newPages = [...pages];
-    const draggedItem = newPages.splice(draggedPageIndex, 1)[0];
-    newPages.splice(index, 0, draggedItem);
-    
-    setPages(newPages);
-    setDraggedPageIndex(index);
+    setPages(currentPages => {
+        const newPages = [...currentPages];
+        const draggedItem = newPages.splice(draggedPageIndex, 1)[0];
+        newPages.splice(index, 0, draggedItem);
+        setDraggedPageIndex(index);
+        return newPages;
+    });
   };
 
   const handlePageDragEnd = () => setDraggedPageIndex(null);
