@@ -24,7 +24,7 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
         const textContent = await page.getTextContent();
         
         if (textContent.items.length === 0) {
-            fullText += '\n\n-- Page Break --\n\n';
+            fullText += '\n\n';
             continue;
         }
 
@@ -51,10 +51,10 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
             pageText += lineText + '\n';
         }
 
-        fullText += pageText + '\n\n-- Page Break --\n\n';
+        fullText += pageText + '\n\n';
     }
 
-    return fullText.replace(/\n\n-- Page Break --\n\n$/, '');
+    return fullText.trim();
 }
 
 
