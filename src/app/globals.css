@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Calibri', sans-serif;
 }
 
 @layer base {
@@ -70,5 +70,3 @@ body {
     @apply bg-background text-foreground;
   }
 }
-
-    
