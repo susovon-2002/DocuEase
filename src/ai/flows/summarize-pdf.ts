@@ -36,7 +36,7 @@ const prompt = ai.definePrompt({
   name: 'summarizePdfPrompt',
   input: {schema: SummarizePdfInputSchema},
   output: {schema: SummarizePdfOutputSchema},
-  model: 'gemini-pro',
+  model: 'googleai/gemini-pro',
   prompt: `You are an expert summarizer of PDF documents.  You will receive the content of a PDF document, and you will generate a summary of the document of the requested length.
 
 Document: {{media url=pdfDataUri}}
