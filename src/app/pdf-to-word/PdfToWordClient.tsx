@@ -11,6 +11,7 @@ type ConvertStep = 'upload' | 'download';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
+// A more robust text extraction function
 async function getPdfText(file: File, onProgress: (message: string) => void): Promise<string> {
     const fileBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
@@ -22,21 +23,34 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        let lastY = -1;
-        let pageText = '';
+        if (textContent.items.length === 0) {
+            fullText += '\n\n-- Page Break --\n\n';
+            continue;
+        }
 
+        // Group text items by line
+        const lines: { [y: number]: { text: string, x: number }[] } = {};
         for (const item of textContent.items) {
-            // item.transform[5] is the y-coordinate
             if ('str' in item) {
-                if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
-                    // A significant change in y-coordinate indicates a new line.
-                    pageText += '\n';
+                // Round the y-coordinate to group items on the same line
+                const y = Math.round(item.transform[5]);
+                if (!lines[y]) {
+                    lines[y] = [];
                 }
-                
-                pageText += item.str;
-                lastY = item.transform[5];
+                lines[y].push({ text: item.str, x: item.transform[4] });
             }
         }
+
+        // Sort lines by y-coordinate (top to bottom), then sort text within each line by x-coordinate (left to right)
+        const sortedYCoords = Object.keys(lines).map(Number).sort((a, b) => b - a);
+        
+        let pageText = '';
+        for (const y of sortedYCoords) {
+            const lineItems = lines[y].sort((a, b) => a.x - b.x);
+            const lineText = lineItems.map(item => item.text).join(' ');
+            pageText += lineText + '\n';
+        }
+
         fullText += pageText + '\n\n-- Page Break --\n\n';
     }
 
