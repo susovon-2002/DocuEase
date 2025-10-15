@@ -49,40 +49,33 @@ export function MergePdfClient() {
     }
 
     if (pdfFiles.length === 0) return;
-
-    const newFiles = [...selectedFiles, ...pdfFiles];
-    setSelectedFiles(newFiles);
-    await processFiles(newFiles);
+    
+    await processNewFiles(pdfFiles);
   };
   
-  const processFiles = async (filesToProcess: File[]) => {
-    if (filesToProcess.length === 0) {
-      setPages([]);
-      setStep('upload');
-      return;
-    }
-    
+  const processNewFiles = async (newFilesToProcess: File[]) => {
     setIsProcessing(true);
     setProcessingMessage('Processing files...');
+    
+    const startingFileIndex = selectedFiles.length;
+    setSelectedFiles(current => [...current, ...newFilesToProcess]);
     setStep('reorder');
 
     try {
-      const allPageObjects: PageObject[] = [];
-      let pageIdCounter = 0;
+      const newPageObjects: PageObject[] = [];
+      let pageIdCounter = pages.length;
 
-      for (let fileIndex = 0; fileIndex < filesToProcess.length; fileIndex++) {
-        const file = filesToProcess[fileIndex];
+      for (let i = 0; i < newFilesToProcess.length; i++) {
+        const file = newFilesToProcess[i];
+        const fileIndex = startingFileIndex + i;
         setProcessingMessage(`Reading ${file.name}...`);
         
-        // Skip reprocessing files that are already in the pages state
-        if (pages.some(p => p.originalFileIndex === fileIndex)) continue;
-
         const fileBuffer = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(fileBuffer);
         const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
-          allPageObjects.push({
+          newPageObjects.push({
             id: Date.now() + pageIdCounter++,
             thumbnailUrl: imageUrls[pageIndex],
             originalFileIndex: fileIndex,
@@ -92,7 +85,7 @@ export function MergePdfClient() {
         }
       }
       
-      setPages(currentPages => [...currentPages, ...allPageObjects]);
+      setPages(currentPages => [...currentPages, ...newPageObjects]);
       toast({ title: 'Files Ready', description: 'Drag and drop pages to reorder them.' });
 
     } catch (error) {
@@ -118,14 +111,15 @@ export function MergePdfClient() {
     const pageToRemove = pages.find(p => p.id === idToRemove);
     if (!pageToRemove) return;
 
-    // Revoke the object URL to free memory
     URL.revokeObjectURL(pageToRemove.thumbnailUrl);
     
     const newPages = pages.filter(p => p.id !== idToRemove);
     setPages(newPages);
 
+    // If removing the last page, check if any files are left
     if (newPages.length === 0) {
-      handleStartOver();
+      setSelectedFiles([]);
+      setStep('upload');
     }
   };
   
@@ -155,7 +149,6 @@ export function MergePdfClient() {
       try {
         const finalPdf = await PDFDocument.create();
 
-        // Create a map to load each source PDF only once
         const sourcePdfCache = new Map<number, PDFDocument>();
 
         for (const page of pages) {
@@ -164,7 +157,7 @@ export function MergePdfClient() {
                 const sourceFile = selectedFiles[page.originalFileIndex];
                 if (!sourceFile) {
                     console.error(`Source file at index ${page.originalFileIndex} not found.`);
-                    continue; // or throw an error
+                    continue; 
                 }
                 const sourceBuffer = await sourceFile.arrayBuffer();
                 sourcePdf = await PDFDocument.load(sourceBuffer);
