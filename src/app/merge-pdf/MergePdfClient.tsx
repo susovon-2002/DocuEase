@@ -194,8 +194,8 @@ export function MergePdfClient() {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save your work.' });
       return;
     }
-    if (pages.length === 0) {
-        toast({ variant: 'destructive', title: 'Processing Error', description: 'No pages available to create a PDF.'});
+    if (pages.length === 0 || !mergedPdfBytes) {
+        toast({ variant: 'destructive', title: 'Processing Error', description: 'No pages or source PDF available to create the final document.'});
         return;
     }
 
@@ -203,8 +203,9 @@ export function MergePdfClient() {
     setProcessingMessage('Finalizing PDF...');
     try {
       const finalPdf = await PDFDocument.create();
-      const sourcePdf = await PDFDocument.load(mergedPdfBytes!);
+      const sourcePdf = await PDFDocument.load(mergedPdfBytes);
 
+      // Map the current visual order of pages back to their original indices in the merged document
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
       
       const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
@@ -303,21 +304,35 @@ export function MergePdfClient() {
     const reorderedPages: PageObject[] = [];
     let isValid = true;
     
-    // Create a map for quick lookup
+    // Create a map for quick lookup based on original page index
     const originalPagesMap = new Map(pages.map(p => [p.originalPageIndex + 1, p]));
 
     for (const pageNum of newOrder) {
-        const foundPage = originalPagesMap.get(pageNum);
+        // Find the page object that corresponds to the desired original page number
+        const foundPage = pages.find(p => p.originalPageIndex === pageNum - 1);
         if (foundPage) {
-           reorderedPages.push(foundPage);
+           // This logic is tricky. We need to build a new array in the specified order.
+           // Let's find the page by its number (1-based) in the *current* visual list
+           const pageToMove = pages[pageNum - 1];
+           // This is still not quite right. The user input refers to the *original* page numbers.
+        }
+    }
+
+    const currentPagesByOriginalIndex = new Map(pages.map(p => [p.originalPageIndex, p]));
+    const finalReorderedPages: PageObject[] = [];
+    
+    for (const originalPageNum of newOrder) {
+        const pageToPlace = currentPagesByOriginalIndex.get(originalPageNum - 1);
+        if (pageToPlace) {
+            finalReorderedPages.push(pageToPlace);
         } else {
-           isValid = false;
-           break;
+            isValid = false;
+            break;
         }
     }
     
-    if(isValid && reorderedPages.length === pages.length) {
-        setPages(reorderedPages);
+    if(isValid && finalReorderedPages.length === pages.length) {
+        setPages(finalReorderedPages);
         toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
         toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
