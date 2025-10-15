@@ -50,8 +50,9 @@ export function MergePdfClient() {
 
     if (pdfFiles.length === 0) return;
 
-    setSelectedFiles(prev => [...prev, ...pdfFiles]);
-    await processFiles([...selectedFiles, ...pdfFiles]);
+    const newFiles = [...selectedFiles, ...pdfFiles];
+    setSelectedFiles(newFiles);
+    await processFiles(newFiles);
   };
   
   const processFiles = async (filesToProcess: File[]) => {
@@ -73,13 +74,16 @@ export function MergePdfClient() {
         const file = filesToProcess[fileIndex];
         setProcessingMessage(`Reading ${file.name}...`);
         
+        // Skip reprocessing files that are already in the pages state
+        if (pages.some(p => p.originalFileIndex === fileIndex)) continue;
+
         const fileBuffer = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(fileBuffer);
         const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
           allPageObjects.push({
-            id: pageIdCounter++,
+            id: Date.now() + pageIdCounter++,
             thumbnailUrl: imageUrls[pageIndex],
             originalFileIndex: fileIndex,
             originalPageIndex: pageIndex,
@@ -88,7 +92,7 @@ export function MergePdfClient() {
         }
       }
       
-      setPages(allPageObjects);
+      setPages(currentPages => [...currentPages, ...allPageObjects]);
       toast({ title: 'Files Ready', description: 'Drag and drop pages to reorder them.' });
 
     } catch (error) {
@@ -158,6 +162,10 @@ export function MergePdfClient() {
             let sourcePdf = sourcePdfCache.get(page.originalFileIndex);
             if (!sourcePdf) {
                 const sourceFile = selectedFiles[page.originalFileIndex];
+                if (!sourceFile) {
+                    console.error(`Source file at index ${page.originalFileIndex} not found.`);
+                    continue; // or throw an error
+                }
                 const sourceBuffer = await sourceFile.arrayBuffer();
                 sourcePdf = await PDFDocument.load(sourceBuffer);
                 sourcePdfCache.set(page.originalFileIndex, sourcePdf);
@@ -260,6 +268,10 @@ export function MergePdfClient() {
             <CardContent className="p-6">
               <div
                 onDragOver={e => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleFilesSelected(Array.from(e.dataTransfer.files || []));
+                }}
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
               >
                 {pages.map((page, index) => (
