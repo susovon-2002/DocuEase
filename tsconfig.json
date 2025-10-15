@@ -21,7 +21,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["@types/lodash", "@types/jszip"]
+    "types": ["@types/lodash", "@types/jszip", "@types/pdfjs-dist"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
