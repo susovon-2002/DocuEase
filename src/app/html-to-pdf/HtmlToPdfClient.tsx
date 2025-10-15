@@ -1,267 +1,66 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-
-type ConvertStep = 'upload' | 'preview' | 'download';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Printer, File, ArrowRight } from 'lucide-react';
 
 export function HtmlToPdfClient() {
-  const [step, setStep] = useState<ConvertStep>('upload');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState('Processing...');
-  
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState('');
-  
-  const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const handleFileSelectClick = () => fileInputRef.current?.click();
-
-  const extractTextFromHtml = async (file: File): Promise<string> => {
-    const fileText = await file.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(fileText, "text/html");
-    return doc.body.textContent || "";
-  };
-
-  const createPdfFromText = async (text: string) => {
-    const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontSize = 12;
-    const margin = 50;
-    const maxWidth = width - margin * 2;
-    const lineHeight = fontSize * 1.2;
-
-    const textLines = text.split('\n');
-    let y = height - margin;
-
-    for (const line of textLines) {
-      let currentLine = line.trim();
-      while (currentLine.length > 0) {
-        if (y < margin) {
-          page = pdfDoc.addPage();
-          y = page.getHeight() - margin;
-        }
-
-        let breakIndex = currentLine.length;
-        let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
-
-        if (lineWidth > maxWidth) {
-          let charCount = 0;
-          while(charCount < currentLine.length) {
-              const nextCharWidth = font.widthOfTextAtSize(currentLine.substring(0, charCount + 1), fontSize);
-              if (nextCharWidth > maxWidth) {
-                  break;
-              }
-              charCount++;
-          }
-          
-          const lastSpace = currentLine.substring(0, charCount).lastIndexOf(' ');
-          if (lastSpace > 0) {
-            breakIndex = lastSpace;
-          } else {
-            breakIndex = charCount;
-          }
-        }
-        
-        const lineToDraw = currentLine.substring(0, breakIndex);
-        page.drawText(lineToDraw, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
-        y -= lineHeight;
-        currentLine = currentLine.substring(breakIndex).trim();
-      }
-    }
-    
-    const pdfBytes = await pdfDoc.save();
-    return new Blob([pdfBytes], { type: 'application/pdf' });
-  };
-  
-  const handleFileUpload = async (file: File | null) => {
-    if (file) {
-      if (!file.type.startsWith('text/html')) {
-        toast({
-            variant: 'destructive',
-            title: 'Invalid file type',
-            description: 'Please upload a .html file.',
-        });
-        return;
-      }
-
-      setOriginalFile(file);
-      setIsProcessing(true);
-      
-      try {
-        const textContent = await extractTextFromHtml(file);
-        setExtractedText(textContent);
-        setStep('preview');
-        toast({ title: 'Text Extracted', description: `Review the text from your HTML file and proceed.` });
-      } catch(e) {
-          console.error(e);
-          toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of the HTML file.' });
-          handleStartOver();
-      } finally {
-          setIsProcessing(false);
-      }
-    }
-  }
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files ? event.target.files[0] : null;
-    handleFileUpload(file);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files ? event.dataTransfer.files[0] : null;
-    handleFileUpload(file);
-  };
-  
-  const handleConvert = async () => {
-    if (!originalFile || !extractedText) return;
-    
-    setIsProcessing(true);
-    setProcessingMessage('Creating PDF...');
-
-    try {
-        const pdfBlob = await createPdfFromText(extractedText);
-        
-        const outputName = originalFile.name.replace(/\.html?$/i, '.pdf');
-
-        setOutputFile({ name: outputName, blob: pdfBlob });
-        setStep('download');
-        toast({ title: 'Conversion Complete!', description: 'Your HTML file has been converted to a PDF.' });
-
-    } catch (error) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not convert the HTML file.' });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleStartOver = () => {
-    setStep('upload');
-    setOriginalFile(null);
-    setOutputFile(null);
-    setExtractedText('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleDownloadFile = () => {
-    if (!outputFile) return;
-    const url = URL.createObjectURL(outputFile.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = outputFile.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  
-  if (isProcessing) {
-    return (
-      <div className="flex flex-col items-center justify-center text-center py-20">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg font-medium">{processingMessage}</p>
-        <p className="text-muted-foreground">Please wait a moment...</p>
+  return (
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold">HTML to PDF</h1>
+        <p className="text-muted-foreground mt-2">The best way to convert an HTML page to a PDF is by using your browser’s built-in Print function.</p>
       </div>
-    );
-  }
 
-  switch (step) {
-    case 'upload':
-      return (
-        <div className="w-full max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold">HTML to PDF</h1>
-            <p className="text-muted-foreground mt-2">Convert your HTML files to PDF documents.</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>How to Convert a Webpage to PDF</CardTitle>
+          <CardDescription>
+            This method works on any website and provides the highest quality conversion.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 flex flex-col items-center gap-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">1</div>
+              <div className="h-6 w-px bg-border"></div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Open the Webpage</h3>
+              <p className="text-muted-foreground">Navigate to the webpage you want to convert in Chrome, Firefox, Safari, or Edge.</p>
+            </div>
           </div>
-          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-            <CardContent className="p-10 text-center">
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="bg-secondary p-4 rounded-full">
-                  <UploadCloud className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-medium">Drag & drop a .html file here</p>
-                <p className="text-muted-foreground">or</p>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".html,.htm"
-                />
-                <Button size="lg" onClick={handleFileSelectClick}>Select File</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    
-    case 'preview':
-        return (
-             <div className="w-full max-w-4xl mx-auto text-center">
-                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Review Extracted Text</h1>
-                    <p className="text-muted-foreground mt-2">This is the text content found in your HTML file. Proceed to create the PDF.</p>
-                </div>
-                <Card className="mb-8">
-                    <CardContent className="p-4">
-                        <Textarea
-                            readOnly
-                            value={extractedText}
-                            className="w-full h-96 rounded-md border bg-muted p-4 text-base font-body"
-                            placeholder="Extracted text will appear here."
-                        />
-                    </CardContent>
-                </Card>
-                 <div className="flex justify-center gap-4">
-                    <Button onClick={handleStartOver} variant="outline">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
-                    </Button>
-                    <Button onClick={handleConvert} size="lg">
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Create PDF
-                    </Button>
-                </div>
-            </div>
-        );
 
-    case 'download':
-        return (
-            <div className="w-full max-w-4xl mx-auto text-center">
-                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Conversion Complete</h1>
-                    <p className="text-muted-foreground mt-2">The text from your HTML file has been converted into a PDF.</p>
-                </div>
-                <Card className="mb-8">
-                    <CardContent className="p-2">
-                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Generated PDF Preview" />}
-                    </CardContent>
-                </Card>
-                <div className="flex justify-center gap-4">
-                    <Button onClick={handleStartOver} variant="outline">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Convert Another
-                    </Button>
-                    <Button onClick={handleDownloadFile} size="lg">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download PDF
-                    </Button>
-                </div>
-                 <p className="text-xs text-muted-foreground mt-4">Note: This tool converts text content only. Styles, images, and complex layouts from the HTML are not preserved.</p>
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 flex flex-col items-center gap-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">2</div>
+               <div className="h-6 w-px bg-border"></div>
             </div>
-        )
-  }
+            <div>
+              <h3 className="font-semibold">Open the Print Menu</h3>
+              <p className="text-muted-foreground">Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+P</kbd> on Windows or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Cmd+P</kbd> on Mac. You can also find "Print" in your browser's menu.</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+             <div className="flex-shrink-0 flex flex-col items-center gap-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">3</div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Change the Destination to PDF</h3>
+              <p className="text-muted-foreground">In the print preview window, find the "Destination" or "Printer" dropdown and select "Save as PDF".</p>
+            </div>
+          </div>
+            <div className="flex items-start gap-4">
+             <div className="flex-shrink-0 flex flex-col items-center gap-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">4</div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Save</h3>
+              <p className="text-muted-foreground">Click the "Save" button and choose where to save your new PDF file.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
