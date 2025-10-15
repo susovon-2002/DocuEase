@@ -37,35 +37,38 @@ export function MergePdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const handleFilesSelected = async (files: File[]) => {
-    const pdfFiles = files.filter(file => file.type === 'application/pdf');
-    
-    if (pdfFiles.length !== files.length) {
+  const handleFilesSelected = async (files: FileList | null) => {
+    const newFiles = Array.from(files || []).filter(file => file.type === 'application/pdf');
+
+    if (files && newFiles.length !== files.length) {
       toast({
         variant: 'destructive',
         title: 'Invalid file type',
-        description: 'Only PDF files are supported.',
+        description: 'Only PDF files were added. Other file types were ignored.',
       });
     }
 
-    if (pdfFiles.length === 0) return;
+    if (newFiles.length === 0) return;
     
     setIsProcessing(true);
     setProcessingMessage('Processing files...');
     
-    const startingFileIndex = selectedFiles.length;
-    // We update the selectedFiles state *before* processing to ensure correct indexing.
-    setSelectedFiles(current => [...current, ...pdfFiles]);
-    setStep('reorder');
+    // This is a more robust way to handle adding new files to existing state
+    const currentFileCount = selectedFiles.length;
+    const allFiles = [...selectedFiles, ...newFiles];
+    setSelectedFiles(allFiles);
+
+    if (step === 'upload') {
+      setStep('reorder');
+    }
 
     try {
       const newPageObjects: PageObject[] = [];
-      // Use a counter that won't conflict with existing page IDs.
       let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
 
-      for (let i = 0; i < pdfFiles.length; i++) {
-        const file = pdfFiles[i];
-        const fileIndex = startingFileIndex + i;
+      for (let i = 0; i < newFiles.length; i++) {
+        const file = newFiles[i];
+        const fileIndex = currentFileCount + i;
         setProcessingMessage(`Reading ${file.name}...`);
         
         const fileBuffer = await file.arrayBuffer();
@@ -84,25 +87,24 @@ export function MergePdfClient() {
       }
       
       setPages(currentPages => [...currentPages, ...newPageObjects]);
-      toast({ title: 'Files Ready', description: 'Drag and drop pages to reorder them.' });
+      toast({ title: `${newFiles.length} file(s) added`, description: 'You can now reorder the pages.' });
 
     } catch (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not process the PDF files.' });
-      handleStartOver(); // Reset if something fails
+      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not process one of the PDF files.' });
     } finally {
       setIsProcessing(false);
     }
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    handleFilesSelected(Array.from(event.target.files || []));
+    handleFilesSelected(event.target.files);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    handleFilesSelected(Array.from(event.dataTransfer.files || []));
+    handleFilesSelected(event.dataTransfer.files);
   };
   
   const handleRemovePage = (idToRemove: number) => {
@@ -114,8 +116,6 @@ export function MergePdfClient() {
     const newPages = pages.filter(p => p.id !== idToRemove);
     setPages(newPages);
 
-    // If removing the last page of a file, we might need to adjust selectedFiles state in a more complex scenario,
-    // but for now, we just check if any pages are left at all.
     if (newPages.length === 0) {
       setSelectedFiles([]);
       setStep('upload');
@@ -148,7 +148,6 @@ export function MergePdfClient() {
       try {
         const finalPdf = await PDFDocument.create();
 
-        // Use a cache to avoid reloading the same source PDF multiple times
         const sourcePdfCache = new Map<number, PDFDocument>();
 
         for (const page of pages) {
@@ -260,8 +259,6 @@ export function MergePdfClient() {
           <Card>
             <CardContent className="p-6">
               <div
-                onDragOver={e => e.preventDefault()}
-                onDrop={handleDrop}
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
               >
                 {pages.map((page, index) => (
@@ -289,15 +286,23 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
+                {/* Placeholder for dropping more files */}
+                 <div
+                    onDragOver={e => {e.preventDefault(); e.currentTarget.classList.add('border-primary', 'bg-primary/10');}}
+                    onDragLeave={e => {e.preventDefault(); e.currentTarget.classList.remove('border-primary', 'bg-primary/10');}}
+                    onDrop={e => {handleDrop(e); e.currentTarget.classList.remove('border-primary', 'bg-primary/10');}}
+                    onClick={handleFileSelectClick}
+                    className="flex flex-col items-center justify-center text-center p-4 border-2 border-dashed rounded-md text-muted-foreground cursor-pointer transition-colors"
+                >
+                    <UploadCloud className="h-8 w-8 mb-2" />
+                    <p className="text-xs">Add More Files</p>
+                </div>
               </div>
             </CardContent>
           </Card>
           <div className="flex justify-center gap-4 mt-8">
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
-            </Button>
-             <Button onClick={handleFileSelectClick} variant="secondary">
-                <UploadCloud className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" /> Merge PDF
