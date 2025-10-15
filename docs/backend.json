@@ -44,7 +44,7 @@
         },
         "subscriptionId": {
           "type": "string",
-          "description": "Reference to Subscription. (Relationship: Subscription 1:1 User)"
+          "description": "Reference to Subscription. (Relationship: Subscription 1:1 User). This is optional."
         },
         "isAdmin": {
           "type": "boolean",
@@ -191,7 +191,8 @@
           "description": "The type of order.",
           "enum": [
             "Document",
-            "Photo"
+            "Photo",
+            "Subscription"
           ]
         },
         "totalAmount": {

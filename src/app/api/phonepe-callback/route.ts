@@ -64,25 +64,48 @@ export async function POST(request: Request) {
     }
 
     if (code === 'PAYMENT_SUCCESS') {
-      const orderRef = firestore.collection('orders').doc();
-      await orderRef.set({
-        id: orderRef.id,
-        userId: orderDetails.userId,
-        orderDate: admin.firestore.FieldValue.serverTimestamp(),
-        orderType: orderDetails.orderType,
-        totalAmount: orderDetails.amount,
-        status: 'Processing',
-        items: orderDetails.items,
-        deliveryAddress: orderDetails.deliveryAddress,
-        paymentDetails: {
-          transactionId: merchantTransactionId,
-          paymentProvider: 'PhonePe',
-          paymentStatus: 'Success',
-          paymentMethod: paymentData.paymentInstrument.type,
-        }
-      });
+      if (orderDetails.orderType === 'Subscription') {
+        const subscriptionRef = firestore.collection('subscriptions').doc();
+        const userRef = firestore.collection('users').doc(orderDetails.userId);
+        
+        const startDate = admin.firestore.Timestamp.now();
+        const endDate = new admin.firestore.Timestamp(startDate.seconds + (orderDetails.durationDays * 24 * 60 * 60), startDate.nanoseconds);
+
+        await subscriptionRef.set({
+          id: subscriptionRef.id,
+          planType: orderDetails.planName,
+          startDate,
+          endDate,
+          price: orderDetails.amount,
+        });
+
+        await userRef.update({
+          subscriptionId: subscriptionRef.id
+        });
+
+      } else {
+        const orderRef = firestore.collection('orders').doc();
+        await orderRef.set({
+          id: orderRef.id,
+          userId: orderDetails.userId,
+          orderDate: admin.firestore.FieldValue.serverTimestamp(),
+          orderType: orderDetails.orderType,
+          totalAmount: orderDetails.amount,
+          status: 'Processing',
+          items: orderDetails.items,
+          deliveryAddress: orderDetails.deliveryAddress,
+          paymentDetails: {
+            transactionId: merchantTransactionId,
+            paymentProvider: 'PhonePe',
+            paymentStatus: 'Success',
+            paymentMethod: paymentData.paymentInstrument.type,
+          }
+        });
+      }
+
       // Update the temporary doc so client-side polling can confirm success.
       await pendingPaymentRef.update({ status: 'SUCCESS' });
+
     } else {
       // Update temp doc to reflect failure
       await pendingPaymentRef.update({ status: 'FAILED', reason: code });
