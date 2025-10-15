@@ -24,7 +24,7 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
         const textContent = await page.getTextContent();
         
         if (textContent.items.length === 0) {
-            fullText += '\n\n';
+            fullText += '\n'; // Add a page break for empty pages
             continue;
         }
 
@@ -51,7 +51,7 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
             pageText += lineText + '\n';
         }
 
-        fullText += pageText + '\n\n';
+        fullText += pageText + '\n';
     }
 
     return fullText.trim();
@@ -198,7 +198,7 @@ export function PdfToWordClient() {
                         <textarea
                             readOnly
                             value={outputFile?.textContent}
-                            className="w-full h-96 rounded-md border bg-muted p-4 text-sm font-mono"
+                            className="w-full h-96 rounded-md border bg-muted p-4 text-sm font-body"
                             placeholder="Extracted text will appear here."
                         />
                     </CardContent>
