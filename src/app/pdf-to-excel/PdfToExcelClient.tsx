@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Sparkles, UploadCloud, Download, ArrowLeft } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -60,7 +61,7 @@ export function PdfToExcelClient() {
         setStep('download');
         toast({
           title: 'Tables Extracted!',
-          description: 'Your data is ready to be downloaded as a CSV file for Excel.',
+          description: 'Your data is ready to be downloaded as an Excel file.',
         });
 
       } catch (error) {
@@ -83,16 +84,24 @@ export function PdfToExcelClient() {
     };
   };
 
-  const handleDownloadCsv = () => {
+  const handleDownloadExcel = () => {
     if (!csvData) return;
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${fileName.replace('.pdf', '')}_data.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    // The AI might return multiple CSVs separated by newlines.
+    // We'll put each one in a separate sheet.
+    const csvBlobs = csvData.split(/\n\n\n*/);
+    
+    const wb = XLSX.utils.book_new();
+
+    csvBlobs.forEach((csv, index) => {
+      if (csv.trim() === '') return;
+      const ws = XLSX.utils.csv_to_sheet(csv);
+      XLSX.utils.book_append_sheet(wb, ws, `Sheet${index + 1}`);
+    });
+    
+    const excelFileName = `${fileName.replace('.pdf', '')}_data.xlsx`;
+    
+    XLSX.writeFile(wb, excelFileName);
   }
   
   const handleStartOver = () => {
@@ -107,20 +116,20 @@ export function PdfToExcelClient() {
         <div className="w-full max-w-4xl mx-auto">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold">Extraction Complete</h1>
-                <p className="text-muted-foreground mt-2">Your table data has been extracted. Download the CSV file to open it in Excel.</p>
+                <p className="text-muted-foreground mt-2">Your table data has been extracted. Download the Excel file to open it.</p>
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>CSV Data Preview for Excel</CardTitle>
+                    <CardTitle>Extracted Data Preview</CardTitle>
                     <CardDescription>
-                        This is a preview of the data extracted from your PDF. Download it to open in Excel or another spreadsheet program.
+                        This is a preview of the data extracted from your PDF. Download it to open in Excel.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Textarea 
                         readOnly 
                         value={csvData} 
-                        className="w-full h-80 font-mono text-base bg-muted"
+                        className="w-full h-80 font-mono text-xs bg-muted"
                     />
                 </CardContent>
             </Card>
@@ -129,9 +138,9 @@ export function PdfToExcelClient() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Convert Another File
                 </Button>
-                <Button onClick={handleDownloadCsv} size="lg">
+                <Button onClick={handleDownloadExcel} size="lg">
                     <Download className="mr-2 h-4 w-4" />
-                    Download CSV for Excel
+                    Download Excel (.xlsx)
                 </Button>
             </div>
         </div>
@@ -143,7 +152,7 @@ export function PdfToExcelClient() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold">PDF to Excel</h1>
         <p className="text-muted-foreground mt-2">
-          Use AI to extract tables from your PDF and convert them into a CSV file for Excel.
+          Use AI to extract tables from your PDF and convert them into a structured Excel file.
         </p>
       </div>
       <Card>
