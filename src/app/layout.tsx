@@ -11,6 +11,7 @@ import { Analytics } from '@vercel/analytics/react';
 export const metadata: Metadata = {
   title: 'DocuEase',
   description: 'Convert, compress, merge PDFs or Word files online.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
