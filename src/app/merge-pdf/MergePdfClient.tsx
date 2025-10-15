@@ -63,7 +63,8 @@ export function MergePdfClient() {
 
     try {
       const newPageObjects: PageObject[] = [];
-      let pageIdCounter = pages.length;
+      let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
+
 
       for (let i = 0; i < newFilesToProcess.length; i++) {
         const file = newFilesToProcess[i];
@@ -261,10 +262,6 @@ export function MergePdfClient() {
             <CardContent className="p-6">
               <div
                 onDragOver={e => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleFilesSelected(Array.from(e.dataTransfer.files || []));
-                }}
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
               >
                 {pages.map((page, index) => (
@@ -292,21 +289,15 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
-                 <div 
-                    className="flex items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:bg-accent hover:border-primary transition-colors"
-                    onClick={handleFileSelectClick}
-                  >
-                    <div className="text-center text-muted-foreground p-4">
-                      <UploadCloud className="mx-auto h-8 w-8 mb-2" />
-                      <p className="text-sm">Add More Files</p>
-                    </div>
-                 </div>
               </div>
             </CardContent>
           </Card>
           <div className="flex justify-center gap-4 mt-8">
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
+            </Button>
+             <Button onClick={handleFileSelectClick} variant="outline">
+                <UploadCloud className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" /> Merge PDF
