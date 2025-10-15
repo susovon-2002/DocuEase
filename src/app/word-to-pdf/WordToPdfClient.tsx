@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 
-type ConvertStep = 'upload' | 'download';
+type ConvertStep = 'upload' | 'preview' | 'download';
 
 export function WordToPdfClient() {
   const [step, setStep] = useState<ConvertStep>('upload');
@@ -17,6 +17,7 @@ export function WordToPdfClient() {
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [extractedText, setExtractedText] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, textContent: string } | null>(null);
   
@@ -74,25 +75,19 @@ export function WordToPdfClient() {
         let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
 
         if (lineWidth > maxWidth) {
-          // Find the last space to break the line
-          for (let i = currentLine.length - 1; i >= 0; i--) {
-            if (currentLine[i] === ' ') {
-              const subLine = currentLine.substring(0, i);
-              if (font.widthOfTextAtSize(subLine, fontSize) <= maxWidth) {
-                breakIndex = i;
-                break;
+          let charCount = 0;
+          while(charCount < currentLine.length) {
+              const nextCharWidth = font.widthOfTextAtSize(currentLine.substring(0, charCount + 1), fontSize);
+              if (nextCharWidth > maxWidth) {
+                  break;
               }
-            }
+              charCount++;
           }
-          // If no space found, break mid-word
-          if (breakIndex === currentLine.length) {
-              let charCount = 0;
-              while (charCount < currentLine.length) {
-                  if (font.widthOfTextAtSize(currentLine.substring(0, charCount+1), fontSize) > maxWidth) {
-                      break;
-                  }
-                  charCount++;
-              }
+
+          const lastSpace = currentLine.substring(0, charCount).lastIndexOf(' ');
+          if(lastSpace > 0) {
+              breakIndex = lastSpace;
+          } else {
               breakIndex = charCount;
           }
         }
@@ -109,10 +104,23 @@ export function WordToPdfClient() {
   };
 
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileUpload = async (file: File | null) => {
     if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        handleConvert(file);
+        setOriginalFile(file);
+        setIsProcessing(true);
+        setProcessingMessage('Extracting text...');
+        try {
+            const textContent = await extractTextFromDocx(file);
+            setExtractedText(textContent);
+            setStep('preview');
+            toast({ title: 'Text Extracted', description: 'Review the text and proceed to create your PDF.' });
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of the Word file.' });
+            handleStartOver();
+        } finally {
+            setIsProcessing(false);
+        }
     } else if (file) {
       toast({
         variant: 'destructive',
@@ -120,36 +128,32 @@ export function WordToPdfClient() {
         description: 'Only .docx Word files are supported.',
       });
     }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    handleFileUpload(file || null);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-       handleConvert(file);
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only .docx Word files are supported for dropping.',
-      });
-    }
+    handleFileUpload(file || null);
   };
   
-  const handleConvert = async (file: File) => {
-    setOriginalFile(file);
+  const handleConvert = async () => {
+    if (!originalFile || !extractedText) return;
+    
     setIsProcessing(true);
-    setProcessingMessage('Extracting text from Word file...');
+    setProcessingMessage('Creating PDF...');
 
     try {
-        const textContent = await extractTextFromDocx(file);
-        setProcessingMessage('Creating PDF...');
-        const pdfBlob = await createPdfFromText(textContent);
+        const pdfBlob = await createPdfFromText(extractedText);
         
         setOutputFile({ 
-            name: `${file.name.replace(/\.docx$/i, '')}.pdf`, 
+            name: `${originalFile.name.replace(/\.docx$/i, '')}.pdf`, 
             blob: pdfBlob,
-            textContent: textContent
+            textContent: extractedText
         });
         setStep('download');
         toast({ title: 'Conversion Complete!', description: 'Your Word document has been converted to a PDF.' });
@@ -157,7 +161,6 @@ export function WordToPdfClient() {
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not convert the Word file.' });
-      handleStartOver();
     } finally {
       setIsProcessing(false);
     }
@@ -167,6 +170,7 @@ export function WordToPdfClient() {
     setStep('upload');
     setOriginalFile(null);
     setOutputFile(null);
+    setExtractedText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -222,6 +226,36 @@ export function WordToPdfClient() {
         </div>
       );
     
+    case 'preview':
+        return (
+             <div className="w-full max-w-4xl mx-auto text-center">
+                 <div className="mb-8">
+                    <h1 className="text-3xl font-bold">Review Extracted Text</h1>
+                    <p className="text-muted-foreground mt-2">This is the text content found in your document. Proceed to create the PDF.</p>
+                </div>
+                <Card className="mb-8">
+                    <CardContent className="p-4">
+                        <Textarea
+                            readOnly
+                            value={extractedText}
+                            className="w-full h-96 rounded-md border bg-muted p-4 text-base font-body"
+                            placeholder="Extracted text will appear here."
+                        />
+                    </CardContent>
+                </Card>
+                 <div className="flex justify-center gap-4">
+                    <Button onClick={handleStartOver} variant="outline">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
+                    </Button>
+                    <Button onClick={handleConvert} size="lg">
+                        <Wand2 className="mr-2 h-4 w-4" />
+                        Create PDF
+                    </Button>
+                </div>
+            </div>
+        );
+
     case 'download':
         return (
             <div className="w-full max-w-4xl mx-auto text-center">
