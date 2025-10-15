@@ -383,10 +383,6 @@ export default function DashboardPage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center text-center">
-                    <Avatar className="w-24 h-24 mb-4 border-4 border-background shadow-md">
-                        <AvatarImage src={userProfile?.photoURL || user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} />
-                        <AvatarFallback><UserCircle className="w-12 h-12" /></AvatarFallback>
-                    </Avatar>
                     <h3 className="font-semibold text-lg">{userProfile?.name || user.email}</h3>
                     <p className="text-muted-foreground text-sm">{userProfile?.role}{userProfile?.role && userProfile?.company ? ' at ' : ''}{userProfile?.company}</p>
                     <p className="text-muted-foreground text-xs mt-2">{user.email}</p>
