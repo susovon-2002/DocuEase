@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 type ConvertStep = 'upload' | 'download';
 
@@ -58,7 +59,11 @@ export function JpgToPdfClient() {
     }));
 
     setSelectedImages(prev => {
-      return [...prev, ...newImages];
+      const updatedImages = [...prev, ...newImages];
+      if (step === 'upload' && updatedImages.length > 0) {
+        setStep('upload'); // Stay on the upload step but with previews
+      }
+      return updatedImages;
     });
   };
 
@@ -103,6 +108,25 @@ export function JpgToPdfClient() {
 
   const handleImageDragEnd = () => {
     setDraggedImageIndex(null);
+  };
+
+  const handleImagePositionChange = (currentIndex: number, newPositionStr: string) => {
+    const newPosition = parseInt(newPositionStr, 10);
+    if (isNaN(newPosition) || newPosition < 1 || newPosition > selectedImages.length) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid Position',
+            description: `Please enter a number between 1 and ${selectedImages.length}.`
+        });
+        return;
+    }
+
+    setSelectedImages(currentImages => {
+        const newImages = [...currentImages];
+        const itemToMove = newImages.splice(currentIndex, 1)[0];
+        newImages.splice(newPosition - 1, 0, itemToMove);
+        return newImages;
+    });
   };
   
   const handleConvert = async () => {
@@ -211,30 +235,47 @@ export function JpgToPdfClient() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-center mb-4">Selected Images ({selectedImages.length})</h3>
                    <div 
-                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto p-2"
+                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[60vh] overflow-y-auto p-2"
                     onDragOver={(e) => e.preventDefault()}
                   >
                     {selectedImages.map((image, index) => (
                       <div 
-                        key={image.url} 
-                        className={cn(
-                          "relative group aspect-square cursor-grab transition-opacity",
-                          draggedImageIndex === index && "opacity-50"
-                        )}
-                        draggable
-                        onDragStart={() => handleImageDragStart(index)}
-                        onDragEnter={() => handleImageDragEnter(index)}
-                        onDragEnd={handleImageDragEnd}
-                        onDragOver={(e) => e.preventDefault()}
+                        key={image.url}
+                        className="space-y-2"
                       >
-                        <img src={image.url} alt={image.file.name} className="rounded-md w-full h-full object-cover"/>
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-white text-center">
-                            <p className="text-xs font-bold truncate w-full">{image.file.name}</p>
-                            <p className="text-xs">{Math.round(image.file.size / 1024)} KB</p>
+                         <div
+                            className={cn(
+                              "relative group aspect-square cursor-grab transition-opacity",
+                              draggedImageIndex === index && "opacity-50"
+                            )}
+                            draggable
+                            onDragStart={() => handleImageDragStart(index)}
+                            onDragEnter={() => handleImageDragEnter(index)}
+                            onDragEnd={handleImageDragEnd}
+                            onDragOver={(e) => e.preventDefault()}
+                          >
+                            <img src={image.url} alt={image.file.name} className="rounded-md w-full h-full object-cover"/>
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-white text-center">
+                                <p className="text-xs font-bold truncate w-full">{image.file.name}</p>
+                                <p className="text-xs">{Math.round(image.file.size / 1024)} KB</p>
+                            </div>
+                            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}>
+                                <X className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}>
-                            <X className="h-4 w-4" />
-                        </Button>
+                        <Input 
+                            type="text"
+                            defaultValue={index + 1}
+                            onBlur={(e) => handleImagePositionChange(index, e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleImagePositionChange(index, (e.target as HTMLInputElement).value);
+                                    (e.target as HTMLInputElement).blur();
+                                }
+                            }}
+                            onFocus={(e) => e.target.select()}
+                            className="h-8 w-full text-center p-1 z-10"
+                        />
                       </div>
                     ))}
                   </div>
