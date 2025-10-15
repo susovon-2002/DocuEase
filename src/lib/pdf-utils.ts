@@ -39,3 +39,4 @@ export async function renderPdfPagesToImageUrls(pdfBytes: Uint8Array): Promise<s
     
     return imageUrls;
 }
+
