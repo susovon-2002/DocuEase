@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -37,13 +36,12 @@ export function MergePdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const processFiles = async (filesToProcess: File[]) => {
+  const processFiles = useCallback(async (filesToProcess: File[]) => {
     if (filesToProcess.length === 0) return;
     
     setIsProcessing(true);
     setProcessingMessage('Processing files...');
     
-    // Clear existing pages and revoke their URLs before processing all files again
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
     
     const allPageObjects: PageObject[] = [];
@@ -70,8 +68,10 @@ export function MergePdfClient() {
       }
       
       setPages(allPageObjects);
-      if (step === 'upload') {
+      if (allPageObjects.length > 0) {
         setStep('reorder');
+      } else {
+        setStep('upload');
       }
       toast({ title: `${filesToProcess.length} file(s) loaded`, description: 'You can now reorder the pages.' });
 
@@ -81,7 +81,7 @@ export function MergePdfClient() {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [pages]);
 
   const handleFilesSelected = (newFiles: File[]) => {
     const pdfFiles = newFiles.filter(file => file.type === 'application/pdf');
@@ -124,16 +124,13 @@ export function MergePdfClient() {
     setPages(newPages);
 
     if (wasLastPageOfFile) {
-        // If it was the last page, remove the file from selectedFiles and re-process
         const newSelectedFiles = selectedFiles.filter((_, index) => index !== fileIndexToRemove);
         setSelectedFiles(newSelectedFiles);
-        // We re-process to re-calculate originalFileIndex for all remaining pages
         processFiles(newSelectedFiles);
     }
 
     if (newPages.length === 0) {
-      setSelectedFiles([]);
-      setStep('upload');
+      handleStartOver();
     }
   };
   
