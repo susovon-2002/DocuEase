@@ -300,7 +300,7 @@ export function MergePdfClient() {
     for (const pageNum of newOrder) {
       const pageIndex = pageNum - 1;
       if (pageIndex >= 0 && pageIndex < pages.length) {
-        const foundPage = pages.find((_p, index) => index === pageIndex);
+        const foundPage = pages[pageIndex]; // Directly use index
         if (foundPage) {
            reorderedPages.push(foundPage);
         } else {
@@ -313,12 +313,8 @@ export function MergePdfClient() {
       }
     }
     
-    // This logic needs to be revisited to handle indexes vs page content correctly
-    const tempPages = newOrder.map(num => pages[num - 1]).filter(Boolean);
-
-
-    if(tempPages.length === pages.length) {
-        setPages(tempPages);
+    if(isValid) {
+        setPages(reorderedPages);
         toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
         toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
@@ -414,14 +410,7 @@ export function MergePdfClient() {
       </div>
       <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
         <CardContent className="p-10">
-          {selectedFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="bg-secondary p-4 rounded-full">
-                <UploadCloud className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <p className="text-lg font-medium">Drag & drop PDF files here</p>
-              <p className="text-muted-foreground">or</p>
-              <input
+           <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
@@ -429,6 +418,13 @@ export function MergePdfClient() {
                 multiple
                 accept="application/pdf"
               />
+          {selectedFiles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="bg-secondary p-4 rounded-full">
+                <UploadCloud className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <p className="text-lg font-medium">Drag & drop PDF files here</p>
+              <p className="text-muted-foreground">or</p>
               <Button size="lg" onClick={handleFileSelectClick}>
                 Select Files
               </Button>
