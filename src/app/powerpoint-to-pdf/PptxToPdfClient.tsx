@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFImage } from 'pdf-lib';
 import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
@@ -11,13 +11,19 @@ import { Textarea } from '@/components/ui/textarea';
 
 type ConvertStep = 'upload' | 'preview' | 'download';
 
+interface ExtractedSlide {
+  texts: { text: string; x: number; y: number; width: number; height: number }[];
+  images: { data: string; x: number; y: number; width: number; height: number; type: 'png' | 'jpeg' }[];
+  slideNumber: number;
+}
+
 export function PptxToPdfClient() {
   const [step, setStep] = useState<ConvertStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
   const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState('');
+  const [extractedSlides, setExtractedSlides] = useState<ExtractedSlide[]>([]);
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   
@@ -26,91 +32,159 @@ export function PptxToPdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
   
-  const extractTextFromPptx = async (file: File): Promise<string> => {
+  const EMU_TO_POINTS = 1 / 12700;
+
+  const extractDataFromPptx = async (file: File): Promise<ExtractedSlide[]> => {
     const zip = await JSZip.loadAsync(file);
-    let fullText = '';
-    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/));
+    const presPropsXml = await zip.file('ppt/presentation.xml')?.async('string');
+    if (!presPropsXml) throw new Error('presentation.xml not found.');
 
-    for (let i = 1; i <= slideFiles.length; i++) {
-        const slideXml = await zip.file(`ppt/slides/slide${i}.xml`)?.async('string');
-        if (slideXml) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(slideXml, 'application/xml');
-            const paragraphs = xmlDoc.getElementsByTagName('a:p');
-            let slideText = '';
-            for (let j = 0; j < paragraphs.length; j++) {
-                const texts = paragraphs[j].getElementsByTagName('a:t');
-                let lineText = '';
-                for (let k = 0; k < texts.length; k++) {
-                    lineText += texts[k].textContent;
-                }
-                if(lineText) slideText += lineText + '\n';
-            }
-            if (slideText) {
-                fullText += `--- Slide ${i} ---\n` + slideText + '\n\n';
-            }
-        }
-    }
+    const parser = new DOMParser();
+    const presPropsDoc = parser.parseFromString(presPropsXml, 'application/xml');
+    const slideSizeCx = parseInt(presPropsDoc.getElementsByTagName('p:sldSz')[0].getAttribute('cx') || '0');
+    const slideSizeCy = parseInt(presPropsDoc.getElementsByTagName('p:sldSz')[0].getAttribute('cy') || '0');
     
-    return fullText.trim();
-  };
+    const slideWidth = slideSizeCx * EMU_TO_POINTS;
+    const slideHeight = slideSizeCy * EMU_TO_POINTS;
 
-  const createPdfFromText = async (text: string) => {
-    const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontSize = 12;
-    const margin = 50;
-    const maxWidth = width - margin * 2;
-    const lineHeight = fontSize * 1.2;
+    const slides: ExtractedSlide[] = [];
+    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/)).sort();
+    
+    for (let i = 0; i < slideFiles.length; i++) {
+        const slideNumber = i + 1;
+        setProcessingMessage(`Processing slide ${slideNumber} of ${slideFiles.length}`);
+        
+        const slideXml = await zip.file(slideFiles[i])?.async('string');
+        if (!slideXml) continue;
 
-    const textLines = text.split('\n');
-    let y = height - margin;
+        const relsXml = await zip.file(`ppt/slides/_rels/slide${slideNumber}.xml.rels`)?.async('string');
+        const relsDoc = relsXml ? parser.parseFromString(relsXml, 'application/xml') : null;
+        const relationships: Record<string, string> = {};
+        if (relsDoc) {
+          Array.from(relsDoc.getElementsByTagName('Relationship')).forEach(rel => {
+            const id = rel.getAttribute('Id');
+            const target = rel.getAttribute('Target');
+            if (id && target) {
+              relationships[id] = `ppt/${target.replace('../', '')}`;
+            }
+          });
+        }
+        
+        const slideDoc = parser.parseFromString(slideXml, "application/xml");
+        const shapeTree = slideDoc.getElementsByTagName('p:spTree')[0];
+        
+        const extractedTexts: ExtractedSlide['texts'] = [];
+        const extractedImages: ExtractedSlide['images'] = [];
 
-    for (const line of textLines) {
-      let currentLine = line;
-      while (currentLine.length > 0) {
-        if (y < margin) {
-          page = pdfDoc.addPage();
-          y = page.getHeight() - margin;
+        // Extract Images
+        const picElements = Array.from(shapeTree.getElementsByTagName('p:pic'));
+        for (const pic of picElements) {
+          const blip = pic.getElementsByTagName('a:blip')[0];
+          const embedId = blip?.getAttribute('r:embed');
+          const imagePath = embedId ? relationships[embedId] : null;
+
+          if (imagePath) {
+            const imageFile = zip.file(imagePath);
+            if (imageFile) {
+              const imageData = await imageFile.async('base64');
+              const imageType = imagePath.endsWith('.png') ? 'png' : 'jpeg';
+              
+              const xfrm = pic.getElementsByTagName('a:xfrm')[0];
+              const off = xfrm?.getElementsByTagName('a:off')[0];
+              const ext = xfrm?.getElementsByTagName('a:ext')[0];
+              
+              if (off && ext) {
+                const x = (parseInt(off.getAttribute('x') || '0')) * EMU_TO_POINTS;
+                const y = (parseInt(off.getAttribute('y') || '0')) * EMU_TO_POINTS;
+                const width = (parseInt(ext.getAttribute('cx') || '0')) * EMU_TO_POINTS;
+                const height = (parseInt(ext.getAttribute('cy') || '0')) * EMU_TO_POINTS;
+                
+                extractedImages.push({
+                  data: imageData,
+                  x, y, width, height, type: imageType
+                });
+              }
+            }
+          }
         }
 
-        let breakIndex = currentLine.length;
-        let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
+        // Extract Text
+        const spElements = Array.from(shapeTree.getElementsByTagName('p:sp'));
+        for(const sp of spElements) {
+          const txBody = sp.getElementsByTagName('a:txBody')[0];
+          if (txBody) {
+             const xfrm = sp.getElementsByTagName('a:xfrm')[0];
+             const off = xfrm?.getElementsByTagName('a:off')[0];
+             const ext = xfrm?.getElementsByTagName('a:ext')[0];
+             
+             if (off && ext) {
+                const x = (parseInt(off.getAttribute('x') || '0')) * EMU_TO_POINTS;
+                const y = (parseInt(off.getAttribute('y') || '0')) * EMU_TO_POINTS;
+                const width = (parseInt(ext.getAttribute('cx') || '0')) * EMU_TO_POINTS;
+                const height = (parseInt(ext.getAttribute('cy') || '0')) * EMU_TO_POINTS;
+                
+                let fullText = '';
+                const pElements = Array.from(txBody.getElementsByTagName('a:p'));
+                for (const p of pElements) {
+                   const tElements = Array.from(p.getElementsByTagName('a:t'));
+                   fullText += tElements.map(t => t.textContent).join('') + '\n';
+                }
 
-        if (lineWidth > maxWidth) {
-          let low = 0;
-          let high = currentLine.length;
-          let bestFit = 0;
-
-          // Binary search for the best fit index
-          while(low <= high) {
-              const mid = Math.floor((low + high) / 2);
-              const substring = currentLine.substring(0, mid);
-              const subWidth = font.widthOfTextAtSize(substring, fontSize);
-              if (subWidth <= maxWidth) {
-                  bestFit = mid;
-                  low = mid + 1;
-              } else {
-                  high = mid - 1;
-              }
-          }
-          
-          // Try to break at the last space within the best fit
-          const lastSpace = currentLine.substring(0, bestFit).lastIndexOf(' ');
-          if(lastSpace > 0) {
-              breakIndex = lastSpace;
-          } else {
-              breakIndex = bestFit > 0 ? bestFit : 1; // Prevent infinite loop if a single char is too wide
+                if (fullText.trim()) {
+                  extractedTexts.push({ text: fullText.trim(), x, y, width, height });
+                }
+             }
           }
         }
         
-        const lineToDraw = currentLine.substring(0, breakIndex);
-        page.drawText(lineToDraw, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
-        y -= lineHeight;
-        currentLine = currentLine.substring(breakIndex).trim();
-      }
+        slides.push({ texts: extractedTexts, images: extractedImages, slideNumber });
+    }
+    
+    return slides;
+  };
+
+ const createPdfFromExtractedData = async (slides: ExtractedSlide[]) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    for (let i = 0; i < slides.length; i++) {
+        setProcessingMessage(`Generating PDF page ${i + 1} of ${slides.length}`);
+        const slide = slides[i];
+        
+        // Use default A4 size as a fallback, but pptx should provide dimensions.
+        const slideWidth = slide.images[0]?.width || 595.28; // A4 width in points
+        const slideHeight = slide.images[0]?.height || 841.89; // A4 height in points
+
+        const page = pdfDoc.addPage([slideWidth, slideHeight]);
+        
+        for (const image of slide.images) {
+            let embeddedImage: PDFImage;
+            const imageBytes = Uint8Array.from(atob(image.data), c => c.charCodeAt(0));
+            if (image.type === 'png') {
+                embeddedImage = await pdfDoc.embedPng(imageBytes);
+            } else {
+                embeddedImage = await pdfDoc.embedJpg(imageBytes);
+            }
+            page.drawImage(embeddedImage, {
+                x: image.x,
+                y: page.getHeight() - image.y - image.height,
+                width: image.width,
+                height: image.height,
+            });
+        }
+        
+        for (const text of slide.texts) {
+            // Simplified text drawing, does not handle overflow or complex styles
+            page.drawText(text.text, {
+                x: text.x,
+                y: page.getHeight() - text.y - 12, // Approximate vertical alignment
+                font,
+                size: 10,
+                color: rgb(0, 0, 0),
+                maxWidth: text.width,
+                lineHeight: 12,
+            });
+        }
     }
     
     const pdfBytes = await pdfDoc.save();
@@ -133,20 +207,19 @@ export function PptxToPdfClient() {
       setIsProcessing(true);
       
       try {
-        setProcessingMessage(`Extracting text from ${file.name}...`);
-        const textContent = await extractTextFromPptx(file);
+        const slideData = await extractDataFromPptx(file);
         
-        if (!textContent) {
+        if (slideData.every(s => s.texts.length === 0 && s.images.length === 0)) {
              toast({
-              title: 'No Text Found',
-              description: 'No text was extracted. The presentation might be image-based. An empty PDF will be created.',
+              title: 'Empty Presentation',
+              description: 'No text or images were found. The output may be an empty PDF.',
             });
         }
         
-        setExtractedText(textContent);
+        setExtractedSlides(slideData);
         setStep('preview');
-        if (textContent) {
-          toast({ title: 'Text Extracted', description: `Review the text from your presentation.` });
+        if (slideData.length > 0) {
+          toast({ title: 'Content Extracted', description: `Review the content from your presentation.` });
         }
       } catch(e) {
           console.error(e);
@@ -176,7 +249,7 @@ export function PptxToPdfClient() {
     setProcessingMessage('Creating PDF...');
 
     try {
-        const pdfBlob = await createPdfFromText(extractedText);
+        const pdfBlob = await createPdfFromExtractedData(extractedSlides);
         
         setOutputFile({ 
             name: originalFile.name.replace(/\.pptx$/i, '.pdf'),
@@ -197,7 +270,7 @@ export function PptxToPdfClient() {
     setStep('upload');
     setOriginalFile(null);
     setOutputFile(null);
-    setExtractedText('');
+    setExtractedSlides([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -213,6 +286,12 @@ export function PptxToPdfClient() {
     URL.revokeObjectURL(url);
   };
   
+  const getCombinedTextPreview = () => {
+    return extractedSlides.map(slide => 
+      `--- Slide ${slide.slideNumber} ---\n` + slide.texts.map(t => t.text).join('\n')
+    ).join('\n\n');
+  }
+
   if (isProcessing) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-20">
@@ -254,19 +333,20 @@ export function PptxToPdfClient() {
       );
     
     case 'preview':
+        const textPreview = getCombinedTextPreview();
         return (
              <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Review Extracted Text</h1>
-                    <p className="text-muted-foreground mt-2">This is the text content found in your presentation. Proceed to create the PDF.</p>
+                    <h1 className="text-3xl font-bold">Review Extracted Content</h1>
+                    <p className="text-muted-foreground mt-2">This is the text content found in your presentation. Images are also extracted but not shown here. Proceed to create the PDF.</p>
                 </div>
                 <Card className="mb-8">
                     <CardContent className="p-4">
                         <Textarea
                             readOnly
-                            value={extractedText}
+                            value={textPreview}
                             className="w-full h-96 rounded-md border bg-muted p-4 text-base font-body"
-                            placeholder="No text was found in the presentation. The output will be an empty PDF."
+                            placeholder="No text was found in the presentation. The output may only contain images."
                         />
                     </CardContent>
                 </Card>
@@ -288,7 +368,7 @@ export function PptxToPdfClient() {
             <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Conversion Complete</h1>
-                    <p className="text-muted-foreground mt-2">The text from your presentation has been converted into a PDF.</p>
+                    <p className="text-muted-foreground mt-2">Your presentation has been converted into a PDF.</p>
                 </div>
                 <Card className="mb-8">
                     <CardContent className="p-2">
@@ -305,7 +385,7 @@ export function PptxToPdfClient() {
                         Download PDF
                     </Button>
                 </div>
-                 <p className="text-xs text-muted-foreground mt-4">Note: This tool converts text content only. Formatting like images, tables, and complex styles may not be preserved.</p>
+                 <p className="text-xs text-muted-foreground mt-4">Note: This is a direct conversion. Complex layouts and animations may not be preserved.</p>
             </div>
         )
   }
