@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -80,20 +81,29 @@ export function PptxToPdfClient() {
         let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
 
         if (lineWidth > maxWidth) {
-          let charCount = 0;
-          while(charCount < currentLine.length) {
-              const nextCharWidth = font.widthOfTextAtSize(currentLine.substring(0, charCount + 1), fontSize);
-              if (nextCharWidth > maxWidth) {
-                  break;
-              }
-              charCount++;
-          }
+          let low = 0;
+          let high = currentLine.length;
+          let bestFit = 0;
 
-          const lastSpace = currentLine.substring(0, charCount).lastIndexOf(' ');
+          // Binary search for the best fit index
+          while(low <= high) {
+              const mid = Math.floor((low + high) / 2);
+              const substring = currentLine.substring(0, mid);
+              const subWidth = font.widthOfTextAtSize(substring, fontSize);
+              if (subWidth <= maxWidth) {
+                  bestFit = mid;
+                  low = mid + 1;
+              } else {
+                  high = mid - 1;
+              }
+          }
+          
+          // Try to break at the last space within the best fit
+          const lastSpace = currentLine.substring(0, bestFit).lastIndexOf(' ');
           if(lastSpace > 0) {
               breakIndex = lastSpace;
           } else {
-              breakIndex = charCount;
+              breakIndex = bestFit > 0 ? bestFit : 1; // Prevent infinite loop if a single char is too wide
           }
         }
         
