@@ -299,28 +299,29 @@ export function MergePdfClient() {
       toast({ variant: 'destructive', title: 'Invalid Page Number', description: `The maximum page number is ${pages.length}.` });
       return;
     }
-
+    
+    // Create a map of current pages by their original page number for easy lookup
+    const currentPagesMap = new Map(pages.map(p => [p.originalPageIndex + 1, p]));
+    
     const reorderedPages: PageObject[] = [];
     let isValid = true;
     
-    const currentPagesByOriginalIndex = new Map(pages.map(p => [p.originalPageIndex, p]));
-    const finalReorderedPages: PageObject[] = [];
-    
-    for (const originalPageNum of newOrder) {
-        const pageToPlace = currentPagesByOriginalIndex.get(originalPageNum - 1);
+    for (const pageNum of newOrder) {
+        const pageToPlace = currentPagesMap.get(pageNum);
         if (pageToPlace) {
-            finalReorderedPages.push(pageToPlace);
+            reorderedPages.push(pageToPlace);
         } else {
             isValid = false;
             break;
         }
     }
     
-    if(isValid && finalReorderedPages.length === pages.length) {
-        setPages(finalReorderedPages);
+    if(isValid && reorderedPages.length === pages.length) {
+        setPages(reorderedPages);
         toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
         toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
+        // Reset input to reflect current (non-changed) order
         setPageOrderInput(pages.map(p => p.originalPageIndex + 1).join(', '));
     }
   };
