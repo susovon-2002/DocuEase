@@ -22,39 +22,25 @@ async function getPdfText(file: File, onProgress: (message: string) => void): Pr
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        if (textContent.items.length === 0) {
-            fullText += '\n\n-- Page Break --\n\n';
-            continue;
-        }
-
-        // Group text items by line
-        const lines: { str: string, x: number }[][] = [];
-        let currentLine: { str: string, x: number }[] = [];
         let lastY = -1;
+        let pageText = '';
 
-        // @ts-ignore
         for (const item of textContent.items) {
+            // item.transform[5] is the y-coordinate
             if ('str' in item) {
-                const currentY = item.transform[5];
-                if (lastY !== -1 && Math.abs(currentY - lastY) > 5) {
-                    lines.push(currentLine.sort((a, b) => a.x - b.x));
-                    currentLine = [];
+                if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
+                    // A significant change in y-coordinate indicates a new line.
+                    pageText += '\n';
                 }
-                currentLine.push({ str: item.str, x: item.transform[4] });
-                lastY = currentY;
+                
+                pageText += item.str;
+                lastY = item.transform[5];
             }
         }
-        lines.push(currentLine.sort((a, b) => a.x - b.x));
-        
-        let pageText = '';
-        lines.forEach(lineItems => {
-            pageText += lineItems.map(item => item.str).join(' ') + '\n';
-        });
-
-        fullText += pageText + '\n';
+        fullText += pageText + '\n\n-- Page Break --\n\n';
     }
 
-    return fullText.replace(/\n-- Page Break --\n\n$/, '');
+    return fullText.replace(/\n\n-- Page Break --\n\n$/, '');
 }
 
 
