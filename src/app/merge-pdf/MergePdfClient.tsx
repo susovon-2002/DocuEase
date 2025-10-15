@@ -16,8 +16,8 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 type PageObject = {
   id: number;
-  pdfBytes: Uint8Array;
   thumbnailUrl: string;
+  originalPageIndex: number;
 };
 
 type FileObject = {
@@ -37,6 +37,7 @@ export function MergePdfClient() {
   const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
   
   const [pages, setPages] = useState<PageObject[]>([]);
+  const [mergedPdfBytes, setMergedPdfBytes] = useState<Uint8Array | null>(null);
   const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
   const [step, setStep] = useState<MergeStep>('select_files');
   const [pageOrderInput, setPageOrderInput] = useState('');
@@ -159,22 +160,15 @@ export function MergePdfClient() {
 
       setProcessingMessage('Generating thumbnails...');
       
-      const mergedPdfBytes = await mergedPdf.save();
-      const imageUrls = await renderPdfPagesToImageUrls(mergedPdfBytes);
+      const tempMergedPdfBytes = await mergedPdf.save();
+      setMergedPdfBytes(tempMergedPdfBytes);
+      const imageUrls = await renderPdfPagesToImageUrls(tempMergedPdfBytes);
 
-      const pageObjects: PageObject[] = [];
-      const pageCount = mergedPdf.getPageCount();
-      for (let i = 0; i < pageCount; i++) {
-        const singlePagePdf = await PDFDocument.create();
-        const [copiedPage] = await singlePagePdf.copyPages(mergedPdf, [i]);
-        singlePagePdf.addPage(copiedPage);
-        const pdfBytes = await singlePagePdf.save();
-        pageObjects.push({ 
-            id: Date.now() + i, 
-            pdfBytes,
-            thumbnailUrl: imageUrls[i]
-        });
-      }
+      const pageObjects: PageObject[] = imageUrls.map((url, i) => ({
+        id: Date.now() + i,
+        thumbnailUrl: url,
+        originalPageIndex: i,
+      }));
 
       setPages(pageObjects);
       setPageOrderInput(Array.from({ length: pageObjects.length }, (_, i) => i + 1).join(', '));
@@ -200,15 +194,21 @@ export function MergePdfClient() {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save your work.' });
       return;
     }
+    if (!mergedPdfBytes) {
+        toast({ variant: 'destructive', title: 'Processing Error', description: 'Initial merged document not found.'});
+        return;
+    }
+
     setIsProcessing(true);
     setProcessingMessage('Finalizing PDF...');
     try {
       const finalPdf = await PDFDocument.create();
-      for (const pageObject of pages) {
-        const pdf = await PDFDocument.load(pageObject.pdfBytes);
-        const [copiedPage] = await finalPdf.copyPages(pdf, [0]);
-        finalPdf.addPage(copiedPage);
-      }
+      const sourcePdf = await PDFDocument.load(mergedPdfBytes);
+
+      const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
+      const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
+      copiedPages.forEach(page => finalPdf.addPage(page));
+      
       const finalPdfBytes = await finalPdf.save();
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -251,6 +251,7 @@ export function MergePdfClient() {
     handleClearFiles();
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl)); // Clean up blob URLs
     setPages([]);
+    setMergedPdfBytes(null);
     setPageOrderInput('');
     setStep('select_files');
   }
