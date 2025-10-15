@@ -16,7 +16,7 @@ export function WordToPdfClient() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [originalFiles, setOriginalFiles] = useState<File[]>([]);
   const [extractedText, setExtractedText] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob, textContent: string } | null>(null);
@@ -30,7 +30,7 @@ export function WordToPdfClient() {
     const zip = await JSZip.loadAsync(file);
     const docXml = await zip.file('word/document.xml')?.async('string');
     if (!docXml) {
-      throw new Error('Could not find document.xml in the Word file.');
+      throw new Error(`Could not find document.xml in ${file.name}.`);
     }
 
     const parser = new DOMParser();
@@ -104,45 +104,60 @@ export function WordToPdfClient() {
   };
 
 
-  const handleFileUpload = async (file: File | null) => {
-    if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        setOriginalFile(file);
-        setIsProcessing(true);
-        setProcessingMessage('Extracting text...');
-        try {
-            const textContent = await extractTextFromDocx(file);
-            setExtractedText(textContent);
-            setStep('preview');
-            toast({ title: 'Text Extracted', description: 'Review the text and proceed to create your PDF.' });
-        } catch(e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of the Word file.' });
-            handleStartOver();
-        } finally {
-            setIsProcessing(false);
+  const handleFileUpload = async (files: File[] | null) => {
+    if (files && files.length > 0) {
+      const docxFiles = files.filter(file => file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      
+      if (docxFiles.length !== files.length) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid file type',
+            description: 'One or more selected files were not .docx files and were ignored.',
+        });
+      }
+
+      if (docxFiles.length === 0) {
+        return;
+      }
+
+      setOriginalFiles(docxFiles);
+      setIsProcessing(true);
+      
+      let allText = '';
+      try {
+        for (let i = 0; i < docxFiles.length; i++) {
+          const file = docxFiles[i];
+          setProcessingMessage(`Extracting text from ${file.name} (${i + 1}/${docxFiles.length})...`);
+          const textContent = await extractTextFromDocx(file);
+          allText += textContent + '\n\n'; // Add separator between documents
         }
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only .docx Word files are supported.',
-      });
+
+        setExtractedText(allText);
+        setStep('preview');
+        toast({ title: 'Text Extracted', description: `Review the text from ${docxFiles.length} document(s) and proceed.` });
+      } catch(e) {
+          console.error(e);
+          toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of one or more Word files.' });
+          handleStartOver();
+      } finally {
+          setIsProcessing(false);
+      }
     }
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    handleFileUpload(file || null);
+    const files = event.target.files ? Array.from(event.target.files) : null;
+    handleFileUpload(files);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    handleFileUpload(file || null);
+    const files = event.dataTransfer.files ? Array.from(event.dataTransfer.files) : null;
+    handleFileUpload(files);
   };
   
   const handleConvert = async () => {
-    if (!originalFile || !extractedText) return;
+    if (originalFiles.length === 0 || !extractedText) return;
     
     setIsProcessing(true);
     setProcessingMessage('Creating PDF...');
@@ -150,13 +165,15 @@ export function WordToPdfClient() {
     try {
         const pdfBlob = await createPdfFromText(extractedText);
         
+        const outputName = originalFiles.length > 1 ? 'Combined_Document.pdf' : originalFiles[0].name.replace(/\.docx$/i, '.pdf');
+
         setOutputFile({ 
-            name: `${originalFile.name.replace(/\.docx$/i, '')}.pdf`, 
+            name: outputName,
             blob: pdfBlob,
             textContent: extractedText
         });
         setStep('download');
-        toast({ title: 'Conversion Complete!', description: 'Your Word document has been converted to a PDF.' });
+        toast({ title: 'Conversion Complete!', description: 'Your Word document(s) have been converted to a PDF.' });
 
     } catch (error) {
       console.error(error);
@@ -168,7 +185,7 @@ export function WordToPdfClient() {
 
   const handleStartOver = () => {
     setStep('upload');
-    setOriginalFile(null);
+    setOriginalFiles([]);
     setOutputFile(null);
     setExtractedText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -210,7 +227,7 @@ export function WordToPdfClient() {
                 <div className="bg-secondary p-4 rounded-full">
                   <UploadCloud className="h-12 w-12 text-muted-foreground" />
                 </div>
-                <p className="text-lg font-medium">Drag & drop a .docx file here</p>
+                <p className="text-lg font-medium">Drag & drop .docx files here</p>
                 <p className="text-muted-foreground">or</p>
                 <input
                   type="file"
@@ -218,8 +235,9 @@ export function WordToPdfClient() {
                   onChange={handleFileChange}
                   className="hidden"
                   accept=".docx"
+                  multiple
                 />
-                <Button size="lg" onClick={handleFileSelectClick}>Select File</Button>
+                <Button size="lg" onClick={handleFileSelectClick}>Select Files</Button>
               </div>
             </CardContent>
           </Card>
@@ -231,7 +249,7 @@ export function WordToPdfClient() {
              <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Review Extracted Text</h1>
-                    <p className="text-muted-foreground mt-2">This is the text content found in your document. Proceed to create the PDF.</p>
+                    <p className="text-muted-foreground mt-2">This is the text content found in your document(s). Proceed to create the PDF.</p>
                 </div>
                 <Card className="mb-8">
                     <CardContent className="p-4">
@@ -261,7 +279,7 @@ export function WordToPdfClient() {
             <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Conversion Complete</h1>
-                    <p className="text-muted-foreground mt-2">The text from your Word document has been converted into a PDF.</p>
+                    <p className="text-muted-foreground mt-2">The text from your Word document(s) has been converted into a PDF.</p>
                 </div>
                 <Card className="mb-8">
                     <CardContent className="p-2">
