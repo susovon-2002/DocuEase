@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 
 const plans = [
@@ -89,7 +89,7 @@ const plans = [
   },
 ];
 
-function PricingPageContent() {
+export default function PricingPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -97,7 +97,7 @@ function PricingPageContent() {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   
   const handleChoosePlan = async (plan: typeof plans[0]) => {
-    if (!user || !firestore) {
+    if (!user) {
       toast({ variant: 'destructive', title: 'Not Logged In', description: 'Please log in to choose a plan.' });
       router.push('/login');
       return;
@@ -115,6 +115,8 @@ function PricingPageContent() {
     const amount = plan.price;
 
     try {
+      if (!firestore) throw new Error("Firestore is not available");
+
       // Store preliminary details in a temporary document
       const pendingPaymentRef = doc(firestore, 'pendingPayments', merchantTransactionId);
       await setDoc(pendingPaymentRef, {
@@ -203,7 +205,7 @@ function PricingPageContent() {
                 className="w-full" 
                 variant={plan.isPrimary ? 'default' : 'outline'}
                 onClick={() => handleChoosePlan(plan)}
-                disabled={isLoading === plan.id || plan.price === 0}
+                disabled={isLoading === plan.id || (user && plan.price === 0)}
               >
                 {isLoading === plan.id ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -216,13 +218,5 @@ function PricingPageContent() {
         ))}
       </div>
     </div>
-  );
-}
-
-export default function PricingPage() {
-  return (
-    <ToolAuthWrapper>
-      <PricingPageContent />
-    </ToolAuthWrapper>
   );
 }
