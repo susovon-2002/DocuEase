@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -247,6 +247,17 @@ export function ExcelToPdfClient() {
                     <Button onClick={handleStartOver} variant="outline">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      multiple
+                    />
+                    <Button onClick={handleFileSelectClick} variant="secondary">
+                        <Plus className="mr-2 h-4 w-4" /> Add More Files
                     </Button>
                     <Button onClick={handleConvert} size="lg">
                         <Wand2 className="mr-2 h-4 w-4" />
