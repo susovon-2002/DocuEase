@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, FileImage, X } from 'lucide-react';
@@ -11,23 +11,34 @@ import { cn } from '@/lib/utils';
 
 type ConvertStep = 'upload' | 'download';
 
+interface UploadedImage {
+  file: File;
+  url: string;
+}
+
 export function JpgToPdfClient() {
   const [step, setStep] = useState<ConvertStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([]);
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addMoreFilesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Clean up object URLs on unmount
+    return () => {
+      selectedImages.forEach(img => URL.revokeObjectURL(img.url));
+    };
+  }, [selectedImages]);
+
   const handleFileSelectClick = () => fileInputRef.current?.click();
   const handleAddMoreFilesClick = () => addMoreFilesInputRef.current?.click();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+  const processFiles = (files: File[]) => {
     const imageFiles = files.filter(file => file.type === 'image/jpeg');
     
     if (imageFiles.length !== files.length) {
@@ -38,9 +49,28 @@ export function JpgToPdfClient() {
       });
     }
 
-    setSelectedFiles(prev => [...prev, ...imageFiles]);
+    const newImages = imageFiles.map(file => ({
+      file,
+      url: URL.createObjectURL(file),
+    }));
+
+    setSelectedImages(prev => {
+       // Clean up old URLs before adding new ones
+      const newUrls = new Set(newImages.map(i => i.url));
+      prev.forEach(p => {
+        if (!newUrls.has(p.url)) {
+           // This logic is slightly complex as we are adding, not replacing.
+           // A better approach might be to just clean up everything on unmount.
+        }
+      });
+      return [...prev, ...newImages];
+    });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    processFiles(files);
     
-    // Reset file input to allow selecting the same file again
     if (event.target) {
       event.target.value = '';
     }
@@ -49,25 +79,19 @@ export function JpgToPdfClient() {
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const files = Array.from(event.dataTransfer.files || []);
-    const imageFiles = files.filter(file => file.type === 'image/jpeg');
-
-    if (imageFiles.length !== files.length) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only JPG/JPEG files are supported for dropping.',
-      });
-    }
-    
-    setSelectedFiles(prev => [...prev, ...imageFiles]);
+    processFiles(files);
   };
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveImage = (index: number) => {
+    const imageToRemove = selectedImages[index];
+    if (imageToRemove) {
+      URL.revokeObjectURL(imageToRemove.url);
+    }
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
   
   const handleConvert = async () => {
-    if (selectedFiles.length === 0) {
+    if (selectedImages.length === 0) {
       toast({ variant: 'destructive', title: 'No files selected', description: 'Please select one or more JPG files to convert.'});
       return;
     }
@@ -78,11 +102,11 @@ export function JpgToPdfClient() {
     try {
         const newPdfDoc = await PDFDocument.create();
         
-        for(let i = 0; i < selectedFiles.length; i++) {
-            const file = selectedFiles[i];
-            setProcessingMessage(`Processing image ${i + 1} of ${selectedFiles.length}...`);
+        for(let i = 0; i < selectedImages.length; i++) {
+            const image = selectedImages[i];
+            setProcessingMessage(`Processing image ${i + 1} of ${selectedImages.length}...`);
             
-            const imageBytes = await file.arrayBuffer();
+            const imageBytes = await image.file.arrayBuffer();
             const jpgImage = await newPdfDoc.embedJpg(imageBytes);
 
             const page = newPdfDoc.addPage([jpgImage.width, jpgImage.height]);
@@ -112,7 +136,8 @@ export function JpgToPdfClient() {
 
   const handleStartOver = () => {
     setStep('upload');
-    setSelectedFiles([]);
+    selectedImages.forEach(img => URL.revokeObjectURL(img.url));
+    setSelectedImages([]);
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (addMoreFilesInputRef.current) addMoreFilesInputRef.current.value = '';
@@ -150,7 +175,7 @@ export function JpgToPdfClient() {
           </div>
           <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10">
-              {selectedFiles.length === 0 ? (
+              {selectedImages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center space-y-4 text-center">
                   <div className="bg-secondary p-4 rounded-full">
                     <UploadCloud className="h-12 w-12 text-muted-foreground" />
@@ -169,24 +194,22 @@ export function JpgToPdfClient() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-center">Selected Files</h3>
-                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {selectedFiles.map((file, index) => (
-                      <div key={file.name + index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <FileImage className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                          <span className="text-sm truncate">{file.name}</span>
+                  <h3 className="text-lg font-medium text-center mb-4">Selected Images</h3>
+                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto p-2">
+                    {selectedImages.map((image, index) => (
+                      <div key={image.file.name + index} className="relative group aspect-square">
+                        <img src={image.url} alt={image.file.name} className="rounded-md w-full h-full object-cover"/>
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-white text-center">
+                            <p className="text-xs font-bold truncate w-full">{image.file.name}</p>
+                            <p className="text-xs">{Math.round(image.file.size / 1024)} KB</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{Math.round(file.size / 1024)} KB</Badge>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveFile(index)}>
+                        <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}>
                             <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        </Button>
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-center gap-4 pt-4">
+                  <div className="flex justify-center gap-4 pt-4 border-t">
                     <input
                         type="file"
                         ref={addMoreFilesInputRef}
