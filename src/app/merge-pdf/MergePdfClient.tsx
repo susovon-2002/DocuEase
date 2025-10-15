@@ -32,10 +32,12 @@ export function MergePdfClient() {
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addMoreFilesInputRef = useRef<HTMLInputElement>(null);
   const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
+  const handleAddMoreFilesClick = () => addMoreFilesInputRef.current?.click();
 
   const processAndAddFiles = async (filesToAdd: File[]) => {
     if (filesToAdd.length === 0) return;
@@ -98,13 +100,14 @@ export function MergePdfClient() {
       processAndAddFiles(files);
     }
     // Reset input to allow selecting same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    if (step === 'reorder') return; // Disable drop in reorder step to avoid confusion
     const files = Array.from(event.dataTransfer.files || []);
      if (files.length > 0) {
       processAndAddFiles(files);
@@ -194,6 +197,7 @@ export function MergePdfClient() {
     setPages([]);
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (addMoreFilesInputRef.current) addMoreFilesInputRef.current.value = '';
   };
   
   const handleGoBackToReorder = () => {
@@ -266,7 +270,6 @@ export function MergePdfClient() {
               <div
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
               >
                 {pages.map((page, index) => (
                   <div
@@ -293,21 +296,23 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
-                <div 
-                  className="border-2 border-dashed rounded-lg flex items-center justify-center text-center p-4 cursor-pointer hover:bg-accent hover:border-primary transition-colors min-h-[200px]"
-                  onClick={handleFileSelectClick}
-                >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Plus className="h-8 w-8" />
-                    <span className="text-sm font-medium">Add More Files</span>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
           <div className="flex justify-center gap-4 mt-8">
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
+            </Button>
+            <input
+                type="file"
+                ref={addMoreFilesInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept="application/pdf"
+                multiple
+              />
+            <Button onClick={handleAddMoreFilesClick} variant="secondary">
+                <Plus className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" /> Merge PDF
@@ -348,3 +353,5 @@ export function MergePdfClient() {
         )
   }
 }
+
+    
