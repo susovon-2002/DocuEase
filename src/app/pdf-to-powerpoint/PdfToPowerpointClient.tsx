@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { PDFDocument, rgb } from 'pdf-lib';
+import PptxGenJS from 'pptxgenjs';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, PlusSquare, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +26,7 @@ export function PdfToPowerpointClient() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null);
   
-  const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
+  const [outputFileName, setOutputFileName] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -92,7 +92,7 @@ export function PdfToPowerpointClient() {
   };
   
   const handleAddBlankSlide = () => {
-    // Create a blank data URL for a white slide
+    // Create a blank data URL for a white slide (aspect ratio 16:9)
     const canvas = document.createElement('canvas');
     canvas.width = 1280;
     canvas.height = 720;
@@ -133,40 +133,35 @@ export function PdfToPowerpointClient() {
   const handleExportPresentation = async () => {
     if (slides.length === 0) return;
     setIsProcessing(true);
-    setProcessingMessage('Building your presentation PDF...');
+    setProcessingMessage('Building your presentation...');
 
     try {
-        const newPdfDoc = await PDFDocument.create();
+        const pptx = new PptxGenJS();
         
         for (const slide of slides) {
-            const imageBytes = await fetch(slide.imageUrl).then(res => res.arrayBuffer());
-            let image;
-            if (slide.imageUrl.startsWith('data:image/png')) {
-                image = await newPdfDoc.embedPng(imageBytes);
-            } else {
-                image = await newPdfDoc.embedJpg(imageBytes);
-            }
-            
-            const page = newPdfDoc.addPage([image.width, image.height]);
-            page.drawImage(image, {
-                x: 0, y: 0,
-                width: page.getWidth(),
-                height: page.getHeight()
+            const newSlide = pptx.addSlide();
+            newSlide.addImage({
+                data: slide.imageUrl,
+                x: 0,
+                y: 0,
+                w: '100%',
+                h: '100%',
             });
         }
         
-        const pdfBytes = await newPdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const fileName = `${originalFile?.name.replace('.pdf', '') || 'presentation'}.pptx`;
+        setOutputFileName(fileName);
+        await pptx.writeFile({ fileName });
         
-        setOutputFile({ name: `${originalFile?.name.replace('.pdf', '')}_presentation.pdf`, blob });
-        setStep('download');
-        toast({ title: 'Presentation Ready!', description: 'Your new presentation PDF is ready to download.' });
+        toast({ title: 'Presentation Ready!', description: 'Your PowerPoint file has been downloaded.' });
 
     } catch (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not create the final presentation.' });
+      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not create the presentation file.' });
     } finally {
       setIsProcessing(false);
+      // We don't move to a download step as the file is downloaded directly.
+      // User can continue editing or start over.
     }
   };
 
@@ -175,25 +170,8 @@ export function PdfToPowerpointClient() {
     setOriginalFile(null);
     slides.forEach(s => URL.revokeObjectURL(s.imageUrl));
     setSlides([]);
-    setOutputFile(null);
+    setOutputFileName('');
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-  
-  const handleGoBackToEdit = () => {
-    setOutputFile(null);
-    setStep('edit');
-  };
-
-  const handleDownloadFile = () => {
-    if (!outputFile) return;
-    const url = URL.createObjectURL(outputFile.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = outputFile.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
   
   if (isProcessing) {
@@ -299,8 +277,8 @@ export function PdfToPowerpointClient() {
                                 Start Over
                             </Button>
                             <Button onClick={handleExportPresentation} size="lg">
-                                <Wand2 className="mr-2 h-4 w-4" />
-                                Export as Presentation
+                                <Download className="mr-2 h-4 w-4" />
+                                Download PPTX
                             </Button>
                         </div>
                     </div>
@@ -308,35 +286,8 @@ export function PdfToPowerpointClient() {
             </div>
         );
 
-    case 'download':
-        return (
-            <div className="w-full max-w-4xl mx-auto text-center">
-                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Presentation Ready!</h1>
-                    <p className="text-muted-foreground mt-2">Your presentation has been exported as a PDF.</p>
-                </div>
-                <Card className="mb-8">
-                    <CardContent className="p-2">
-                        {outputFile && <iframe src={URL.createObjectURL(outputFile.blob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
-                    </CardContent>
-                </Card>
-                <div className="flex justify-center gap-4">
-                    <Button onClick={handleGoBackToEdit} variant="outline">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Editor
-                    </Button>
-                    <Button onClick={handleDownloadFile} size="lg">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Presentation
-                    </Button>
-                </div>
-                 <div className="flex justify-center mt-4">
-                    <Button onClick={handleStartOver} variant="link">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Convert Another
-                    </Button>
-                </div>
-            </div>
-        )
+    // No 'download' case needed as the file is downloaded directly
+    default:
+        return null;
   }
 }
