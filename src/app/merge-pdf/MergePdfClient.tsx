@@ -1,15 +1,17 @@
 
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, Plus } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, Plus, Shuffle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { PageThumbnail } from './PageThumbnail';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 type PageObject = {
   id: number;
@@ -28,6 +30,7 @@ export function MergePdfClient() {
   
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pages, setPages] = useState<PageObject[]>([]);
+  const [pageOrderInput, setPageOrderInput] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
 
@@ -164,6 +167,38 @@ export function MergePdfClient() {
     });
   };
   
+  const handleReorderFromInput = () => {
+    const pageNumbers = pageOrderInput
+        .split(',')
+        .map(s => parseInt(s.trim()))
+        .filter(n => !isNaN(n));
+        
+    if (pageNumbers.length === 0) {
+        toast({ variant: "destructive", title: "Invalid Input", description: "Please enter a comma-separated list of page numbers." });
+        return;
+    }
+
+    const newPages: PageObject[] = [];
+    const invalidNumbers: number[] = [];
+
+    for(const num of pageNumbers) {
+        if (num > 0 && num <= pages.length) {
+            newPages.push(pages[num - 1]);
+        } else {
+            invalidNumbers.push(num);
+        }
+    }
+
+    if (invalidNumbers.length > 0) {
+        toast({ variant: "destructive", title: "Invalid Page Numbers", description: `These pages do not exist: ${invalidNumbers.join(', ')}` });
+    }
+
+    if (newPages.length > 0) {
+        setPages(newPages);
+        toast({ title: "Pages Reordered", description: `Your document now has ${newPages.length} pages in the specified order.` });
+    }
+  };
+
   const handleFinalize = async () => {
       if (pages.length === 0) {
         toast({ variant: 'destructive', title: 'No pages', description: 'There are no pages to merge.' });
@@ -213,6 +248,7 @@ export function MergePdfClient() {
     setSelectedFiles([]);
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
     setPages([]);
+    setPageOrderInput('');
     setOutputFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (addMoreFilesInputRef.current) addMoreFilesInputRef.current.value = '';
@@ -281,7 +317,18 @@ export function MergePdfClient() {
         <div className="w-full max-w-6xl mx-auto">
            <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">Organize Your Pages</h1>
-            <p className="text-muted-foreground mt-2">Drag and drop the pages to reorder them as you like. You can also add more files.</p>
+            <p className="text-muted-foreground mt-2">Drag and drop, or use the inputs to reorder your pages.</p>
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <Input
+              placeholder="e.g. 1, 5, 3, 2, 4"
+              value={pageOrderInput}
+              onChange={(e) => setPageOrderInput(e.target.value)}
+              className="flex-grow"
+            />
+            <Button onClick={handleReorderFromInput}>
+              <Shuffle className="mr-2 h-4 w-4" /> Reorder
+            </Button>
           </div>
           <Card>
             <CardContent className="p-6">
