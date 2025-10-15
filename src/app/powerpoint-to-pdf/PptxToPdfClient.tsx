@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFImage } from 'pdf-lib';
 import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, File } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,7 +48,11 @@ export function PptxToPdfClient() {
     const slideHeight = slideSizeCy * EMU_TO_POINTS;
 
     const slides: ExtractedSlide[] = [];
-    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/)).sort();
+    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/)).sort((a,b) => {
+      const aNum = parseInt(a.replace(/[^0-9]/g, ''));
+      const bNum = parseInt(b.replace(/[^0-9]/g, ''));
+      return aNum - bNum;
+    });
     
     for (let i = 0; i < slideFiles.length; i++) {
         const slideNumber = i + 1;
@@ -57,7 +61,8 @@ export function PptxToPdfClient() {
         const slideXml = await zip.file(slideFiles[i])?.async('string');
         if (!slideXml) continue;
 
-        const relsXml = await zip.file(`ppt/slides/_rels/slide${slideNumber}.xml.rels`)?.async('string');
+        const relsXmlPath = `ppt/slides/_rels/${slideFiles[i].split('/').pop()}.rels`;
+        const relsXml = await zip.file(relsXmlPath)?.async('string');
         const relsDoc = relsXml ? parser.parseFromString(relsXml, 'application/xml') : null;
         const relationships: Record<string, string> = {};
         if (relsDoc) {
@@ -65,7 +70,7 @@ export function PptxToPdfClient() {
             const id = rel.getAttribute('Id');
             const target = rel.getAttribute('Target');
             if (id && target) {
-              relationships[id] = `ppt/${target.replace('../', '')}`;
+              relationships[id] = `ppt/slides/${target.replace('../', '')}`;
             }
           });
         }
@@ -89,7 +94,7 @@ export function PptxToPdfClient() {
               const imageData = await imageFile.async('base64');
               const imageType = imagePath.endsWith('.png') ? 'png' : 'jpeg';
               
-              const xfrm = pic.getElementsByTagName('a:xfrm')[0];
+              const xfrm = pic.closest('p\\:sp, p\\:pic')?.getElementsByTagName('a:xfrm')[0];
               const off = xfrm?.getElementsByTagName('a:off')[0];
               const ext = xfrm?.getElementsByTagName('a:ext')[0];
               
@@ -143,7 +148,7 @@ export function PptxToPdfClient() {
     return slides;
   };
 
- const createPdfFromExtractedData = async (slides: ExtractedSlide[]) => {
+ const createPdfFromExtractedData = async (slides: ExtractedSlide[], presSize: {width: number, height: number}) => {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
@@ -151,11 +156,7 @@ export function PptxToPdfClient() {
         setProcessingMessage(`Generating PDF page ${i + 1} of ${slides.length}`);
         const slide = slides[i];
         
-        // Use default A4 size as a fallback, but pptx should provide dimensions.
-        const slideWidth = slide.images[0]?.width || 595.28; // A4 width in points
-        const slideHeight = slide.images[0]?.height || 841.89; // A4 height in points
-
-        const page = pdfDoc.addPage([slideWidth, slideHeight]);
+        const page = pdfDoc.addPage([presSize.width, presSize.height]);
         
         for (const image of slide.images) {
             let embeddedImage: PDFImage;
@@ -244,12 +245,22 @@ export function PptxToPdfClient() {
   
   const handleConvert = async () => {
     if (!originalFile) return;
-    
+
     setIsProcessing(true);
     setProcessingMessage('Creating PDF...');
 
     try {
-        const pdfBlob = await createPdfFromExtractedData(extractedSlides);
+        const zip = await JSZip.loadAsync(originalFile);
+        const presPropsXml = await zip.file('ppt/presentation.xml')?.async('string');
+        const parser = new DOMParser();
+        const presPropsDoc = parser.parseFromString(presPropsXml!, 'application/xml');
+        const slideSizeEl = presPropsDoc.getElementsByTagName('p:sldSz')[0];
+        const presSize = {
+            width: parseInt(slideSizeEl.getAttribute('cx') || '0') * EMU_TO_POINTS,
+            height: parseInt(slideSizeEl.getAttribute('cy') || '0') * EMU_TO_POINTS
+        };
+
+        const pdfBlob = await createPdfFromExtractedData(extractedSlides, presSize);
         
         setOutputFile({ 
             name: originalFile.name.replace(/\.pptx$/i, '.pdf'),
@@ -338,14 +349,22 @@ export function PptxToPdfClient() {
              <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Review Extracted Content</h1>
-                    <p className="text-muted-foreground mt-2">This is the text content found in your presentation. Images are also extracted but not shown here. Proceed to create the PDF.</p>
+                    <p className="text-muted-foreground mt-2">This is the content found in your presentation. Proceed to create the PDF.</p>
                 </div>
+                <Card className="mb-4">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-muted">
+                        <File className="h-5 w-5 flex-shrink-0" />
+                        <span className="font-medium truncate">{originalFile?.name}</span>
+                      </div>
+                    </CardContent>
+                </Card>
                 <Card className="mb-8">
                     <CardContent className="p-4">
                         <Textarea
                             readOnly
                             value={textPreview}
-                            className="w-full h-96 rounded-md border bg-muted p-4 text-base font-body"
+                            className="w-full h-80 font-mono text-sm bg-muted"
                             placeholder="No text was found in the presentation. The output may only contain images."
                         />
                     </CardContent>
