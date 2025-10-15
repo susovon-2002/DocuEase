@@ -37,7 +37,7 @@ export function MergePdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const processAndAddFiles = useCallback(async (filesToAdd: File[]) => {
+  const processAndAddFiles = async (filesToAdd: File[]) => {
     if (filesToAdd.length === 0) return;
     
     setIsProcessing(true);
@@ -45,6 +45,8 @@ export function MergePdfClient() {
     const startingFileIndex = selectedFiles.length;
     const newPages: PageObject[] = [];
     let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
+    const validFilesToAdd: File[] = [];
+
 
     try {
       for (let i = 0; i < filesToAdd.length; i++) {
@@ -53,11 +55,14 @@ export function MergePdfClient() {
           toast({ variant: 'destructive', title: 'Invalid File Type', description: `${file.name} is not a PDF.`});
           continue;
         }
+        validFilesToAdd.push(file);
+
         const fileIndex = startingFileIndex + i;
         setProcessingMessage(`Processing ${file.name}...`);
         
         const fileBuffer = await file.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(fileBuffer);
+        // Use ignoreEncryption to handle some protected files, though it might fail on heavily encrypted ones.
+        const pdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
         const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
@@ -73,22 +78,22 @@ export function MergePdfClient() {
       
       if (newPages.length > 0) {
         setPages(currentPages => [...currentPages, ...newPages]);
-        setSelectedFiles(currentFiles => [...currentFiles, ...filesToAdd]);
+        setSelectedFiles(currentFiles => [...currentFiles, ...validFilesToAdd]);
         
         if (step === 'upload') {
           setStep('reorder');
         }
 
-        toast({ title: `${filesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
+        toast({ title: `${validFilesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
       }
 
     } catch (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not process one of the PDF files.' });
+      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not process one of the PDF files. It might be corrupted or encrypted.' });
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedFiles.length, pages.length, step, toast]);
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -96,7 +101,9 @@ export function MergePdfClient() {
       processAndAddFiles(files);
     }
     // Reset input to allow selecting same file again
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -160,7 +167,7 @@ export function MergePdfClient() {
                     continue; 
                 }
                 const sourceBuffer = await sourceFile.arrayBuffer();
-                sourcePdf = await PDFDocument.load(sourceBuffer);
+                sourcePdf = await PDFDocument.load(sourceBuffer, { ignoreEncryption: true });
                 sourcePdfCache.set(page.originalFileIndex, sourcePdf);
             }
             
@@ -262,6 +269,7 @@ export function MergePdfClient() {
               <div
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
                 onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
               >
                 {pages.map((page, index) => (
                   <div
@@ -288,15 +296,21 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
+                <div 
+                  className="border-2 border-dashed rounded-lg flex items-center justify-center text-center p-4 cursor-pointer hover:bg-accent hover:border-primary transition-colors min-h-[200px]"
+                  onClick={handleFileSelectClick}
+                >
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Plus className="h-8 w-8" />
+                    <span className="text-sm font-medium">Add More Files</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
           <div className="flex justify-center gap-4 mt-8">
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
-            </Button>
-             <Button onClick={handleFileSelectClick} variant="secondary">
-                <Plus className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" /> Merge PDF
@@ -337,5 +351,3 @@ export function MergePdfClient() {
         )
   }
 }
-
-    
