@@ -1,15 +1,15 @@
+
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, Eye, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, ChevronsRight, Eye, ArrowLeft, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { PageThumbnail } from './PageThumbnail';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
-import { Input } from '@/components/ui/input';
 import { useUser, useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
@@ -28,21 +28,21 @@ type FileObject = {
 type MergeStep = 'select_files' | 'reorder_pages' | 'preview_final';
 
 export function MergePdfClient() {
+  const [step, setStep] = useState<MergeStep>('select_files');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
-  const [selectedFiles, setSelectedFiles] = useState<FileObject[]>([]);
-  const [draggedFileIndex, setDraggedFileIndex] = useState<number | null>(null);
-  const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
   
+  const [selectedFiles, setSelectedFiles] = useState<FileObject[]>([]);
   const [pages, setPages] = useState<PageObject[]>([]);
   const [mergedPdfBytes, setMergedPdfBytes] = useState<Uint8Array | null>(null);
   const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
-  const [step, setStep] = useState<MergeStep>('select_files');
-  const [pageOrderInput, setPageOrderInput] = useState('');
+  
+  const [draggedFileIndex, setDraggedFileIndex] = useState<number | null>(null);
+  const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileSelectClick = () => {
@@ -62,15 +62,10 @@ export function MergePdfClient() {
         });
         continue;
       }
-      
       try {
         const fileBuffer = await file.arrayBuffer();
         const [thumbnailUrl] = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
-        newFileObjects.push({
-          id: Date.now() + Math.random(),
-          file,
-          thumbnailUrl,
-        });
+        newFileObjects.push({ id: Date.now() + Math.random(), file, thumbnailUrl });
       } catch (e) {
         console.error("Failed to process file for thumbnail", e);
         toast({ variant: 'destructive', title: 'Could not preview file', description: `Error processing ${file.name}.` });
@@ -78,7 +73,7 @@ export function MergePdfClient() {
     }
     setSelectedFiles(prev => [...prev, ...newFileObjects]);
     setIsProcessing(false);
-  }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -95,14 +90,6 @@ export function MergePdfClient() {
     const files = event.dataTransfer.files;
     if (files && files.length > 0) {
       processNewFiles(Array.from(files));
-    }
-  };
-
-  const handleClearFiles = () => {
-    selectedFiles.forEach(f => URL.revokeObjectURL(f.thumbnailUrl));
-    setSelectedFiles([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -136,7 +123,7 @@ export function MergePdfClient() {
   };
   const handlePageDragEnd = () => setDraggedPageIndex(null);
 
-  const handleInitialMerge = async () => {
+  const goToPageReorderStep = async () => {
     if (selectedFiles.length < 1) {
       toast({ variant: 'destructive', title: 'No files selected', description: 'Please select at least one PDF file.' });
       return;
@@ -145,21 +132,20 @@ export function MergePdfClient() {
     setProcessingMessage('Merging files...');
 
     try {
-      const mergedPdf = await PDFDocument.create();
+      const mergedPdfDoc = await PDFDocument.create();
       for (const fileObject of selectedFiles) {
         const fileBuffer = await fileObject.file.arrayBuffer();
         const pdf = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
-        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-        copiedPages.forEach(page => mergedPdf.addPage(page));
+        const copiedPages = await mergedPdfDoc.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach(page => mergedPdfDoc.addPage(page));
       }
 
       setProcessingMessage('Generating thumbnails...');
       
-      const tempMergedPdfBytes = await mergedPdf.save();
-      setMergedPdfBytes(tempMergedPdfBytes); // **** IMPORTANT: Store the merged bytes
+      const tempMergedBytes = await mergedPdfDoc.save();
+      setMergedPdfBytes(tempMergedBytes); // Preserve the merged PDF data
       
-      const imageUrls = await renderPdfPagesToImageUrls(tempMergedPdfBytes);
-
+      const imageUrls = await renderPdfPagesToImageUrls(tempMergedBytes);
       const pageObjects: PageObject[] = imageUrls.map((url, i) => ({
         id: Date.now() + i,
         thumbnailUrl: url,
@@ -167,7 +153,6 @@ export function MergePdfClient() {
       }));
 
       setPages(pageObjects);
-      setPageOrderInput(Array.from({ length: pageObjects.length }, (_, i) => i + 1).join(', '));
       setStep('reorder_pages');
       toast({ title: 'Files Merged', description: 'Now you can reorder the individual pages below.' });
     } catch (error) {
@@ -178,7 +163,7 @@ export function MergePdfClient() {
     }
   };
   
-  const handleFinalizePdf = async () => {
+  const goToPreviewStep = async () => {
     if (!mergedPdfBytes || pages.length === 0) {
       toast({ variant: 'destructive', title: 'Processing Error', description: 'No source PDF or pages available. Please start over.'});
       return;
@@ -187,44 +172,30 @@ export function MergePdfClient() {
     setIsProcessing(true);
     setProcessingMessage('Finalizing PDF...');
     try {
-      const finalPdf = await PDFDocument.create();
-      // Load the merged PDF that's stored in memory
-      const sourcePdf = await PDFDocument.load(mergedPdfBytes);
+      const finalPdfDoc = await PDFDocument.create();
+      const sourcePdfDoc = await PDFDocument.load(mergedPdfBytes);
 
-      // Get the correct page indices from the reordered 'pages' state
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
       
-      const copiedPages = await sourcePdf.copyPages(pageIndicesToCopy);
+      const copiedPages = await finalPdfDoc.copyPages(sourcePdfDoc, pageIndicesToCopy);
+      copiedPages.forEach(page => finalPdfDoc.addPage(page));
       
-      copiedPages.forEach(page => {
-          finalPdf.addPage(page)
-      });
-      
-      const finalPdfBytes = await finalPdf.save();
+      const finalPdfBytes = await finalPdfDoc.save();
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+      
       if (finalPdfUrl) {
-        URL.revokeObjectURL(finalPdfUrl); // Clean up previous URL if it exists
+        URL.revokeObjectURL(finalPdfUrl);
       }
       const url = URL.createObjectURL(blob);
       setFinalPdfUrl(url);
 
-      if(user && firestore) {
-        try {
-          const docRef = await addDoc(collection(firestore, `users/${user.uid}/documents`), {
-            userId: user.uid,
-            originalFileName: selectedFiles.map(f => f.file.name).join(', '),
-            uploadDate: serverTimestamp(),
-            storageLocation: `merged_${Date.now()}.pdf`,
-          });
-          await addDoc(collection(firestore, `users/${user.uid}/toolUsages`), {
-            documentId: docRef.id,
-            toolName: 'Merge PDF',
-            usageTimestamp: serverTimestamp(),
-          });
-        } catch (dbError) {
-           console.error("Firestore logging failed:", dbError);
-           // Non-critical, so we don't show an error to the user
-        }
+      if (user && firestore) {
+        // This is a fire-and-forget operation, no need to await
+        addDoc(collection(firestore, `users/${user.uid}/toolUsages`), {
+          toolName: 'Merge PDF',
+          usageTimestamp: serverTimestamp(),
+          details: `${selectedFiles.length} files merged.`
+        });
       }
 
       setStep('preview_final');
@@ -238,195 +209,163 @@ export function MergePdfClient() {
   };
 
   const handleStartOver = () => {
-    if(finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
+    if (finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
     setFinalPdfUrl(null);
-    handleClearFiles();
+    selectedFiles.forEach(f => URL.revokeObjectURL(f.thumbnailUrl));
+    setSelectedFiles([]);
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
     setPages([]);
     setMergedPdfBytes(null);
-    setPageOrderInput('');
     setStep('select_files');
-  }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleGoBackToReorder = () => {
-    if(finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
+    if (finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
     setFinalPdfUrl(null);
     setStep('reorder_pages');
   };
 
   const handleDownload = () => {
-    if(!finalPdfUrl) return;
+    if (!finalPdfUrl) return;
     const a = document.createElement('a');
     a.href = finalPdfUrl;
     a.download = 'merged_document.pdf';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }
-
-  const handleReorderFromInput = () => {
-    const newOrder = pageOrderInput.split(/,| /).filter(n => n.trim() !== '').map(n => parseInt(n.trim(), 10));
-
-    if (newOrder.some(isNaN)) {
-      toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please enter only comma-separated numbers.' });
-      return;
-    }
-    if (newOrder.length !== pages.length) {
-      toast({ variant: 'destructive', title: 'Incorrect Page Count', description: `Please provide exactly ${pages.length} page numbers.`});
-      return;
-    }
-    const newOrderSet = new Set(newOrder);
-    if (newOrderSet.size !== pages.length) {
-      toast({ variant: 'destructive', title: 'Duplicate Page Numbers', description: 'Each page number must be unique.' });
-      return;
-    }
-    const maxPage = Math.max(...newOrder);
-    if (maxPage > pages.length) {
-      toast({ variant: 'destructive', title: 'Invalid Page Number', description: `The maximum page number is ${pages.length}.` });
-      return;
-    }
-
-    const reorderedPages = newOrder.map(num => pages.find(p => p.originalPageIndex === num - 1)!);
-    setPages(reorderedPages);
-
-    toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
   };
   
-  const renderStep = () => {
-    switch(step) {
-      case 'select_files':
-        return (
-          <div className="w-full max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold">Merge PDF</h1>
-              <p className="text-muted-foreground mt-2">Combine multiple PDF documents into one. Rearrange and organize files as you like.</p>
-            </div>
-            <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-              <CardContent className="p-10">
-                 <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="hidden"
-                      multiple
-                      accept="application/pdf"
-                    />
-                {selectedFiles.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className="bg-secondary p-4 rounded-full">
-                      <UploadCloud className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <p className="text-lg font-medium">Drag & drop PDF files here</p>
-                    <p className="text-muted-foreground">or</p>
-                    <Button size="lg" onClick={handleFileSelectClick}>Select Files</Button>
-                    <p className="text-xs text-muted-foreground mt-4">Only PDF files are supported.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-center">Selected Files</h3>
-                    <p className="text-sm text-muted-foreground text-center">Drag and drop to reorder files.</p>
+  if (isProcessing) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-20">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg font-medium">{processingMessage}</p>
+        <p className="text-muted-foreground">Please wait a moment...</p>
+      </div>
+    );
+  }
+
+  // --- RENDER LOGIC ---
+
+  if (step === 'select_files') {
+    return (
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">Merge PDF</h1>
+          <p className="text-muted-foreground mt-2">Combine multiple PDF documents into one. Rearrange and organize files as you like.</p>
+        </div>
+        <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+          <CardContent className="p-10">
+              <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  multiple
+                  accept="application/pdf"
+                />
+            {selectedFiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="bg-secondary p-4 rounded-full">
+                  <UploadCloud className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <p className="text-lg font-medium">Drag & drop PDF files here</p>
+                <p className="text-muted-foreground">or</p>
+                <Button size="lg" onClick={handleFileSelectClick}>Select Files</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-center">Selected Files ({selectedFiles.length})</h3>
+                <p className="text-sm text-muted-foreground text-center">Drag and drop to reorder files.</p>
+                <div
+                  onDragOver={e => e.preventDefault()}
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2"
+                >
+                  {selectedFiles.map((fileObj, index) => (
                     <div
-                      onDragOver={e => e.preventDefault()}
-                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2"
+                      key={fileObj.id}
+                      className={cn("relative group rounded-md shadow-md cursor-grab", draggedFileIndex === index && "opacity-50")}
+                      draggable
+                      onDragStart={() => handleFileDragStart(index)}
+                      onDragEnter={() => handleFileDragEnter(index)}
+                      onDragEnd={handleFileDragEnd}
+                      onDragOver={(e) => e.preventDefault()}
                     >
-                      {selectedFiles.map((fileObj, index) => (
-                        <div
-                          key={fileObj.id}
-                          className={cn("relative group rounded-md shadow-md cursor-grab", draggedFileIndex === index && "opacity-50")}
-                          draggable
-                          onDragStart={() => handleFileDragStart(index)}
-                          onDragEnter={() => handleFileDragEnter(index)}
-                          onDragEnd={handleFileDragEnd}
-                          onDragOver={(e) => e.preventDefault()}
-                        >
-                          <PageThumbnail thumbnailUrl={fileObj.thumbnailUrl} pageNumber={index + 1} fileName={fileObj.file.name} />
-                          <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveFile(fileObj.id)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                       <div className="flex items-center justify-center">
-                          <Button variant="outline" className="w-full h-full" onClick={handleFileSelectClick}>
-                              <UploadCloud className="mr-2 h-4 w-4" /> Add More Files
-                          </Button>
-                      </div>
-                    </div>
-                    <div className="flex justify-center gap-4 mt-6">
-                       <Button onClick={handleClearFiles} variant="outline">Clear All</Button>
-                       <Button size="lg" disabled={isProcessing} onClick={handleInitialMerge}>
-                        {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{processingMessage}</> : <><ChevronsRight className="mr-2 h-4 w-4" /> Merge & Reorder Pages</>}
+                      <PageThumbnail thumbnailUrl={fileObj.thumbnailUrl} pageNumber={index + 1} fileName={fileObj.file.name} />
+                      <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveFile(fileObj.id)}>
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
+                  ))}
+                    <div className="flex items-center justify-center border-2 border-dashed rounded-md">
+                      <Button variant="ghost" className="w-full h-full" onClick={handleFileSelectClick}>
+                          <UploadCloud className="mr-2 h-4 w-4" /> Add More
+                      </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        );
-      case 'reorder_pages':
-        return (
-          <div className="w-full max-w-6xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold">Organize Your Pages</h1>
-              <p className="text-muted-foreground mt-2">Drag and drop the pages to set your desired order, or use the input below.</p>
-            </div>
-            <Card className="mb-6">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-4">
-                <label htmlFor="pageOrder" className="font-medium flex-shrink-0">Page Order:</label>
-                <Input 
-                  id="pageOrder"
-                  placeholder="e.g., 1, 3, 2, 4"
-                  value={pageOrderInput}
-                  onChange={(e) => setPageOrderInput(e.target.value)}
-                  className="flex-grow"
-                />
-                <Button onClick={handleReorderFromInput} variant="secondary">Apply Order</Button>
-              </CardContent>
-            </Card>
-            <div className="flex justify-center gap-4 mb-8">
-              <Button onClick={() => setStep('select_files')} variant="outline">Back to Files</Button>
-              <Button onClick={handleFinalizePdf} size="lg" disabled={isProcessing}>
-                {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {processingMessage}</> : <><Eye className="mr-2 h-4 w-4" />Preview Final PDF</>}
-              </Button>
-            </div>
-            <div onDragOver={e => e.preventDefault()} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4 rounded-lg border">
-              {pages.map((page, index) => (
-                 <div key={page.id} className={cn("relative rounded-md shadow-md cursor-grab transition-opacity", draggedPageIndex === index && "opacity-50")} draggable onDragStart={() => handlePageDragStart(index)} onDragEnter={() => handlePageDragEnter(index)} onDragEnd={handlePageDragEnd} onDragOver={(e) => e.preventDefault()}>
-                  <PageThumbnail thumbnailUrl={page.thumbnailUrl} pageNumber={index + 1} />
                 </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 'preview_final':
-        return (
-          <div className="w-full max-w-6xl mx-auto">
-            <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold">Preview Your Final PDF</h1>
-                <p className="text-muted-foreground mt-2">Review the document below. If it looks good, download it.</p>
-            </div>
-            <div className="flex justify-center gap-4 mb-8">
-               <Button onClick={handleGoBackToReorder} variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back to Reorder</Button>
-                <Button onClick={handleDownload} size="lg"><Download className="mr-2 h-4 w-4" />Download Final PDF</Button>
-            </div>
-            <Card>
-              <CardContent className="p-2">
-                <iframe src={finalPdfUrl!} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
-              </CardContent>
-            </Card>
-             <div className="flex justify-center mt-4">
-                <Button onClick={handleStartOver} variant="link"><RefreshCw className="mr-2 h-4 w-4" />Merge Another</Button>
-            </div>
-          </div>
-        );
-    }
-  };
+                <div className="flex justify-center gap-4 mt-6">
+                    <Button onClick={handleStartOver} variant="outline">Clear All</Button>
+                    <Button size="lg" onClick={goToPageReorderStep}>
+                    <ChevronsRight className="mr-2 h-4 w-4" /> Merge & Reorder
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  return isProcessing ? (
-    <div className="flex flex-col items-center justify-center text-center py-20">
-      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-      <p className="text-lg font-medium">{processingMessage}</p>
-      <p className="text-muted-foreground">Please wait a moment...</p>
-    </div>
-  ) : renderStep();
+  if (step === 'reorder_pages') {
+    return (
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">Organize Your Pages</h1>
+          <p className="text-muted-foreground mt-2">Drag and drop the pages to set your desired order.</p>
+        </div>
+        <div className="flex justify-center gap-4 mb-8">
+          <Button onClick={handleStartOver} variant="outline">Back to Files</Button>
+          <Button onClick={goToPreviewStep} size="lg">
+            <Eye className="mr-2 h-4 w-4" />Preview Final PDF
+          </Button>
+        </div>
+        <div onDragOver={e => e.preventDefault()} className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 p-4 rounded-lg border bg-secondary/50">
+          {pages.map((page, index) => (
+              <div key={page.id} className={cn("relative rounded-md shadow-md cursor-grab transition-opacity", draggedPageIndex === index && "opacity-50")} draggable onDragStart={() => handlePageDragStart(index)} onDragEnter={() => handlePageDragEnter(index)} onDragEnd={handlePageDragEnd} onDragOver={(e) => e.preventDefault()}>
+              <PageThumbnail thumbnailUrl={page.thumbnailUrl} pageNumber={index + 1} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'preview_final') {
+    return (
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Preview Your Final PDF</h1>
+            <p className="text-muted-foreground mt-2">Review the document below. If it looks good, download it.</p>
+        </div>
+        <div className="flex justify-center gap-4 mb-8">
+            <Button onClick={handleGoBackToReorder} variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back to Reorder</Button>
+            <Button onClick={handleDownload} size="lg"><Download className="mr-2 h-4 w-4" />Download Final PDF</Button>
+        </div>
+        <Card>
+          <CardContent className="p-2">
+            <iframe src={finalPdfUrl!} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
+          </CardContent>
+        </Card>
+          <div className="flex justify-center mt-4">
+            <Button onClick={handleStartOver} variant="link"><RefreshCw className="mr-2 h-4 w-4" />Merge Another</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
