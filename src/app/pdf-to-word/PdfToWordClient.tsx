@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, FileText } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -10,6 +10,53 @@ import * as pdfjsLib from 'pdfjs-dist';
 type ConvertStep = 'upload' | 'download';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+async function getPdfText(file: File, onProgress: (message: string) => void): Promise<string> {
+    const fileBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+        onProgress(`Extracting text from page ${i} of ${pdf.numPages}...`);
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        if (textContent.items.length === 0) {
+            fullText += '\n\n-- Page Break --\n\n';
+            continue;
+        }
+
+        // Group text items by line
+        const lines: { str: string, x: number }[][] = [];
+        let currentLine: { str: string, x: number }[] = [];
+        let lastY = -1;
+
+        // @ts-ignore
+        for (const item of textContent.items) {
+            if ('str' in item) {
+                const currentY = item.transform[5];
+                if (lastY !== -1 && Math.abs(currentY - lastY) > 5) {
+                    lines.push(currentLine.sort((a, b) => a.x - b.x));
+                    currentLine = [];
+                }
+                currentLine.push({ str: item.str, x: item.transform[4] });
+                lastY = currentY;
+            }
+        }
+        lines.push(currentLine.sort((a, b) => a.x - b.x));
+        
+        let pageText = '';
+        lines.forEach(lineItems => {
+            pageText += lineItems.map(item => item.str).join(' ') + '\n';
+        });
+
+        fullText += pageText + '\n';
+    }
+
+    return fullText.replace(/\n-- Page Break --\n\n$/, '');
+}
+
 
 export function PdfToWordClient() {
   const [step, setStep] = useState<ConvertStep>('upload');
@@ -58,38 +105,7 @@ export function PdfToWordClient() {
     setProcessingMessage('Converting PDF to text...');
 
     try {
-        const fileBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
-        const pdf = await loadingTask.promise;
-        let fullText = '';
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            setProcessingMessage(`Extracting text from page ${i} of ${pdf.numPages}...`);
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            let lastY = -1;
-            let pageText = '';
-            // @ts-ignore
-            for (const item of textContent.items) {
-                if ('str' in item) {
-                    const currentY = item.transform[5];
-                    if (lastY !== -1 && Math.abs(currentY - lastY) > (item.height * 0.5)) {
-                        // A significant jump in Y indicates a new line.
-                        // A smaller jump might just be super/subscript.
-                        pageText += '\n';
-                    }
-                    pageText += item.str;
-                    if (item.hasEOL) {
-                        pageText += '\n';
-                    } else {
-                        pageText += ' ';
-                    }
-                    lastY = currentY;
-                }
-            }
-            fullText += pageText + '\n\n-- Page Break --\n\n';
-        }
+        const fullText = await getPdfText(file, setProcessingMessage);
         
         const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
         
@@ -182,7 +198,7 @@ export function PdfToWordClient() {
                         <textarea
                             readOnly
                             value={outputFile?.textContent}
-                            className="w-full h-96 rounded-md border bg-muted p-4 text-sm"
+                            className="w-full h-96 rounded-md border bg-muted p-4 text-sm font-mono"
                             placeholder="Extracted text will appear here."
                         />
                     </CardContent>
