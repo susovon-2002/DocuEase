@@ -190,10 +190,6 @@ export function MergePdfClient() {
   };
   
   const handleFinalizePdf = async () => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save your work.' });
-      return;
-    }
     if (pages.length === 0 || !mergedPdfBytes) {
         toast({ variant: 'destructive', title: 'Processing Error', description: 'No pages or source PDF available to create the final document.'});
         return;
@@ -304,23 +300,46 @@ export function MergePdfClient() {
       return;
     }
     
-    const pageMap = new Map(pages.map(p => [p.originalPageIndex, p]));
+    const pageMap = new Map(pages.map((p, i) => [i + 1, p]));
     const reorderedPages: PageObject[] = [];
     
     for (const pageNum of newOrder) {
-      const pageToPlace = pageMap.get(pageNum - 1);
-      if (pageToPlace) {
-        reorderedPages.push(pageToPlace);
+        const originalPageIndex = pages[pageNum - 1].originalPageIndex;
+        const pageToPlace = pages.find(p => p.originalPageIndex === originalPageIndex);
+        
+        const foundPage = pages[pageNum-1];
+        reorderedPages.push(foundPage);
+    }
+
+    const newPages: PageObject[] = newOrder.map(num => pages[num - 1]);
+
+    const a = new Set(newPages.map(p => p.id));
+    
+    const originalPagesById = new Map(pages.map(p => [p.originalPageIndex, p]));
+    const finalPages: PageObject[] = [];
+
+    for (const pageNum of newOrder) {
+      const pageToMove = pages.find(p => p.originalPageIndex === pageNum - 1);
+      const currentPageObject = pages[pageNum-1];
+      if (currentPageObject) {
+          finalPages.push(currentPageObject);
       }
     }
     
-    if (reorderedPages.length === pages.length) {
-      setPages(reorderedPages);
-      toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
-      setPageOrderInput(pages.map(p => p.originalPageIndex + 1).join(', '));
-    }
+    const pageOriginalOrder = pages.map(p => p.originalPageIndex + 1);
+    
+    const finalReorderedPages: PageObject[] = newOrder.map(orderNumber => {
+      // Find the page that was originally at this position
+      return pages[orderNumber - 1];
+    });
+
+
+    // Create a map of original page objects for quick lookup
+    const originalPagesMap = new Map(pages.map(p => [p.originalPageIndex, p]));
+    const reorderedPagesById: PageObject[] = newOrder.map(num => originalPagesMap.get(num - 1)!);
+
+    setPages(reorderedPagesById);
+    toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
   };
 
 
