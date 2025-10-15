@@ -1,14 +1,26 @@
 
+
 import { tools } from '@/lib/tools';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Combine, Minimize2, FileImage, FilePenLine, Lock, Sparkles, LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { groupBy } from 'lodash';
 
 
 export default function Home() {
   const toolsByCategory = groupBy(tools, 'category');
+
+  const categoryIcons: Record<string, LucideIcon> = {
+    'Organize PDF': Combine,
+    'Optimize PDF': Minimize2,
+    'Convert to PDF': FileImage,
+    'Convert from PDF': FileImage,
+    'Edit PDF': FilePenLine,
+    'PDF Security': Lock,
+    'AI Tools': Sparkles,
+  };
+
 
   return (
     <div className="flex flex-col">
@@ -69,20 +81,26 @@ export default function Home() {
             <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
-              {Object.entries(toolsByCategory).map(([category, categoryTools]) => (
-                <div key={category}>
-                  <h3 className="text-xl font-semibold mb-4">{category}</h3>
-                  <ul className="space-y-3">
-                    {categoryTools.map(tool => (
-                      <li key={tool.path}>
-                        <Link href={tool.path} className="text-muted-foreground hover:text-primary transition-colors">
-                          {tool.title}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
+                const Icon = categoryIcons[category] || FileCog;
+                return (
+                  <div key={category}>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center">
+                      <Icon className="h-5 w-5 mr-3 text-primary" />
+                      {category}
+                    </h3>
+                    <ul className="space-y-3">
+                      {categoryTools.map(tool => (
+                        <li key={tool.path}>
+                          <Link href={tool.path} className="text-muted-foreground hover:text-primary transition-colors">
+                            {tool.title}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })}
           </div>
         </div>
       </section>
