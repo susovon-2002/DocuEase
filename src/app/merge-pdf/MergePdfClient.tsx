@@ -194,7 +194,7 @@ export function MergePdfClient() {
       // Get the correct page indices from the reordered 'pages' state
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
       
-      const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
+      const copiedPages = await sourcePdf.copyPages(pageIndicesToCopy);
       
       copiedPages.forEach(page => {
           finalPdf.addPage(page)
