@@ -24,6 +24,8 @@ export function JpgToPdfClient() {
   const [selectedImages, setSelectedImages] = useState<UploadedImage[]>([]);
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
   
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addMoreFilesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -88,6 +90,26 @@ export function JpgToPdfClient() {
       URL.revokeObjectURL(imageToRemove.url);
     }
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleImageDragStart = (index: number) => {
+    setDraggedImageIndex(index);
+  };
+
+  const handleImageDragEnter = (index: number) => {
+    if (draggedImageIndex === null || draggedImageIndex === index) return;
+    
+    setSelectedImages(currentImages => {
+        const newImages = [...currentImages];
+        const draggedItem = newImages.splice(draggedImageIndex, 1)[0];
+        newImages.splice(index, 0, draggedItem);
+        setDraggedImageIndex(index);
+        return newImages;
+    });
+  };
+
+  const handleImageDragEnd = () => {
+    setDraggedImageIndex(null);
   };
   
   const handleConvert = async () => {
@@ -194,10 +216,24 @@ export function JpgToPdfClient() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-center mb-4">Selected Images</h3>
-                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto p-2">
+                  <h3 className="text-lg font-medium text-center mb-4">Selected Images ({selectedImages.length})</h3>
+                   <div 
+                    className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto p-2"
+                    onDragOver={(e) => e.preventDefault()}
+                  >
                     {selectedImages.map((image, index) => (
-                      <div key={image.file.name + index} className="relative group aspect-square">
+                      <div 
+                        key={image.file.name + index} 
+                        className={cn(
+                          "relative group aspect-square cursor-grab transition-opacity",
+                          draggedImageIndex === index && "opacity-50"
+                        )}
+                        draggable
+                        onDragStart={() => handleImageDragStart(index)}
+                        onDragEnter={() => handleImageDragEnter(index)}
+                        onDragEnd={handleImageDragEnd}
+                        onDragOver={(e) => e.preventDefault()}
+                      >
                         <img src={image.url} alt={image.file.name} className="rounded-md w-full h-full object-cover"/>
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-white text-center">
                             <p className="text-xs font-bold truncate w-full">{image.file.name}</p>
