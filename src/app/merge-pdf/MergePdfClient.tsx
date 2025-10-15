@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, Plus } from 'lucide-react';
@@ -107,7 +107,6 @@ export function MergePdfClient() {
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (step === 'reorder') return; // Disable drop in reorder step to avoid confusion
     const files = Array.from(event.dataTransfer.files || []);
      if (files.length > 0) {
       processAndAddFiles(files);
@@ -145,6 +144,25 @@ export function MergePdfClient() {
   };
 
   const handlePageDragEnd = () => setDraggedPageIndex(null);
+
+  const handlePageNumberChange = (currentIndex: number, newPageNumberStr: string) => {
+    const newPageNumber = parseInt(newPageNumberStr, 10);
+    if (isNaN(newPageNumber) || newPageNumber < 1 || newPageNumber > pages.length) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid Page Number',
+            description: `Please enter a number between 1 and ${pages.length}.`
+        });
+        return;
+    }
+
+    setPages(currentPages => {
+        const newPages = [...currentPages];
+        const itemToMove = newPages.splice(currentIndex, 1)[0];
+        newPages.splice(newPageNumber - 1, 0, itemToMove);
+        return newPages;
+    });
+  };
   
   const handleFinalize = async () => {
       if (pages.length === 0) {
@@ -285,6 +303,7 @@ export function MergePdfClient() {
                       thumbnailUrl={page.thumbnailUrl}
                       pageNumber={index + 1}
                       fileName={page.fileName}
+                      onPageNumberChange={(newPageNumber) => handlePageNumberChange(index, newPageNumber)}
                     />
                     <Button 
                       variant="destructive" 
@@ -353,5 +372,3 @@ export function MergePdfClient() {
         )
   }
 }
-
-    
