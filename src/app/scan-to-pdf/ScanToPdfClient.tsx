@@ -3,12 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, Camera, Download, RefreshCw, X, ArrowRight, Wand2 } from 'lucide-react';
+import { Loader2, Camera, Download, RefreshCw, X, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 
 export function ScanToPdfClient() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -48,7 +47,11 @@ export function ScanToPdfClient() {
         });
       }
     };
-    getCameraPermission();
+
+    if (step === 'camera') {
+        getCameraPermission();
+    }
+    
 
     return () => {
       // Cleanup: stop video stream when component unmounts
@@ -56,7 +59,7 @@ export function ScanToPdfClient() {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [step, toast]);
 
   const handleCapture = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -130,7 +133,7 @@ export function ScanToPdfClient() {
     URL.revokeObjectURL(url);
   };
   
-  if (hasCameraPermission === null) {
+  if (hasCameraPermission === null && step === 'camera') {
       return (
           <div className="flex flex-col items-center justify-center text-center py-20">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -164,7 +167,6 @@ export function ScanToPdfClient() {
         </div>
     );
   }
-
 
   return (
     <div className="container mx-auto max-w-6xl">
