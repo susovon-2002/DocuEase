@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Download, RefreshCw, ChevronsRight, Eye, ArrowLeft, X } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, ChevronsRight, Eye, ArrowLeft, X, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -35,7 +35,7 @@ export function MergePdfClient() {
   const [selectedFiles, setSelectedFiles] = useState<FileObject[]>([]);
   const [pages, setPages] = useState<PageObject[]>([]);
   const [mergedPdfBytes, setMergedPdfBytes] = useState<Uint8Array | null>(null);
-  const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
+  const [finalPdfBlob, setFinalPdfBlob] = useState<Blob | null>(null);
   
   const [draggedFileIndex, setDraggedFileIndex] = useState<number | null>(null);
   const [draggedPageIndex, setDraggedPageIndex] = useState<number | null>(null);
@@ -163,31 +163,27 @@ export function MergePdfClient() {
     }
   };
   
-  const goToPreviewStep = async () => {
+  const handleFinalizePdf = async () => {
     if (!mergedPdfBytes || pages.length === 0) {
-      toast({ variant: 'destructive', title: 'Processing Error', description: 'No source PDF or pages available. Please start over.'});
+      toast({ variant: 'destructive', title: 'Could not generate the final PDF', description: 'No source PDF or pages available. Please start over.'});
       return;
     }
 
     setIsProcessing(true);
     setProcessingMessage('Finalizing PDF...');
     try {
-      const finalPdfDoc = await PDFDocument.create();
-      const sourcePdfDoc = await PDFDocument.load(mergedPdfBytes);
+      const finalPdf = await PDFDocument.create();
+      const sourcePdf = await PDFDocument.load(mergedPdfBytes);
 
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
       
-      const copiedPages = await finalPdfDoc.copyPages(sourcePdfDoc, pageIndicesToCopy);
-      copiedPages.forEach(page => finalPdfDoc.addPage(page));
+      const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
+      copiedPages.forEach(page => finalPdf.addPage(page));
       
-      const finalPdfBytes = await finalPdfDoc.save();
+      const finalPdfBytes = await finalPdf.save();
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       
-      if (finalPdfUrl) {
-        URL.revokeObjectURL(finalPdfUrl);
-      }
-      const url = URL.createObjectURL(blob);
-      setFinalPdfUrl(url);
+      setFinalPdfBlob(blob);
 
       if (user && firestore) {
         // This is a fire-and-forget operation, no need to await
@@ -209,11 +205,14 @@ export function MergePdfClient() {
   };
 
   const handleStartOver = () => {
-    if (finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
-    setFinalPdfUrl(null);
+    // Revoke object URLs to free up memory
+    if (finalPdfBlob) URL.revokeObjectURL(URL.createObjectURL(finalPdfBlob));
     selectedFiles.forEach(f => URL.revokeObjectURL(f.thumbnailUrl));
-    setSelectedFiles([]);
     pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
+    
+    // Reset all state
+    setFinalPdfBlob(null);
+    setSelectedFiles([]);
     setPages([]);
     setMergedPdfBytes(null);
     setStep('select_files');
@@ -223,19 +222,20 @@ export function MergePdfClient() {
   };
 
   const handleGoBackToReorder = () => {
-    if (finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
-    setFinalPdfUrl(null);
+    setFinalPdfBlob(null);
     setStep('reorder_pages');
   };
 
   const handleDownload = () => {
-    if (!finalPdfUrl) return;
+    if (!finalPdfBlob) return;
+    const url = URL.createObjectURL(finalPdfBlob);
     const a = document.createElement('a');
-    a.href = finalPdfUrl;
+    a.href = url;
     a.download = 'merged_document.pdf';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
   
   if (isProcessing) {
@@ -329,7 +329,7 @@ export function MergePdfClient() {
         </div>
         <div className="flex justify-center gap-4 mb-8">
           <Button onClick={handleStartOver} variant="outline">Back to Files</Button>
-          <Button onClick={goToPreviewStep} size="lg">
+          <Button onClick={handleFinalizePdf} size="lg">
             <Eye className="mr-2 h-4 w-4" />Preview Final PDF
           </Button>
         </div>
@@ -357,7 +357,7 @@ export function MergePdfClient() {
         </div>
         <Card>
           <CardContent className="p-2">
-            <iframe src={finalPdfUrl!} className="w-full h-[70vh] border-0" title="Final PDF Preview" />
+             {finalPdfBlob && <iframe src={URL.createObjectURL(finalPdfBlob)} className="w-full h-[70vh] border-0" title="Final PDF Preview" />}
           </CardContent>
         </Card>
           <div className="flex justify-center mt-4">
