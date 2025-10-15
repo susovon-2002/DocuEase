@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, File as FileIcon, X, UploadCloud, GripVertical, Download, RefreshCw, ChevronsRight, ArrowRight, ArrowLeft, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -205,7 +205,6 @@ export function MergePdfClient() {
       const finalPdf = await PDFDocument.create();
       const sourcePdf = await PDFDocument.load(mergedPdfBytes);
 
-      // Map the current visual order of pages back to their original indices in the merged document
       const pageIndicesToCopy = pages.map(p => p.originalPageIndex);
       
       const copiedPages = await finalPdf.copyPages(sourcePdf, pageIndicesToCopy);
@@ -304,20 +303,6 @@ export function MergePdfClient() {
     const reorderedPages: PageObject[] = [];
     let isValid = true;
     
-    // Create a map for quick lookup based on original page index
-    const originalPagesMap = new Map(pages.map(p => [p.originalPageIndex + 1, p]));
-
-    for (const pageNum of newOrder) {
-        // Find the page object that corresponds to the desired original page number
-        const foundPage = pages.find(p => p.originalPageIndex === pageNum - 1);
-        if (foundPage) {
-           // This logic is tricky. We need to build a new array in the specified order.
-           // Let's find the page by its number (1-based) in the *current* visual list
-           const pageToMove = pages[pageNum - 1];
-           // This is still not quite right. The user input refers to the *original* page numbers.
-        }
-    }
-
     const currentPagesByOriginalIndex = new Map(pages.map(p => [p.originalPageIndex, p]));
     const finalReorderedPages: PageObject[] = [];
     
@@ -394,8 +379,8 @@ export function MergePdfClient() {
         <div className="flex justify-center gap-4 mb-8">
           <Button onClick={() => setStep('select_files')} variant="outline">Back</Button>
           <Button onClick={handleFinalizePdf} size="lg" disabled={isProcessing}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ChevronsRight className="mr-2 h-4 w-4" />}
-            {isProcessing ? processingMessage : 'Generate Final PDF'}
+            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+            {isProcessing ? processingMessage : 'Preview Final PDF'}
           </Button>
         </div>
         <div 
