@@ -16,7 +16,11 @@ type WatermarkStep = 'upload' | 'options' | 'download';
 type WatermarkType = 'text' | 'image';
 type Position = 'center' | 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'tiled';
 
-export function AddWatermarkClient() {
+interface AddWatermarkClientProps {
+    onPageCountChange: (count: number) => void;
+}
+
+export function AddWatermarkClient({ onPageCountChange }: AddWatermarkClientProps) {
   const [step, setStep] = useState<WatermarkStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
@@ -42,33 +46,36 @@ export function AddWatermarkClient() {
   const handleFileSelectClick = () => fileInputRef.current?.click();
   const handleImageSelectClick = () => imageInputRef.current?.click();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
+  const processFile = async (file: File | null) => {
+    if (!file) return;
+     if (file.type === 'application/pdf') {
+        setOriginalFile(file);
+        try {
+            const pdfDoc = await PDFDocument.load(await file.arrayBuffer());
+            onPageCountChange(pdfDoc.getPageCount());
+        } catch (e) {
+            console.error('Failed to count pages', e);
+            onPageCountChange(0); // Assume 0 if it fails
+        }
       setStep('options');
-    } else if (file) {
+    } else {
       toast({
         variant: 'destructive',
         title: 'Invalid file type',
         description: 'Only PDF files are supported.',
       });
     }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    processFile(file || null);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-      setStep('options');
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported for dropping.',
-      });
-    }
+    processFile(file || null);
   };
 
   const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,6 +218,7 @@ export function AddWatermarkClient() {
     setStep('upload');
     setOriginalFile(null);
     setOutputFile(null);
+    onPageCountChange(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (imageInputRef.current) imageInputRef.current.value = '';
     setImageFile(null);

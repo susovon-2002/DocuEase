@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
@@ -19,7 +19,11 @@ type Position =
   | 'top-left'
   | 'top-right';
 
-export function AddPageNumbersClient() {
+interface AddPageNumbersClientProps {
+    onPageCountChange: (count: number) => void;
+}
+
+export function AddPageNumbersClient({ onPageCountChange }: AddPageNumbersClientProps) {
   const [step, setStep] = useState<AddNumbersStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
@@ -39,48 +43,40 @@ export function AddPageNumbersClient() {
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      try {
+  
+  const processFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid file type',
+            description: 'Only PDF files are supported.',
+        });
+        return;
+    }
+    
+    try {
         const pdfDoc = await PDFDocument.load(await file.arrayBuffer());
-        setTotalPages(pdfDoc.getPageCount());
-        setEndPage(pdfDoc.getPageCount().toString());
+        const count = pdfDoc.getPageCount();
+        setTotalPages(count);
+        onPageCountChange(count);
+        setEndPage(count.toString());
         setOriginalFile(file);
         setStep('options');
-      } catch (e) {
+    } catch (e) {
         toast({ variant: 'destructive', title: 'Invalid PDF', description: 'Could not read the provided PDF file.' });
-      }
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported.',
-      });
     }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    processFile(file || null);
   };
 
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-     if (file && file.type === 'application/pdf') {
-      try {
-        const pdfDoc = await PDFDocument.load(await file.arrayBuffer());
-        setTotalPages(pdfDoc.getPageCount());
-        setEndPage(pdfDoc.getPageCount().toString());
-        setOriginalFile(file);
-        setStep('options');
-      } catch (e) {
-        toast({ variant: 'destructive', title: 'Invalid PDF', description: 'Could not read the provided PDF file.' });
-      }
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported for dropping.',
-      });
-    }
+    processFile(file || null);
   };
   
   const handleAddNumbers = async () => {
@@ -176,6 +172,7 @@ export function AddPageNumbersClient() {
     setOriginalFile(null);
     setOutputFile(null);
     setTotalPages(0);
+    onPageCountChange(0);
     setStartPage('1');
     setEndPage('');
     if (fileInputRef.current) fileInputRef.current.value = '';

@@ -13,7 +13,11 @@ import { Label } from '@/components/ui/label';
 type CompressStep = 'upload' | 'options' | 'download';
 type CompressionLevel = 'extreme' | 'recommended' | 'less';
 
-export function CompressPdfClient() {
+interface CompressPdfClientProps {
+    onPageCountChange: (count: number) => void;
+}
+
+export function CompressPdfClient({ onPageCountChange }: CompressPdfClientProps) {
   const [step, setStep] = useState<CompressStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
@@ -37,33 +41,37 @@ export function CompressPdfClient() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
 
+  const processFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid file type',
+            description: 'Only PDF files are supported.',
+        });
+        return;
+    }
+    
+    setOriginalFile(file);
+    try {
+        const pdfDoc = await PDFDocument.load(await file.arrayBuffer());
+        onPageCountChange(pdfDoc.getPageCount());
+    } catch (e) {
+        console.error('Failed to count pages', e);
+        onPageCountChange(0); // Assume 0 if it fails
+    }
+    setStep('options');
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-      setStep('options');
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported.',
-      });
-    }
+    processFile(file || null);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-      setStep('options');
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported for dropping.',
-      });
-    }
+    processFile(file || null);
   };
   
   const handleCompress = async () => {
@@ -132,6 +140,7 @@ export function CompressPdfClient() {
     setStep('upload');
     setOriginalFile(null);
     setOutputFile(null);
+    onPageCountChange(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   

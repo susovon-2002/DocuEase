@@ -28,7 +28,11 @@ type Range = {
   to: string;
 };
 
-export function SplitPdfClient() {
+interface SplitPdfClientProps {
+    onPageCountChange: (count: number) => void;
+}
+
+export function SplitPdfClient({ onPageCountChange }: SplitPdfClientProps) {
   const [step, setStep] = useState<SplitStep>('upload');
   const [splitMode, setSplitMode] = useState<SplitMode>('ranges');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,52 +49,19 @@ export function SplitPdfClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // File Upload Handlers
   const handleFileSelectClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported.',
-      });
-    }
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported for dropping.',
-      });
-    }
-  };
-
-  // Process uploaded file
-  useEffect(() => {
-    if (originalFile) {
-      processOriginalFile();
-    }
-  }, [originalFile]);
-
-  const processOriginalFile = async () => {
-    if (!originalFile) return;
+  
+  const processFile = async (file: File | null) => {
+    if(!file) return;
+    setOriginalFile(file);
 
     setIsProcessing(true);
     setProcessingMessage('Reading PDF...');
     
     try {
-      const fileBuffer = await originalFile.arrayBuffer();
+      const fileBuffer = await file.arrayBuffer();
       const pdfDoc = await PDFDocument.load(fileBuffer);
+      onPageCountChange(pdfDoc.getPageCount());
       
       setProcessingMessage('Generating thumbnails...');
       const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
@@ -120,6 +91,17 @@ export function SplitPdfClient() {
     } finally {
       setIsProcessing(false);
     }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    processFile(file || null);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    processFile(file || null);
   };
 
   // Split Logic Handlers
@@ -227,6 +209,7 @@ export function SplitPdfClient() {
     setSelectedPages(new Set());
     setSplitRanges([{ from: '', to: '' }]);
     setOutputFiles([]);
+    onPageCountChange(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   

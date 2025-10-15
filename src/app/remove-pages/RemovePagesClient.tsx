@@ -23,7 +23,11 @@ type PageObject = {
 
 type RemoveStep = 'upload' | 'select' | 'download';
 
-export function RemovePagesClient() {
+interface RemovePagesClientProps {
+  onPageCountChange: (count: number) => void;
+}
+
+export function RemovePagesClient({ onPageCountChange }: RemovePagesClientProps) {
   const [step, setStep] = useState<RemoveStep>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
@@ -46,48 +50,18 @@ export function RemovePagesClient() {
   const { toast } = useToast();
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported.',
-      });
-    }
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setOriginalFile(file);
-    } else if (file) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files are supported for dropping.',
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (originalFile) {
-      processOriginalFile();
-    }
-  }, [originalFile]);
-
-  const processOriginalFile = async () => {
-    if (!originalFile) return;
+  
+  const processFile = async (file: File | null) => {
+    if(!file) return;
+    setOriginalFile(file);
 
     setIsProcessing(true);
     setProcessingMessage('Reading PDF...');
     
     try {
-      const fileBuffer = await originalFile.arrayBuffer();
+      const fileBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(fileBuffer);
+      onPageCountChange(pdfDoc.getPageCount());
       
       setProcessingMessage('Generating thumbnails...');
       const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
@@ -112,6 +86,17 @@ export function RemovePagesClient() {
     } finally {
       setIsProcessing(false);
     }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    processFile(file || null);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    processFile(file || null);
   };
 
   const handleTogglePageSelection = (pageNumber: number) => {
@@ -252,6 +237,7 @@ export function RemovePagesClient() {
     setPagesToRemoveInput('');
     setTextToSearch('');
     setOutputFile(null);
+    onPageCountChange(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
