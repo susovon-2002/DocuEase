@@ -51,24 +51,56 @@ export function WordToPdfClient() {
 
   const createPdfFromText = async (text: string) => {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
+    let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontSize = 12;
     const margin = 50;
+    const maxWidth = width - margin * 2;
+    const lineHeight = fontSize * 1.2;
 
     const textLines = text.split('\n');
     let y = height - margin;
 
     for (const line of textLines) {
-      if (y < margin) {
-        const newPage = pdfDoc.addPage();
-        y = newPage.getHeight() - margin;
-        page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
-        y -= fontSize * 1.2;
-      } else {
-         page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
-         y -= fontSize * 1.2;
+      let currentLine = line;
+      while (currentLine.length > 0) {
+        if (y < margin) {
+          page = pdfDoc.addPage();
+          y = page.getHeight() - margin;
+        }
+
+        let breakIndex = currentLine.length;
+        let lineWidth = font.widthOfTextAtSize(currentLine, fontSize);
+
+        if (lineWidth > maxWidth) {
+          // Find the last space to break the line
+          for (let i = currentLine.length - 1; i >= 0; i--) {
+            if (currentLine[i] === ' ') {
+              const subLine = currentLine.substring(0, i);
+              if (font.widthOfTextAtSize(subLine, fontSize) <= maxWidth) {
+                breakIndex = i;
+                break;
+              }
+            }
+          }
+          // If no space found, break mid-word
+          if (breakIndex === currentLine.length) {
+              let charCount = 0;
+              while (charCount < currentLine.length) {
+                  if (font.widthOfTextAtSize(currentLine.substring(0, charCount+1), fontSize) > maxWidth) {
+                      break;
+                  }
+                  charCount++;
+              }
+              breakIndex = charCount;
+          }
+        }
+        
+        const lineToDraw = currentLine.substring(0, breakIndex);
+        page.drawText(lineToDraw, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+        y -= lineHeight;
+        currentLine = currentLine.substring(breakIndex).trim();
       }
     }
     
