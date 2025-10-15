@@ -29,7 +29,7 @@ export function PptxToPdfClient() {
   const extractTextFromPptx = async (file: File): Promise<string> => {
     const zip = await JSZip.loadAsync(file);
     let fullText = '';
-    const slideFiles = Object.keys(zip.files).filter(name => name.startsWith('ppt/slides/slide'));
+    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/));
 
     for (let i = 1; i <= slideFiles.length; i++) {
         const slideXml = await zip.file(`ppt/slides/slide${i}.xml`)?.async('string');
@@ -244,7 +244,7 @@ export function PptxToPdfClient() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".pptx"
+                  accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 />
                 <Button size="lg" onClick={handleFileSelectClick}>Select File</Button>
               </div>
