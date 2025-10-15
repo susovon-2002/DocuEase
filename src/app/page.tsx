@@ -1,15 +1,30 @@
 
+'use client';
 
+import { useState } from 'react';
 import { tools } from '@/lib/tools';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, Combine, Minimize2, FileImage, FilePenLine, Lock, Sparkles, LucideIcon } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { groupBy } from 'lodash';
+import ToolCard from '@/components/ToolCard';
+
+
+const popularToolPaths = [
+  '/merge-pdf',
+  '/compress-pdf',
+  '/split-pdf',
+  '/pdf-to-word',
+  '/sign-pdf',
+  '/summarize-pdf'
+];
 
 
 export default function Home() {
+  const [showAllTools, setShowAllTools] = useState(false);
   const toolsByCategory = groupBy(tools, 'category');
+  const popularTools = tools.filter(tool => popularToolPaths.includes(tool.path));
 
   const categoryIcons: Record<string, LucideIcon> = {
     'Organize PDF': Combine,
@@ -77,35 +92,52 @@ export default function Home() {
       <section className="py-20 bg-secondary/50" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">All Our Tools</h2>
-            <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
+            <h2 className="text-3xl md:text-4xl font-bold">Our Suite of Tools</h2>
+             <p className="text-muted-foreground mt-2">Everything you need to be more productive and work smarter with documents.</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
-              {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
-                const CategoryIcon = categoryIcons[category] || FilePenLine;
-                return (
-                  <div key={category}>
-                    <h3 className="text-xl font-semibold mb-4 flex items-center">
-                      <CategoryIcon className="h-5 w-5 mr-3 text-primary" />
-                      {category}
-                    </h3>
-                    <ul className="space-y-3">
-                      {categoryTools.map(tool => {
-                        const ToolIcon = tool.icon;
-                        return (
-                           <li key={tool.path}>
-                            <Link href={tool.path} className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                              <ToolIcon className="h-4 w-4 mr-2" />
-                              {tool.title}
-                            </Link>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                )
-              })}
-          </div>
+          
+           {!showAllTools ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {popularTools.map(tool => <ToolCard key={tool.path} tool={tool} />)}
+              </div>
+              <div className="text-center mt-12">
+                <Button onClick={() => setShowAllTools(true)} size="lg">View All Tools</Button>
+              </div>
+            </>
+           ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+                  {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
+                    const CategoryIcon = categoryIcons[category] || FilePenLine;
+                    return (
+                      <div key={category}>
+                        <h3 className="text-xl font-semibold mb-4 flex items-center">
+                          <CategoryIcon className="h-5 w-5 mr-3 text-primary" />
+                          {category}
+                        </h3>
+                        <ul className="space-y-3">
+                          {categoryTools.map(tool => {
+                            const ToolIcon = tool.icon;
+                            return (
+                              <li key={tool.path}>
+                                <Link href={tool.path} className="flex items-center text-muted-foreground hover:text-primary transition-colors">
+                                  <ToolIcon className="h-4 w-4 mr-2" />
+                                  {tool.title}
+                                </Link>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )
+                  })}
+              </div>
+               <div className="text-center mt-12">
+                <Button onClick={() => setShowAllTools(false)} size="lg" variant="outline">Show Less</Button>
+              </div>
+            </>
+           )}
         </div>
       </section>
 
