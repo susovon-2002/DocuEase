@@ -23,7 +23,7 @@ const plans = [
   },
   {
     name: 'Plus',
-    price: '₹39',
+    price: '₹159',
     period: '/ month',
     description: 'For regular document users.',
     features: [
@@ -31,7 +31,6 @@ const plans = [
       'Max 50 PDFs/day',
       'Fast processing speed',
       'No ads',
-      'Cloud storage: 100 MB',
     ],
     cta: 'Choose Plus',
     isPrimary: false,
@@ -39,7 +38,7 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: '₹99',
+    price: '₹259',
     period: '/ 2 months',
     description: 'For professionals & creators.',
     features: [
@@ -47,7 +46,6 @@ const plans = [
       'Unlimited PDFs/day',
       'Priority processing speed',
       'No ads',
-      'Cloud storage: 1 GB',
       'Printable invoice option',
     ],
     cta: 'Go Pro',
@@ -56,7 +54,7 @@ const plans = [
   },
   {
     name: 'Business',
-    price: '₹159',
+    price: '₹459',
     period: '/ 2 months',
     description: 'For power users & small offices.',
     features: [
@@ -64,7 +62,6 @@ const plans = [
       'Unlimited PDFs/day',
       'Priority + Instant processing',
       'No ads',
-      'Cloud storage: 2 GB',
       'Custom branding for prints',
     ],
     cta: 'Choose Business',
