@@ -41,6 +41,7 @@ export function PdfToExcelClient() {
     setCsvData('');
 
     const file = data.pdfFile[0];
+    setFileName(file.name);
     const reader = new FileReader();
 
     reader.readAsDataURL(file);
@@ -95,7 +96,10 @@ export function PdfToExcelClient() {
 
     csvBlobs.forEach((csv, index) => {
       if (csv.trim() === '') return;
-      const ws = XLSX.utils.csv_to_sheet(csv);
+      // Correctly parse the CSV string into a workbook, then get the sheet
+      const csvWorkbook = XLSX.read(csv, { type: 'string', raw: true });
+      const sheetName = Object.keys(csvWorkbook.Sheets)[0];
+      const ws = csvWorkbook.Sheets[sheetName];
       XLSX.utils.book_append_sheet(wb, ws, `Sheet${index + 1}`);
     });
     
@@ -129,7 +133,7 @@ export function PdfToExcelClient() {
                     <Textarea 
                         readOnly 
                         value={csvData} 
-                        className="w-full h-80 font-mono text-xs bg-muted"
+                        className="w-full h-80 font-mono text-sm bg-muted"
                     />
                 </CardContent>
             </Card>
