@@ -1,3 +1,4 @@
+
 import { tools } from '@/lib/tools';
 import ToolCard from '@/components/ToolCard';
 import { Button } from '@/components/ui/button';
@@ -98,10 +99,10 @@ export default function Home() {
                         <div className="flex items-center">
                             <Avatar className="h-10 w-10 mr-4">
                                 <AvatarImage src="https://picsum.photos/seed/user1/100/100" />
-                                <AvatarFallback>JS</AvatarFallback>
+                                <AvatarFallback>AA</AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="font-semibold">Jane Smith</p>
+                                <p className="font-semibold">Ankit Adhikary</p>
                                 <p className="text-sm text-muted-foreground">Freelance Designer</p>
                             </div>
                         </div>
@@ -113,10 +114,10 @@ export default function Home() {
                          <div className="flex items-center">
                             <Avatar className="h-10 w-10 mr-4">
                                 <AvatarImage src="https://picsum.photos/seed/user2/100/100" />
-                                <AvatarFallback>MD</AvatarFallback>
+                                <AvatarFallback>SP</AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="font-semibold">Michael Davis</p>
+                                <p className="font-semibold">Subajit Pal</p>
                                 <p className="text-sm text-muted-foreground">Real Estate Agent</p>
                             </div>
                         </div>
@@ -128,10 +129,10 @@ export default function Home() {
                          <div className="flex items-center">
                             <Avatar className="h-10 w-10 mr-4">
                                 <AvatarImage src="https://picsum.photos/seed/user3/100/100" />
-                                <AvatarFallback>LS</AvatarFallback>
+                                <AvatarFallback>AR</AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="font-semibold">Laura Stone</p>
+                                <p className="font-semibold">Akash Roy</p>
                                 <p className="text-sm text-muted-foreground">Administrative Assistant</p>
                             </div>
                         </div>
