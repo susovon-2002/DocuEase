@@ -5,7 +5,6 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { UpgradeProModal } from '@/components/UpgradeProModal';
 import { Loader2 } from 'lucide-react';
-import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 
 function SummarizePdfContent() {
   const { user, isUserLoading } = useUser();
@@ -28,6 +27,9 @@ function SummarizePdfContent() {
   const isLoading = isUserLoading || isUserProfileLoading || isSubscriptionLoading;
 
   const hasProPlan = subscription?.planType === 'Pro' || subscription?.planType === 'Business';
+  
+  // If not logged in, show the form directly.
+  const showForm = !user || hasProPlan;
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -38,11 +40,11 @@ function SummarizePdfContent() {
             Upload your PDF and let our AI provide a concise summary. Choose your desired length.
           </p>
         </div>
-        {isLoading ? (
+        {isLoading && user ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : hasProPlan ? (
+        ) : showForm ? (
           <SummarizeForm />
         ) : (
           <UpgradeProModal 
@@ -58,8 +60,6 @@ function SummarizePdfContent() {
 
 export default function SummarizePdfPage() {
   return (
-    <ToolAuthWrapper>
       <SummarizePdfContent />
-    </ToolAuthWrapper>
   )
 }

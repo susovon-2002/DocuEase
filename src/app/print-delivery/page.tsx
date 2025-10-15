@@ -36,7 +36,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PagePreviewDialog } from "@/components/PagePreviewDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { ToolAuthWrapper } from '@/components/ToolAuthWrapper';
 import { doc, serverTimestamp } from 'firebase/firestore';
 
 
@@ -109,7 +108,7 @@ type PhotoInvoiceDetails = {
 };
 
 
-function PrintDeliveryContent() {
+export default function PrintDeliveryPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   // Photo State
@@ -933,13 +932,5 @@ function PrintDeliveryContent() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function PrintDeliveryPage() {
-  return (
-    <ToolAuthWrapper>
-      <PrintDeliveryContent />
-    </ToolAuthWrapper>
   );
 }
