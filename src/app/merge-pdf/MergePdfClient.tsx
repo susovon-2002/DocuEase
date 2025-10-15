@@ -43,56 +43,53 @@ export function MergePdfClient() {
     setIsProcessing(true);
     
     const startingFileIndex = selectedFiles.length;
-    const newPages: PageObject[] = [];
     let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
+    
+    const newPages: PageObject[] = [];
     const validFilesToAdd: File[] = [];
 
-
-    try {
-      for (let i = 0; i < filesToAdd.length; i++) {
+    for (let i = 0; i < filesToAdd.length; i++) {
         const file = filesToAdd[i];
         if (file.type !== 'application/pdf') {
           toast({ variant: 'destructive', title: 'Invalid File Type', description: `${file.name} is not a PDF.`});
           continue;
         }
+        
         validFilesToAdd.push(file);
-
-        const fileIndex = startingFileIndex + i;
+        const fileIndexInSelection = startingFileIndex + validFilesToAdd.length - 1;
         setProcessingMessage(`Processing ${file.name}...`);
         
-        const fileBuffer = await file.arrayBuffer();
-        // Use ignoreEncryption to handle some protected files, though it might fail on heavily encrypted ones.
-        const pdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
-        const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
-        
-        for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
-          newPages.push({
-            id: pageIdCounter++,
-            thumbnailUrl: imageUrls[pageIndex],
-            originalFileIndex: fileIndex,
-            originalPageIndex: pageIndex,
-            fileName: file.name
-          });
+        try {
+            const fileBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
+            const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
+            
+            for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
+              newPages.push({
+                id: pageIdCounter++,
+                thumbnailUrl: imageUrls[pageIndex],
+                originalFileIndex: fileIndexInSelection,
+                originalPageIndex: pageIndex,
+                fileName: file.name
+              });
+            }
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'An error occurred', description: `Could not process ${file.name}. It might be corrupted or encrypted.` });
         }
-      }
-      
-      if (newPages.length > 0) {
-        setPages(currentPages => [...currentPages, ...newPages]);
-        setSelectedFiles(currentFiles => [...currentFiles, ...validFilesToAdd]);
-        
-        if (step === 'upload') {
-          setStep('reorder');
-        }
-
-        toast({ title: `${validFilesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
-      }
-
-    } catch (error) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not process one of the PDF files. It might be corrupted or encrypted.' });
-    } finally {
-      setIsProcessing(false);
     }
+      
+    if (newPages.length > 0) {
+      setPages(currentPages => [...currentPages, ...newPages]);
+      setSelectedFiles(currentFiles => [...currentFiles, ...validFilesToAdd]);
+      
+      if (step === 'upload') {
+        setStep('reorder');
+      }
+      toast({ title: `${validFilesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
+    }
+
+    setIsProcessing(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
