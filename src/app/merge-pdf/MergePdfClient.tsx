@@ -1,14 +1,14 @@
+
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, File as FileIcon, X, Download, RefreshCw, Wand2, ArrowLeft } from 'lucide-react';
+import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { renderPdfPagesToImageUrls } from '@/lib/pdf-utils';
 import { PageThumbnail } from './PageThumbnail';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type PageObject = {
@@ -37,38 +37,21 @@ export function MergePdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const handleFilesSelected = async (files: FileList | null) => {
-    const newFiles = Array.from(files || []).filter(file => file.type === 'application/pdf');
-
-    if (files && newFiles.length !== files.length) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid file type',
-        description: 'Only PDF files were added. Other file types were ignored.',
-      });
-    }
-
-    if (newFiles.length === 0) return;
+  const processFiles = async (filesToProcess: File[]) => {
+    if (filesToProcess.length === 0) return;
     
     setIsProcessing(true);
     setProcessingMessage('Processing files...');
     
-    // This is a more robust way to handle adding new files to existing state
-    const currentFileCount = selectedFiles.length;
-    const allFiles = [...selectedFiles, ...newFiles];
-    setSelectedFiles(allFiles);
-
-    if (step === 'upload') {
-      setStep('reorder');
-    }
+    // Clear existing pages and revoke their URLs before processing all files again
+    pages.forEach(p => URL.revokeObjectURL(p.thumbnailUrl));
+    
+    const allPageObjects: PageObject[] = [];
+    let pageIdCounter = 0;
 
     try {
-      const newPageObjects: PageObject[] = [];
-      let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
-
-      for (let i = 0; i < newFiles.length; i++) {
-        const file = newFiles[i];
-        const fileIndex = currentFileCount + i;
+      for (let fileIndex = 0; fileIndex < filesToProcess.length; fileIndex++) {
+        const file = filesToProcess[fileIndex];
         setProcessingMessage(`Reading ${file.name}...`);
         
         const fileBuffer = await file.arrayBuffer();
@@ -76,7 +59,7 @@ export function MergePdfClient() {
         const imageUrls = await renderPdfPagesToImageUrls(new Uint8Array(fileBuffer));
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
-          newPageObjects.push({
+          allPageObjects.push({
             id: Date.now() + pageIdCounter++,
             thumbnailUrl: imageUrls[pageIndex],
             originalFileIndex: fileIndex,
@@ -86,8 +69,11 @@ export function MergePdfClient() {
         }
       }
       
-      setPages(currentPages => [...currentPages, ...newPageObjects]);
-      toast({ title: `${newFiles.length} file(s) added`, description: 'You can now reorder the pages.' });
+      setPages(allPageObjects);
+      if (step === 'upload') {
+        setStep('reorder');
+      }
+      toast({ title: `${filesToProcess.length} file(s) loaded`, description: 'You can now reorder the pages.' });
 
     } catch (error) {
       console.error(error);
@@ -95,16 +81,32 @@ export function MergePdfClient() {
     } finally {
       setIsProcessing(false);
     }
-  }
+  };
 
+  const handleFilesSelected = (newFiles: File[]) => {
+    const pdfFiles = newFiles.filter(file => file.type === 'application/pdf');
+    if (pdfFiles.length !== newFiles.length) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid file type',
+        description: 'Only PDF files were added. Other file types were ignored.',
+      });
+    }
+    if (pdfFiles.length === 0) return;
+
+    const updatedFiles = [...selectedFiles, ...pdfFiles];
+    setSelectedFiles(updatedFiles);
+    processFiles(updatedFiles);
+  };
+  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    handleFilesSelected(event.target.files);
+    handleFilesSelected(Array.from(event.target.files || []));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    handleFilesSelected(event.dataTransfer.files);
+    handleFilesSelected(Array.from(event.dataTransfer.files || []));
   };
   
   const handleRemovePage = (idToRemove: number) => {
@@ -114,7 +116,20 @@ export function MergePdfClient() {
     URL.revokeObjectURL(pageToRemove.thumbnailUrl);
     
     const newPages = pages.filter(p => p.id !== idToRemove);
+    
+    // Check if this was the last page of a specific file
+    const fileIndexToRemove = pageToRemove.originalFileIndex;
+    const wasLastPageOfFile = !newPages.some(p => p.originalFileIndex === fileIndexToRemove);
+    
     setPages(newPages);
+
+    if (wasLastPageOfFile) {
+        // If it was the last page, remove the file from selectedFiles and re-process
+        const newSelectedFiles = selectedFiles.filter((_, index) => index !== fileIndexToRemove);
+        setSelectedFiles(newSelectedFiles);
+        // We re-process to re-calculate originalFileIndex for all remaining pages
+        processFiles(newSelectedFiles);
+    }
 
     if (newPages.length === 0) {
       setSelectedFiles([]);
@@ -147,7 +162,6 @@ export function MergePdfClient() {
 
       try {
         const finalPdf = await PDFDocument.create();
-
         const sourcePdfCache = new Map<number, PDFDocument>();
 
         for (const page of pages) {
@@ -226,7 +240,7 @@ export function MergePdfClient() {
             <h1 className="text-3xl font-bold">Merge PDF</h1>
             <p className="text-muted-foreground mt-2">Combine multiple PDFs into a single, organized document.</p>
           </div>
-          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e)}>
             <CardContent className="p-10 text-center">
               <div className="flex flex-col items-center justify-center space-y-4">
                 <div className="bg-secondary p-4 rounded-full">
@@ -260,6 +274,7 @@ export function MergePdfClient() {
             <CardContent className="p-6">
               <div
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-lg border min-h-[200px]"
+                onDragOver={(e) => e.preventDefault()}
               >
                 {pages.map((page, index) => (
                   <div
@@ -286,23 +301,15 @@ export function MergePdfClient() {
                     </Button>
                   </div>
                 ))}
-                {/* Placeholder for dropping more files */}
-                 <div
-                    onDragOver={e => {e.preventDefault(); e.currentTarget.classList.add('border-primary', 'bg-primary/10');}}
-                    onDragLeave={e => {e.preventDefault(); e.currentTarget.classList.remove('border-primary', 'bg-primary/10');}}
-                    onDrop={e => {handleDrop(e); e.currentTarget.classList.remove('border-primary', 'bg-primary/10');}}
-                    onClick={handleFileSelectClick}
-                    className="flex flex-col items-center justify-center text-center p-4 border-2 border-dashed rounded-md text-muted-foreground cursor-pointer transition-colors"
-                >
-                    <UploadCloud className="h-8 w-8 mb-2" />
-                    <p className="text-xs">Add More Files</p>
-                </div>
               </div>
             </CardContent>
           </Card>
           <div className="flex justify-center gap-4 mt-8">
             <Button onClick={handleStartOver} variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Start Over
+            </Button>
+             <Button onClick={handleFileSelectClick} variant="secondary">
+                <Plus className="mr-2 h-4 w-4" /> Add More Files
             </Button>
             <Button onClick={handleFinalize} size="lg" disabled={pages.length === 0}>
                 <Wand2 className="mr-2 h-4 w-4" /> Merge PDF
