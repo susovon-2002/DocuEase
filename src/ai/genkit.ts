@@ -13,7 +13,7 @@ export const ai = genkit({
           type: 'generate',
         },
       ],
-      serverAddress: 'http://localhost:11434', // Connect to Ollama on host
+      serverAddress: 'http://0.0.0.0:11434', // Connect to Ollama on host
     }),
   ],
   model: 'ollama/gemma', // Set the default model to use
