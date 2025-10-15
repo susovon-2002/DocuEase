@@ -21,6 +21,7 @@ export function ScanToPdfClient() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let stream: MediaStream | null = null;
     const getCameraPermission = async () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setHasCameraPermission(false);
@@ -32,7 +33,7 @@ export function ScanToPdfClient() {
         return;
       }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -54,9 +55,12 @@ export function ScanToPdfClient() {
     
 
     return () => {
-      // Cleanup: stop video stream when component unmounts
-      if (videoRef.current && videoRef.current.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+      // Cleanup: stop video stream when component unmounts or step changes
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, [step, toast]);
@@ -71,7 +75,8 @@ export function ScanToPdfClient() {
     const context = canvas.getContext('2d');
     context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     
-    const dataUrl = canvas.toDataURL('image/jpeg');
+    // Change to PNG to avoid JPEG parsing issues with pdf-lib
+    const dataUrl = canvas.toDataURL('image/png');
     setCapturedImages(prev => [...prev, dataUrl]);
     toast({ title: 'Image Captured!', description: 'You can now capture another or proceed to generate the PDF.' });
   };
@@ -90,10 +95,11 @@ export function ScanToPdfClient() {
       try {
           const pdfDoc = await PDFDocument.create();
           for (const imageUrl of capturedImages) {
-              const jpgImageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
-              const jpgImage = await pdfDoc.embedJpg(jpgImageBytes);
-              const page = pdfDoc.addPage([jpgImage.width, jpgImage.height]);
-              page.drawImage(jpgImage, {
+              // Use embedPng since we are now capturing as PNG
+              const pngImageBytes = await fetch(imageUrl).then(res => res.arrayBuffer());
+              const pngImage = await pdfDoc.embedPng(pngImageBytes);
+              const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
+              page.drawImage(pngImage, {
                   x: 0,
                   y: 0,
                   width: page.getWidth(),
@@ -185,7 +191,7 @@ export function ScanToPdfClient() {
                     <div className="relative aspect-video bg-muted rounded-md overflow-hidden">
                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                        <canvas ref={canvasRef} className="hidden" />
-                       {!hasCameraPermission && (
+                       {hasCameraPermission === false && (
                            <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/50">
                              <Alert variant="destructive">
                                  <AlertTitle>Camera Access Required</AlertTitle>
@@ -196,7 +202,7 @@ export function ScanToPdfClient() {
                            </div>
                        )}
                     </div>
-                    <Button onClick={handleCapture} disabled={!hasCameraPermission || isProcessing} size="lg" className="w-full mt-4">
+                    <Button onClick={handleCapture} disabled={hasCameraPermission !== true || isProcessing} size="lg" className="w-full mt-4">
                         <Camera className="mr-2 h-4 w-4" />
                         Capture Image
                     </Button>
