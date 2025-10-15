@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
 import { Loader2, UploadCloud, Download, RefreshCw, Wand2, ArrowLeft, X, Plus } from 'lucide-react';
