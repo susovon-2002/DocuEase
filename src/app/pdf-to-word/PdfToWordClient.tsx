@@ -67,8 +67,28 @@ export function PdfToWordClient() {
             setProcessingMessage(`Extracting text from page ${i} of ${pdf.numPages}...`);
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
-            fullText += pageText + '\n\n';
+            
+            let lastY = -1;
+            let pageText = '';
+            // @ts-ignore
+            for (const item of textContent.items) {
+                if ('str' in item) {
+                    const currentY = item.transform[5];
+                    if (lastY !== -1 && Math.abs(currentY - lastY) > (item.height * 0.5)) {
+                        // A significant jump in Y indicates a new line.
+                        // A smaller jump might just be super/subscript.
+                        pageText += '\n';
+                    }
+                    pageText += item.str;
+                    if (item.hasEOL) {
+                        pageText += '\n';
+                    } else {
+                        pageText += ' ';
+                    }
+                    lastY = currentY;
+                }
+            }
+            fullText += pageText + '\n\n-- Page Break --\n\n';
         }
         
         const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
