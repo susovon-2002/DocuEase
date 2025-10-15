@@ -6,7 +6,6 @@ import {
   Wrench,
   Gauge,
   ScanLine,
-  ScanText,
   FileImage,
   FileText,
   FilePieChart,
@@ -80,13 +79,6 @@ export const tools: Tool[] = [
     category: 'Optimize PDF',
   },
   {
-    title: 'OCR PDF',
-    description: 'Make scanned text searchable and selectable.',
-    icon: ScanText,
-    path: '/ocr-pdf',
-    category: 'AI Tools',
-  },
-  {
     title: 'Optimize PDF',
     description: 'Enhance PDF for faster web view.',
     icon: Gauge,
@@ -156,13 +148,6 @@ export const tools: Tool[] = [
     description: 'Convert PDF to PowerPoint presentations.',
     icon: FilePieChart,
     path: '/pdf-to-powerpoint',
-    category: 'Convert from PDF',
-  },
-  {
-    title: 'PDF to EXCEL',
-    description: 'Extract data from PDF to Excel.',
-    icon: FileSpreadsheet,
-    path: '/pdf-to-excel',
     category: 'Convert from PDF',
   },
   {
@@ -243,13 +228,5 @@ export const tools: Tool[] = [
     icon: EyeOff,
     path: '/redact-pdf',
     category: 'PDF Security',
-  },
-  // AI Tools
-  {
-    title: 'Smart Summary',
-    description: 'Use AI to get a summary of your document.',
-    icon: Sparkles,
-    path: '/summarize-pdf',
-    category: 'AI Tools',
   },
 ];

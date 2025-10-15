@@ -17,7 +17,6 @@ const popularToolPaths = [
   '/split-pdf',
   '/pdf-to-word',
   '/sign-pdf',
-  '/summarize-pdf'
 ];
 
 
@@ -109,6 +108,7 @@ export default function Home() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
                   {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
+                    if (category === 'AI Tools') return null;
                     const CategoryIcon = categoryIcons[category] || FilePenLine;
                     return (
                       <div key={category}>

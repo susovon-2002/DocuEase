@@ -321,24 +321,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-
-            {(subscription?.planType !== 'Pro' && subscription?.planType !== 'Business') && (
-              <Card className="bg-primary/10 border-primary/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center"><Zap className="w-5 h-5 mr-2 text-primary"/> Unlock Premium Tool</CardTitle>
-                  <CardDescription>Upgrade your plan to access our most powerful features.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <h3 className="font-semibold text-lg mb-2">AI Smart Summarizer</h3>
-                  <p className="text-muted-foreground mb-4">Let our AI create a professional summary from your PDF in seconds. Perfect for students, researchers, and professionals.</p>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild>
-                    <Link href="/pricing">Upgrade Now</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            )}
           </div>
           {/* Side column */}
           <div className="space-y-8">
