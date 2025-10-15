@@ -16,7 +16,7 @@ export function ExcelToPdfClient() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Processing...');
   
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [originalFiles, setOriginalFiles] = useState<File[]>([]);
   const [extractedText, setExtractedText] = useState('');
   
   const [outputFile, setOutputFile] = useState<{ name: string; blob: Blob } | null>(null);
@@ -26,39 +26,48 @@ export function ExcelToPdfClient() {
 
   const handleFileSelectClick = () => fileInputRef.current?.click();
 
-  const handleFileUpload = async (file: File | null) => {
-    if (file) {
-      if (!file.name.endsWith('.xlsx')) {
+  const handleFileUpload = async (files: File[] | null) => {
+    if (files && files.length > 0) {
+      const xlsxFiles = files.filter(file => file.name.endsWith('.xlsx'));
+      
+      if (xlsxFiles.length !== files.length) {
         toast({
             variant: 'destructive',
             title: 'Invalid file type',
-            description: 'Please upload a .xlsx file.',
+            description: 'One or more selected files were not .xlsx files and were ignored.',
         });
+      }
+
+      if (xlsxFiles.length === 0) {
         return;
       }
 
-      setOriginalFile(file);
+      setOriginalFiles(prev => [...prev, ...xlsxFiles]);
       setIsProcessing(true);
-      setProcessingMessage('Extracting data from Excel...');
       
+      let allText = extractedText;
       try {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        let allText = '';
+        for (let i = 0; i < xlsxFiles.length; i++) {
+          const file = xlsxFiles[i];
+          setProcessingMessage(`Extracting data from ${file.name} (${i + 1}/${xlsxFiles.length})...`);
+          
+          const data = await file.arrayBuffer();
+          const workbook = XLSX.read(data);
 
-        workbook.SheetNames.forEach(sheetName => {
-          allText += `--- Sheet: ${sheetName} ---\n\n`;
-          const worksheet = workbook.Sheets[sheetName];
-          const csvText = XLSX.utils.sheet_to_csv(worksheet);
-          allText += csvText + '\n\n';
-        });
+          workbook.SheetNames.forEach(sheetName => {
+            allText += `--- Sheet: ${sheetName} from ${file.name} ---\n\n`;
+            const worksheet = workbook.Sheets[sheetName];
+            const csvText = XLSX.utils.sheet_to_csv(worksheet);
+            allText += csvText + '\n\n';
+          });
+        }
 
         setExtractedText(allText.trim());
         setStep('preview');
-        toast({ title: 'Data Extracted', description: `Review the data from your spreadsheet.` });
+        toast({ title: 'Data Extracted', description: `Review the data from your spreadsheets.` });
       } catch(e) {
           console.error(e);
-          toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of the Excel file.' });
+          toast({ variant: 'destructive', title: 'Extraction Failed', description: 'Could not read the content of one or more Excel files.' });
           handleStartOver();
       } finally {
           setIsProcessing(false);
@@ -67,14 +76,15 @@ export function ExcelToPdfClient() {
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files ? event.target.files[0] : null;
-    handleFileUpload(file);
+    const files = event.target.files ? Array.from(event.target.files) : null;
+    handleFileUpload(files);
+    if(event.target) event.target.value = '';
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const file = event.dataTransfer.files ? event.dataTransfer.files[0] : null;
-    handleFileUpload(file);
+    const files = event.dataTransfer.files ? Array.from(event.dataTransfer.files) : null;
+    handleFileUpload(files);
   };
   
   const createPdfFromText = async (text: string) => {
@@ -110,13 +120,18 @@ export function ExcelToPdfClient() {
               }
               charCount++;
           }
-          breakIndex = charCount;
+           const lastSpace = currentLine.substring(0, charCount).lastIndexOf(' ');
+            if (lastSpace > 0) {
+              breakIndex = lastSpace;
+            } else {
+              breakIndex = charCount;
+            }
         }
         
         const lineToDraw = currentLine.substring(0, breakIndex);
         page.drawText(lineToDraw, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
         y -= lineHeight;
-        currentLine = currentLine.substring(breakIndex);
+        currentLine = currentLine.substring(breakIndex).trim();
       }
     }
     
@@ -125,7 +140,7 @@ export function ExcelToPdfClient() {
   };
   
   const handleConvert = async () => {
-    if (!originalFile || !extractedText) return;
+    if (originalFiles.length === 0 || !extractedText) return;
     
     setIsProcessing(true);
     setProcessingMessage('Creating PDF...');
@@ -133,18 +148,18 @@ export function ExcelToPdfClient() {
     try {
         const pdfBlob = await createPdfFromText(extractedText);
         
-        const outputName = originalFile.name.replace(/\.xlsx$/i, '.pdf');
+        const outputName = originalFiles.length > 1 ? 'Combined_Excel.pdf' : originalFiles[0].name.replace(/\.xlsx$/i, '.pdf');
 
         setOutputFile({ 
             name: outputName,
             blob: pdfBlob
         });
         setStep('download');
-        toast({ title: 'Conversion Complete!', description: 'Your Excel file has been converted to a PDF.' });
+        toast({ title: 'Conversion Complete!', description: 'Your Excel file(s) have been converted to a PDF.' });
 
     } catch (error) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not convert the Excel file to PDF.' });
+      toast({ variant: 'destructive', title: 'An error occurred', description: 'Could not convert the Excel file(s) to PDF.' });
     } finally {
       setIsProcessing(false);
     }
@@ -152,7 +167,7 @@ export function ExcelToPdfClient() {
 
   const handleStartOver = () => {
     setStep('upload');
-    setOriginalFile(null);
+    setOriginalFiles([]);
     setOutputFile(null);
     setExtractedText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -194,7 +209,7 @@ export function ExcelToPdfClient() {
                 <div className="bg-secondary p-4 rounded-full">
                   <UploadCloud className="h-12 w-12 text-muted-foreground" />
                 </div>
-                <p className="text-lg font-medium">Drag & drop a .xlsx file here</p>
+                <p className="text-lg font-medium">Drag & drop .xlsx files here</p>
                 <p className="text-muted-foreground">or</p>
                 <input
                   type="file"
@@ -202,8 +217,9 @@ export function ExcelToPdfClient() {
                   onChange={handleFileChange}
                   className="hidden"
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  multiple
                 />
-                <Button size="lg" onClick={handleFileSelectClick}>Select File</Button>
+                <Button size="lg" onClick={handleFileSelectClick}>Select Files</Button>
               </div>
             </CardContent>
           </Card>
@@ -215,7 +231,7 @@ export function ExcelToPdfClient() {
              <div className="w-full max-w-4xl mx-auto text-center">
                  <div className="mb-8">
                     <h1 className="text-3xl font-bold">Review Extracted Data</h1>
-                    <p className="text-muted-foreground mt-2">This is the data found in your spreadsheet. Proceed to create the PDF.</p>
+                    <p className="text-muted-foreground mt-2">This is the data found in your spreadsheet(s). Proceed to create the PDF.</p>
                 </div>
                 <Card className="mb-8">
                     <CardContent className="p-4">
