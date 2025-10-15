@@ -219,18 +219,21 @@ export function MergePdfClient() {
       setFinalPdfUrl(url);
 
       // Log to Firestore
-      const docRef = await addDoc(collection(firestore, `users/${user.uid}/documents`), {
-        userId: user.uid,
-        originalFileName: selectedFiles.map(f => f.file.name).join(', '),
-        uploadDate: serverTimestamp(),
-        storageLocation: `merged_${Date.now()}.pdf`, // Placeholder
-      });
+      if(user && firestore) {
+        const docRef = await addDoc(collection(firestore, `users/${user.uid}/documents`), {
+          userId: user.uid,
+          originalFileName: selectedFiles.map(f => f.file.name).join(', '),
+          uploadDate: serverTimestamp(),
+          storageLocation: `merged_${Date.now()}.pdf`, // Placeholder
+        });
 
-      await addDoc(collection(firestore, `users/${user.uid}/toolUsages`), {
-        documentId: docRef.id,
-        toolName: 'Merge PDF',
-        usageTimestamp: serverTimestamp(),
-      });
+        await addDoc(collection(firestore, `users/${user.uid}/toolUsages`), {
+          documentId: docRef.id,
+          toolName: 'Merge PDF',
+          usageTimestamp: serverTimestamp(),
+        });
+      }
+
 
       setStep('preview_final');
       toast({
@@ -241,8 +244,8 @@ export function MergePdfClient() {
        console.error(error);
       toast({
         variant: 'destructive',
-        title: 'An error occurred',
-        description: 'Could not generate the final PDF.',
+        title: 'Could not generate the final PDF',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
       });
     } finally {
       setIsProcessing(false);
@@ -261,6 +264,7 @@ export function MergePdfClient() {
   }
 
   const handleGoBackToReorder = () => {
+    if(finalPdfUrl) URL.revokeObjectURL(finalPdfUrl);
     setFinalPdfUrl(null);
     setStep('reorder_pages');
   };
@@ -300,29 +304,22 @@ export function MergePdfClient() {
       return;
     }
     
-    // Create a map of current pages by their original page number for easy lookup
-    const currentPagesMap = new Map(pages.map(p => [p.originalPageIndex + 1, p]));
-    
+    const pageMap = new Map(pages.map(p => [p.originalPageIndex, p]));
     const reorderedPages: PageObject[] = [];
-    let isValid = true;
     
     for (const pageNum of newOrder) {
-        const pageToPlace = currentPagesMap.get(pageNum);
-        if (pageToPlace) {
-            reorderedPages.push(pageToPlace);
-        } else {
-            isValid = false;
-            break;
-        }
+      const pageToPlace = pageMap.get(pageNum - 1);
+      if (pageToPlace) {
+        reorderedPages.push(pageToPlace);
+      }
     }
     
-    if(isValid && reorderedPages.length === pages.length) {
-        setPages(reorderedPages);
-        toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
+    if (reorderedPages.length === pages.length) {
+      setPages(reorderedPages);
+      toast({ title: 'Pages Reordered', description: 'The pages have been arranged according to your input.' });
     } else {
-        toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
-        // Reset input to reflect current (non-changed) order
-        setPageOrderInput(pages.map(p => p.originalPageIndex + 1).join(', '));
+      toast({ variant: 'destructive', title: 'Reordering Failed', description: 'Could not reorder pages. Please check your input.' });
+      setPageOrderInput(pages.map(p => p.originalPageIndex + 1).join(', '));
     }
   };
 
