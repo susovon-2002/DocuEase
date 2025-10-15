@@ -34,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'extractTablesPrompt',
   input: {schema: ExtractTablesInputSchema},
   output: {schema: ExtractTablesOutputSchema},
-  model: googleAI('gemini-1.5-flash-latest'),
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: `You are an expert data extractor. Your task is to find all tables within the provided PDF document and convert them into a single CSV (Comma-Separated Values) format.
 
 - Identify all tables in the document.
