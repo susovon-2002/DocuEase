@@ -44,11 +44,15 @@ export function MergePdfClient() {
     
     const startingFileIndex = selectedFiles.length;
     const newPages: PageObject[] = [];
-    let pageIdCounter = pages.length;
+    let pageIdCounter = pages.length > 0 ? Math.max(...pages.map(p => p.id)) + 1 : 0;
 
     try {
       for (let i = 0; i < filesToAdd.length; i++) {
         const file = filesToAdd[i];
+        if (file.type !== 'application/pdf') {
+          toast({ variant: 'destructive', title: 'Invalid File Type', description: `${file.name} is not a PDF.`});
+          continue;
+        }
         const fileIndex = startingFileIndex + i;
         setProcessingMessage(`Processing ${file.name}...`);
         
@@ -58,7 +62,7 @@ export function MergePdfClient() {
         
         for (let pageIndex = 0; pageIndex < pdfDoc.getPageCount(); pageIndex++) {
           newPages.push({
-            id: Date.now() + pageIdCounter++,
+            id: pageIdCounter++,
             thumbnailUrl: imageUrls[pageIndex],
             originalFileIndex: fileIndex,
             originalPageIndex: pageIndex,
@@ -67,14 +71,16 @@ export function MergePdfClient() {
         }
       }
       
-      setPages(currentPages => [...currentPages, ...newPages]);
-      setSelectedFiles(currentFiles => [...currentFiles, ...filesToAdd]);
+      if (newPages.length > 0) {
+        setPages(currentPages => [...currentPages, ...newPages]);
+        setSelectedFiles(currentFiles => [...currentFiles, ...filesToAdd]);
+        
+        if (step === 'upload') {
+          setStep('reorder');
+        }
 
-      if (step === 'upload') {
-        setStep('reorder');
+        toast({ title: `${filesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
       }
-
-      toast({ title: `${filesToAdd.length} file(s) added`, description: 'You can now reorder the pages.' });
 
     } catch (error) {
       console.error(error);
@@ -82,16 +88,23 @@ export function MergePdfClient() {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedFiles, pages, step]);
+  }, [selectedFiles.length, pages.length, step, toast]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    processAndAddFiles(Array.from(event.target.files || []));
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      processAndAddFiles(files);
+    }
+    // Reset input to allow selecting same file again
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    processAndAddFiles(Array.from(event.dataTransfer.files || []));
+    const files = Array.from(event.dataTransfer.files || []);
+     if (files.length > 0) {
+      processAndAddFiles(files);
+    }
   };
   
   const handleRemovePage = (idToRemove: number) => {
@@ -214,7 +227,7 @@ export function MergePdfClient() {
             <h1 className="text-3xl font-bold">Merge PDF</h1>
             <p className="text-muted-foreground mt-2">Combine multiple PDFs into a single, organized document.</p>
           </div>
-          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e)}>
+          <Card className="border-2 border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
             <CardContent className="p-10 text-center">
               <div className="flex flex-col items-center justify-center space-y-4">
                 <div className="bg-secondary p-4 rounded-full">
@@ -324,3 +337,5 @@ export function MergePdfClient() {
         )
   }
 }
+
+    
