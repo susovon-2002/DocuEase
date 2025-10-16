@@ -300,14 +300,14 @@ export function ImageToPdfClient() {
             ) : (
               <>
                 <ScrollArea className="h-[28rem] w-full rounded-md border p-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     {capturedImages.map((img, index) => (
-                      <div key={img.id} className="relative group space-y-2">
+                      <div key={img.id} className="relative group space-y-2 mx-auto" style={{ width: '302px' }}>
                         <img 
                             src={img.dataUrl} 
                             alt={`Capture ${index + 1}`} 
-                            className="rounded-md w-full"
-                            style={{ transform: `rotate(${img.rotation}deg)` }}
+                            className="rounded-md w-full object-contain"
+                            style={{ height: '302px', transform: `rotate(${img.rotation}deg)` }}
                         />
                         <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="destructive" size="icon" className="h-6 w-6" onClick={() => deleteImage(img.id)}>
