@@ -90,7 +90,7 @@ export function ImageToPdfClient() {
     const context = canvas.getContext('2d');
     context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
 
-    const dataUrl = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL('image/jpeg');
     setCapturedImages((prev) => [...prev, { id: Date.now(), dataUrl, rotation: 0 }]);
     toast({
       title: 'Image Captured!',
@@ -152,13 +152,13 @@ export function ImageToPdfClient() {
 
       for (const image of capturedImages) {
         const base64Data = image.dataUrl.split(',')[1];
-        const pngImageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-        const pngImage = await pdfDoc.embedPng(pngImageBytes);
+        const jpgImageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+        const jpgImage = await pdfDoc.embedJpg(jpgImageBytes);
 
         const isSideways = image.rotation === 90 || image.rotation === 270;
-        const page = pdfDoc.addPage(isSideways ? [pngImage.height, pngImage.width] : [pngImage.width, pngImage.height]);
+        const page = pdfDoc.addPage(isSideways ? [jpgImage.height, jpgImage.width] : [jpgImage.width, jpgImage.height]);
         
-        page.drawImage(pngImage, {
+        page.drawImage(jpgImage, {
           x: page.getWidth() / 2 - (isSideways ? page.getHeight() : page.getWidth()) / 2,
           y: page.getHeight() / 2 - (isSideways ? page.getWidth() : page.getHeight()) / 2,
           width: page.getWidth(),
