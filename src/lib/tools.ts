@@ -5,7 +5,6 @@ import {
   Minimize2,
   Wrench,
   Gauge,
-  ScanLine,
   FileImage,
   FileText,
   FilePieChart,
@@ -22,7 +21,8 @@ import {
   EyeOff,
   GitCompareArrows,
   Sparkles,
-  BookDown
+  BookDown,
+  Camera
 } from 'lucide-react';
 
 export type Tool = {
@@ -119,6 +119,13 @@ export const tools: Tool[] = [
     description: 'Convert web pages to PDF.',
     icon: FileCode,
     path: '/html-to-pdf',
+    category: 'Convert to PDF',
+  },
+  {
+    title: 'HD Camera to PDF',
+    description: 'Scan documents with your camera and save as PDF.',
+    icon: Camera,
+    path: '/hd-camera-to-pdf',
     category: 'Convert to PDF',
   },
   // Convert from PDF
