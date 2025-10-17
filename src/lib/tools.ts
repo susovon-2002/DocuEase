@@ -122,10 +122,10 @@ export const tools: Tool[] = [
     category: 'Convert to PDF',
   },
   {
-    title: 'Image to PDF',
-    description: 'Scan documents with your camera and save as PDF.',
+    title: 'HD Camera to PDF',
+    description: 'Scan documents with your camera and save as a high-quality PDF.',
     icon: Camera,
-    path: '/image-to-pdf',
+    path: '/hd-camera-to-pdf',
     category: 'Convert to PDF',
   },
   // Convert from PDF
