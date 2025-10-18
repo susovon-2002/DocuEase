@@ -1,61 +1,51 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is the owner of a document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
     // Helper function to check if a user is an admin
     function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Users can read and update their own profile.
-    // Admins can read/write any user profile.
+    // Users can read and write their own user document
     match /users/{userId} {
-      allow read, update: if isOwner(userId) || isAdmin();
-      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // Admins can read any user's document
+      allow get, list: if request.auth != null && isAdmin();
+    }
+    
+    // Admins can create users (useful for seeding, etc.)
+    match /users/{userId} {
+        allow create: if request.auth != null && isAdmin();
     }
 
-    // Subscriptions can only be read by the user who owns them (via user profile) or admins.
-    // Writes are handled by secure backend logic (e.g., Cloud Functions).
+    // Subscriptions can be read by the user who owns it (via user doc) or an admin
     match /subscriptions/{subscriptionId} {
-      allow read: if exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscriptionId == subscriptionId || isAdmin());
-      allow write: if false; // Disallow client-side writes
+      allow read: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscriptionId == subscriptionId || isAdmin());
     }
 
-    // Users can manage their own documents. Admins can read any document.
-    match /users/{userId}/documents/{documentId} {
-      allow read, write, delete: if isOwner(userId);
-      allow list: if isOwner(userId);
+    // Users can manage their own subcollections
+    match /users/{userId}/{subcollection}/{docId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Users can manage their own tool usages. Admins can read any usage record.
-    match /users/{userId}/toolUsages/{toolUsageId} {
-        allow read, write, delete: if isOwner(userId);
-        allow list: if isOwner(userId);
-    }
-
-    // Admins can manage all orders. Users can only read/create their own orders.
-    match /orders/{orderId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if isAdmin() || (request.auth != null && request.query.where.to_list()[0][2] == request.auth.uid);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isAdmin();
-    }
+    // --- PAYMENT RULES ---
     
-    // Any authenticated user can create a pending payment document for themselves.
-    // They can also update it (which happens during the payment flow).
+    // Any authenticated user can create a PENDING payment record for themselves.
+    // They can also update it (for polling) if they are the owner.
     match /pendingPayments/{paymentId} {
-      allow create: if request.auth != null && isOwner(request.resource.data.userId);
-      allow read, update: if isOwner(resource.data.userId);
-      allow delete: if false; // Should be cleaned up by a backend process
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // --- ORDER RULES ---
+
+    // Users can read their own orders. Admins can read all orders.
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      // Admins can update any order (e.g., to change status)
+      allow update: if request.auth != null && isAdmin();
     }
   }
 }
