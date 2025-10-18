@@ -2,34 +2,26 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
+const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL!;
+const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID!;
+const SALT_KEY = process.env.PHONEPE_SALT_KEY!;
+const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX!, 10);
+
 export async function POST(request: Request) {
-  // Directly access environment variables using process.env
-  const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL;
-  const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
-  const SALT_KEY = process.env.PHONEPE_SALT_KEY;
-  const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : undefined;
-
-
-  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX || !PHONEPE_HOST_URL) {
-      console.error("PhonePe environment variables are not set. Please check your .env file.");
-      console.error({
-          PHONEPE_HOST_URL: !!PHONEPE_HOST_URL,
-          MERCHANT_ID: !!MERCHANT_ID,
-          SALT_KEY: !!SALT_KEY,
-          SALT_INDEX: !!SALT_INDEX
-      })
-      return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
-  }
-
-  const { amount, userId, merchantTransactionId, deliveryAddress } = await request.json();
-
-  if (!amount || amount < 1 || !userId || !merchantTransactionId || !deliveryAddress) {
-    return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
-  }
-
   try {
-    const callbackUrl = `${new URL(request.url).origin}/api/phonepe-callback`;
-    const redirectUrl = `${new URL(request.url).origin}/payment/${merchantTransactionId}`;
+    const { amount, userId, merchantTransactionId, deliveryAddress } = await request.json();
+    
+    if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX || !PHONEPE_HOST_URL) {
+      console.error("PhonePe environment variables are not set correctly on the server.");
+      return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
+    }
+
+    if (!amount || amount < 1 || !userId || !merchantTransactionId) {
+      return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
+    }
+
+    const callbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe-callback`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/payment/${merchantTransactionId}`;
 
     const payload = {
       merchantId: MERCHANT_ID,
@@ -39,7 +31,7 @@ export async function POST(request: Request) {
       redirectUrl: redirectUrl,
       redirectMode: "POST",
       callbackUrl: callbackUrl,
-      mobileNumber: deliveryAddress.mobile || "9999999999",
+      mobileNumber: deliveryAddress?.mobile || "9999999999",
       paymentInstrument: {
         type: "PAY_PAGE"
       }
@@ -61,17 +53,17 @@ export async function POST(request: Request) {
 
     const responseData = await response.json();
 
-    if (responseData.success) {
+    if (responseData.success && responseData.data?.instrumentResponse?.redirectInfo?.url) {
       return NextResponse.json({ redirectUrl: responseData.data.instrumentResponse.redirectInfo.url });
     } else {
-        console.error("PhonePe Error:", responseData);
-        return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment' }, { status: response.status });
+        console.error("PhonePe API Error:", responseData);
+        return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment', details: responseData }, { status: response.status });
     }
 
   } catch (error: any) {
-    console.error("PhonePe Payment Error:", error.response?.data || error.message || error);
+    console.error("Server Error in create-phonepe-payment:", error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create PhonePe payment due to a server error. Check server logs for details.' },
+      { error: error.response?.data?.message || error.message || 'Failed to create PhonePe payment due to a server error.' },
       { status: 500 }
     );
   }
