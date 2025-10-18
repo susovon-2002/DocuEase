@@ -40,6 +40,7 @@ export default function AdminOrdersPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // Correctly query for orders belonging to the current user
     return query(collection(firestore, 'orders'), where('userId', '==', user.uid), orderBy('orderDate', 'desc'));
   }, [firestore, user]);
 
@@ -243,5 +244,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
-    

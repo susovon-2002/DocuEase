@@ -212,8 +212,6 @@ export default function DashboardPage() {
     return null;
   }
 
-  const isSuperAdmin = userProfile?.email === 'susovonsantra4@gmail.com';
-
   return (
     <div className="container mx-auto px-4 py-12 bg-secondary/50">
       <div className="w-full max-w-7xl mx-auto">
@@ -476,5 +474,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
