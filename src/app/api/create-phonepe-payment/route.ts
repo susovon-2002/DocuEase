@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
 import sha256 from 'crypto-js/sha256';
-import Base64 from 'crypto-js/enc-base64';
 
 const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL!;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID!;
