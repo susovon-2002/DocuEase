@@ -3,7 +3,7 @@
 
 import { useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Loader2, Wrench } from 'lucide-react';
 import { countBy, map } from 'lodash';
@@ -18,6 +18,8 @@ export default function AdminToolUsagePage() {
 
   const toolUsagesQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // ** THE FIX IS HERE **
+    // Only query for tool usages belonging to the currently logged-in user.
     return query(collection(firestore, `users/${user.uid}/toolUsages`));
   }, [firestore, user]);
 
