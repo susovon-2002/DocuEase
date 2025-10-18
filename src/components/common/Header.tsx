@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer, Shield } from 'lucide-react';
+import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUser, useAuth, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -66,14 +66,6 @@ const AuthContent = () => {
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
-          {userProfile?.isAdmin && (
-            <DropdownMenuItem asChild>
-               <Link href="/admin/orders">
-                <Shield className="mr-2 h-4 w-4" />
-                <span>Admin Panel</span>
-              </Link>
-            </DropdownMenuItem>
-          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={async () => {
               try {

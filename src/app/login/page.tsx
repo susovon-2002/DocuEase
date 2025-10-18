@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, LogIn, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { Loader2, LogIn, RefreshCw } from 'lucide-react';
 import { useRouter }from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { Checkbox } from '@/components/ui/checkbox';
-import { doc, serverTimestamp, getDocs, collection, query, limit } from 'firebase/firestore';
+import { doc, serverTimestamp } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -50,7 +50,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [captchaText, setCaptchaText] = useState('');
-  const [loginSelection, setLoginSelection] = useState<'user' | 'admin' | null>(null);
 
   const { toast } = useToast();
   const auth = useAuth();
@@ -79,12 +78,6 @@ export default function LoginPage() {
   const createUserProfile = async (user: User) => {
     if (!firestore) return;
     
-    // Check if any users exist.
-    const usersCollectionRef = collection(firestore, 'users');
-    const q = query(usersCollectionRef, limit(1));
-    const snapshot = await getDocs(q);
-    const isFirstUser = snapshot.empty;
-
     const userRef = doc(firestore, `users/${user.uid}`);
     
     setDocumentNonBlocking(userRef, {
@@ -93,7 +86,6 @@ export default function LoginPage() {
         name: user.displayName || user.email?.split('@')[0],
         photoURL: user.photoURL,
         registrationDate: serverTimestamp(),
-        isAdmin: isFirstUser, // Grant admin privileges to the first user.
         isRestricted: false,
     }, { merge: true });
   }
@@ -156,30 +148,6 @@ export default function LoginPage() {
     }
   };
 
-  if (!loginSelection) {
-    return (
-        <div className="container mx-auto px-4 py-12 flex justify-center items-center">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle>Choose Login Type</CardTitle>
-                    <CardDescription>Select how you would like to sign in.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-4">
-                     <Button size="lg" onClick={() => setLoginSelection('user')}>
-                        <UserCheck className="mr-2 h-5 w-5" />
-                        User Login / Sign Up
-                    </Button>
-                    <Button size="lg" variant="outline" asChild>
-                       <Link href="/admin/login">
-                         <Shield className="mr-2 h-5 w-5" />
-                         Admin Login
-                       </Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
-  }
 
   return (
     <div className="container mx-auto px-4 py-12 flex justify-center items-center">
@@ -289,15 +257,7 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
-              <div className="flex justify-between w-full">
-                <Button
-                    type="button"
-                    variant="link"
-                    onClick={() => setLoginSelection(null)}
-                    className="text-sm p-0 h-auto"
-                >
-                    Back to selection
-                </Button>
+              <div className="flex justify-center w-full">
                 <Button
                     type="button"
                     variant="link"
