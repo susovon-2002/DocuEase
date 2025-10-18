@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const payloadString = JSON.stringify(payload);
     const base64Payload = Buffer.from(payloadString).toString('base64');
     
-    const apiPath = '/pg/v1/pay';
+    const apiPath = '/pg/v2/pay'; // CORRECTED API PATH
     const checksum = sha256(base64Payload + apiPath + SALT_KEY).toString(Hex) + `###${SALT_INDEX}`;
 
     const response = await fetch(`${PHONEPE_HOST_URL}${apiPath}`, {

@@ -10,7 +10,11 @@ const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX!, 10);
 // Initialize Firebase Admin SDK
 try {
   if (!admin.apps.length) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+        throw new Error('Firebase service account key is not set in environment variables.');
+    }
+    const serviceAccount = JSON.parse(serviceAccountKey as string);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
@@ -75,7 +79,8 @@ export async function POST(request: Request) {
         const userRef = firestore.collection('users').doc(orderDetails.userId);
         
         const startDate = admin.firestore.Timestamp.now();
-        const endDate = new admin.firestore.Timestamp(startDate.seconds + (orderDetails.durationDays * 24 * 60 * 60), startDate.nanoseconds);
+        const durationDays = orderDetails.durationDays || 30; // Default to 30 if not set
+        const endDate = new admin.firestore.Timestamp(startDate.seconds + (durationDays * 24 * 60 * 60), startDate.nanoseconds);
 
         await subscriptionRef.set({
           id: subscriptionRef.id,
