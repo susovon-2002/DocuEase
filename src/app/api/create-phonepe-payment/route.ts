@@ -1,22 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
-const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL;
-const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
-const SALT_KEY = process.env.PHONEPE_SALT_KEY;
-const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : 1;
-
-
 export async function POST(request: Request) {
+  // Directly access environment variables using process.env
+  const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL;
+  const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
+  const SALT_KEY = process.env.PHONEPE_SALT_KEY;
+  const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : undefined;
+
+
+  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX || !PHONEPE_HOST_URL) {
+      console.error("PhonePe environment variables are not set. Please check your .env file.");
+      console.error({
+          PHONEPE_HOST_URL: !!PHONEPE_HOST_URL,
+          MERCHANT_ID: !!MERCHANT_ID,
+          SALT_KEY: !!SALT_KEY,
+          SALT_INDEX: !!SALT_INDEX
+      })
+      return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
+  }
+
   const { amount, userId, merchantTransactionId, deliveryAddress } = await request.json();
 
   if (!amount || amount < 1 || !userId || !merchantTransactionId || !deliveryAddress) {
     return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
-  }
-  
-  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX || !PHONEPE_HOST_URL) {
-      console.error("PhonePe environment variables are not set. Please check your .env file.");
-      return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
   }
 
   try {
