@@ -262,6 +262,23 @@
         "totalAmount",
         "status"
       ]
+    },
+    "PendingPayment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PendingPayment",
+      "type": "object",
+      "description": "A temporary document created to track a payment transaction before it is confirmed by the payment gateway callback.",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user initiating the payment." },
+        "orderType": { "type": "string", "enum": ["Subscription", "Document", "Photo"] },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PENDING", "SUCCESS", "FAILED"] },
+        "planName": { "type": "string", "description": "Applicable for subscription orders." },
+        "items": { "type": "array", "description": "Applicable for print orders." },
+        "deliveryAddress": { "type": "object", "description": "Applicable for print orders." }
+      },
+      "required": ["userId", "orderType", "amount", "createdAt", "status"]
     }
   },
   "auth": {
@@ -359,8 +376,26 @@
             }
           ]
         }
+      },
+      {
+        "path": "/pendingPayments/{paymentId}",
+        "definition": {
+          "entityName": "PendingPayment",
+          "schema": {
+            "$ref": "#/backend/entities/PendingPayment"
+          },
+          "description": "Stores temporary payment transaction details before they are finalized.",
+          "params": [
+            {
+              "name": "paymentId",
+              "description": "The unique identifier of the payment transaction (merchantTransactionId)."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. Orders have been moved to a root collection to allow for admin-level queries across all users, which is essential for an order management dashboard. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, further isolating data and ensuring secure access.\n- `/orders/{orderId}`: A user's orders are stored in a root collection. Each order document contains a `userId` field to link it to the customer. This structure allows admins to query all orders while still allowing individual users to query for their own orders using a 'where' clause on `userId`.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents, and tool usage records is based on the user ID in the path. Access to orders is based on a `userId` field within the order document.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used for user-facing data; access is determined by the user's UID. Admin roles would be required for the `/orders` collection.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents and tool usage records within their own user path. They can list their own orders from the root collection via a query.\n5.  **Invariants:** The structure supports ownership integrity, as documents and tool usages are always associated with a specific user through the path, and orders are linked via a `userId` field.\n"
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and their associated resources (subscriptions, documents, and tool usage) are organized in a way that avoids hierarchical authorization dependencies, making security rules simpler and more robust. Authorization is primarily path-based, leveraging the user's UID for access control. Orders have been moved to a root collection to allow for admin-level queries across all users, which is essential for an order management dashboard. \n\n- `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n- `/subscriptions/{subscriptionId}`: Stores subscription details.  Subscription `id` is also stored on user profile as `subscriptionId`.\n- `/users/{userId}/documents/{documentId}`: Documents are stored as subcollections of users. This enforces clear ownership and simplifies security rules. List operations are secure since only the user can access their documents.\n- `/users/{userId}/toolUsages/{toolUsageId}`: Tool usage records are stored as subcollections of users, a 'where' clause on `userId`.\n- `/pendingPayments/{paymentId}`: Stores temporary payment transaction details. A user can create a document here before being redirected to the payment gateway.\n\nThis design adheres to the core principles by:\n\n1.  **Authorization Independence:** Access to documents, and tool usage records is based on the user ID in the path. Access to orders is based on a `userId` field within the order document.\n2.  **Clarity of Intent:** The path-based structure clearly expresses the relationship between users and their resources.\n3.  **DBAC:** User roles are not used for user-facing data; access is determined by the user's UID. Admin roles would be required for the `/orders` collection.\n4.  **QAPs:** Secure list operations are enabled by the segregated structure. A user can only list documents and tool usage records within their own user path. They can list their own orders from the root collection via a query.\n5.  **Invariants:** The structure supports ownership integrity, as documents and tool usages are always associated with a specific user through the path, and orders are linked via a `userId` field.\n"
   }
 }
+
+  

@@ -1,118 +1,119 @@
 /**
- * @description This ruleset enforces a strict user-ownership model, ensuring that users can only access their own data. It also allows for administrative access to the /orders collection.
- * @data_structure
- *   - /users/{userId}: Stores user profile information.
- *   - /subscriptions/{subscriptionId}: Stores subscription details.
- *   - /users/{userId}/documents/{documentId}: Stores documents uploaded by the user.
- *   - /users/{userId}/toolUsages/{toolUsageId}: Stores tool usage records for each user.
- *   - /orders/{orderId}: Stores print delivery orders for all users.
- * @key_security_decisions
- *   - User listing is disallowed.
- *   - Only the authenticated user can access their own profile and associated data (documents, tool usages).
- *   - The `orders` collection is secured such that users can only query for their own orders, while allowing potential admin roles to manage all orders.
- *   - Data types and schema validation are omitted for prototyping but relationships are validated.
+ * @fileOverview Firestore Security Rules for DocuEase.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles, documents, and tool usages.
+ * Orders are stored in a root collection with a `userId` field, allowing for both user-specific and admin access.
+ *
+ * Data Structure:
+ * - /users/{userId}: User profile information, accessible only to the user.
+ * - /subscriptions/{subscriptionId}: Subscription details.
+ * - /users/{userId}/documents/{documentId}: Documents owned by the user.
+ * - /users/{userId}/toolUsages/{toolUsageId}: Tool usage records for the user.
+ * - /orders/{orderId}: Orders placed by users, with a `userId` field linking to the user.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own profile and associated data (documents, tool usages).
+ * - Listing all users is disallowed.
+ * - Orders are stored in a root collection for admin access, but individual users can query their own orders using the `userId` field.
+ *
+ * Denormalization for Authorization:
+ * - The `orders` collection relies on the `userId` field within each document for authorization.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Protects the user profile. Only the authenticated user can read and write their own profile.
+     * @description Enforces user-ownership for user profiles.
      * @path /users/{userId}
-     * @allow (read, write) if request.auth.uid == userId
-     * @deny (read, write) if request.auth.uid != userId
-     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isCreatingOwner(userId) {
+          return request.auth.uid == userId && request.resource.data.id == request.auth.uid;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+
+      allow create: if isCreatingOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
-    /**
-     * @description Protects subscription data.
-     * @path /subscriptions/{subscriptionId}
-     * @allow (read, write) if true // TODO: Implement a proper authorization mechanism for subscriptions.
-     * @deny (read, write) if false
-     * @principle Placeholder for future subscription access control.
-     */
+     /**
+      * @description Allows public read access to subscriptions, but restricts creation, updates, and deletion.
+      * @path /subscriptions/{subscriptionId}
+      */
     match /subscriptions/{subscriptionId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if isSignedIn(); // TODO: Add owner validation once the schema is updated with an ownership field.
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Protects documents uploaded by the user. Only the authenticated user can access their own documents.
+     * @description Enforces user-ownership for documents.
      * @path /users/{userId}/documents/{documentId}
-     * @allow (read, write) if request.auth.uid == userId
-     * @deny (read, write) if request.auth.uid != userId
-     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId}/documents/{documentId} {
-      allow get: if isSignedIn() && isParentOwner(userId);
-      allow list: if isSignedIn() && isParentOwner(userId);
-      allow create: if isSignedIn() && isParentOwner(userId);
-      allow update: if isSignedIn() && isParentOwner(userId);
-      allow delete: if isSignedIn() && isParentOwner(userId);
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Protects tool usage records for the user. Only the authenticated user can access their own tool usage records.
+     * @description Enforces user-ownership for tool usage records.
      * @path /users/{userId}/toolUsages/{toolUsageId}
-     * @allow (read, write) if request.auth.uid == userId
-     * @deny (read, write) if request.auth.uid != userId
-     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId}/toolUsages/{toolUsageId} {
-      allow get: if isSignedIn() && isParentOwner(userId);
-      allow list: if isSignedIn() && isParentOwner(userId);
-      allow create: if isSignedIn() && isParentOwner(userId);
-      allow update: if isSignedIn() && isParentOwner(userId);
-      allow delete: if isSignedIn() && isParentOwner(userId);
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Manages access to orders. Users can only query their own orders; admins can manage all orders.
+     * @description Allows users to create, read, update and delete their own orders.
      * @path /orders/{orderId}
-     * @allow (read, write) if request.auth.uid == resource.data.userId || isAdmin()
-     * @deny (read, write) if request.auth.uid != resource.data.userId && !isAdmin()
-     * @principle Allows users to access their orders and provides a placeholder for admin access.
      */
     match /orders/{orderId} {
-      allow get: if isSignedIn() && isOrderOwner();
-      allow list: if isSignedIn() && isOrderOwner(); // Users can list orders using query
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isOrderOwner();
-      allow delete: if isSignedIn() && isOrderOwner();
-    }
+      function isOwner() {
+        return request.auth != null && request.resource.data.userId == request.auth.uid;
+      }
+      function isExistingOwner() {
+        return request.auth != null && resource.data.userId == request.auth.uid;
+      }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
+      allow get: if isExistingOwner();
+      allow list: if request.auth != null && request.query.get("userId") == request.auth.uid;
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return false; // Placeholder for future admin role implementation.
-    }
-
-    function isOrderOwner() {
-        return request.auth.uid == resource.data.userId;
-    }
-
-    function isParentOwner(userId) {
-      return request.auth.uid == userId;
+      allow create: if isOwner();
+      allow update: if isExistingOwner();
+      allow delete: if isExistingOwner();
     }
   }
 }
