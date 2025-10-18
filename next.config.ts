@@ -150,6 +150,13 @@ const nextConfig: NextConfig = {
     PHONEPE_SALT_INDEX: process.env.PHONEPE_SALT_INDEX,
     FIREBASE_SERVICE_ACCOUNT_KEY: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  },
+  webpack: (config, { isServer }) => {
+    // This is to prevent a warning about a missing dependency in genkit.
+    if (isServer) {
+        config.externals.push('waspl');
+    }
+    return config;
   }
 };
 
