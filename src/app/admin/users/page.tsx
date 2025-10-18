@@ -2,80 +2,79 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
+import { doc, collection, query, where, Timestamp } from 'firebase/firestore';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { Loader2, User, ShieldCheck, ShieldOff, LogIn } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { Loader2, User, FileStack, Wrench, Package, Activity, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { signOut, getAuth } from 'firebase/auth';
+
 
 export default function AdminUsersPage() {
   const firestore = useFirestore();
-  const { user: currentUser } = useUser();
+  const { user: currentUser, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
 
-  // CORRECTED: Use useDoc to fetch only the current user's document.
   const userProfileQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
     return doc(firestore, 'users', currentUser.uid);
   }, [firestore, currentUser]);
 
-  // CORRECTED: Use useDoc hook which returns a single object.
-  const { data: user, isLoading, error } = useDoc(userProfileQuery);
+  const { data: user, isLoading: isProfileLoading, error: userError } = useDoc(userProfileQuery);
 
-  const handleAdminToggle = async (userId: string, isAdmin: boolean) => {
-    if (!firestore) return;
-    setUpdatingUsers(prev => new Set(prev).add(userId));
-    try {
-        const userRef = doc(firestore, 'users', userId);
-        await setDoc(userRef, { isAdmin: !isAdmin }, { merge: true });
-        toast({ title: 'Success', description: `User admin status updated.` });
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not update user.' });
-    } finally {
-        setUpdatingUsers(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-        });
+  const documentsQuery = useMemoFirebase(() => {
+    if (!currentUser || !firestore) return null;
+    return query(collection(firestore, `users/${currentUser.uid}/documents`));
+  }, [firestore, currentUser]);
+  const { data: documents, isLoading: documentsLoading } = useCollection(documentsQuery);
+
+  const toolUsagesQuery = useMemoFirebase(() => {
+    if (!currentUser || !firestore) return null;
+    return query(collection(firestore, `users/${currentUser.uid}/toolUsages`));
+  }, [firestore, currentUser]);
+  const { data: toolUsages, isLoading: toolUsagesLoading } = useCollection(toolUsagesQuery);
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!currentUser || !firestore) return null;
+    return query(collection(firestore, 'orders'), where('userId', '==', currentUser.uid));
+  }, [firestore, currentUser]);
+  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
+
+   const recentActivities = useMemo(() => {
+    if (!toolUsages) return [];
+    return [...toolUsages]
+      .sort((a, b) => {
+        const dateA = a.usageTimestamp instanceof Timestamp ? a.usageTimestamp.toDate() : new Date(a.usageTimestamp);
+        const dateB = b.usageTimestamp instanceof Timestamp ? b.usageTimestamp.toDate() : new Date(b.usageTimestamp);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .slice(0, 5);
+  }, [toolUsages]);
+  
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered':
+        return 'default';
+      case 'shipped':
+        return 'secondary';
+      case 'pending':
+      case 'processing':
+        return 'outline';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
     }
   };
-  
-  const handleLoginAsUser = async (email: string) => {
-    toast({
-      title: 'Simulating Login',
-      description: `In a production app, you would now be logged in as ${email}. Redirecting to dashboard.`,
-    });
-    router.push('/dashboard');
-  }
 
-  const handleRestrictionToggle = async (userId: string, isRestricted: boolean) => {
-    if (!firestore) return;
-    setUpdatingUsers(prev => new Set(prev).add(userId));
-     try {
-        const userRef = doc(firestore, 'users', userId);
-        await setDoc(userRef, { isRestricted: !isRestricted }, { merge: true });
-        toast({ title: 'Success', description: `User restriction status updated.` });
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not update user.' });
-    } finally {
-        setUpdatingUsers(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-        });
-    }
-  }
-
+  const isLoading = isUserLoading || isProfileLoading || documentsLoading || toolUsagesLoading || ordersLoading;
 
   if (isLoading) {
     return (
@@ -85,99 +84,124 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (error) {
+  if (userError) {
     return (
       <div className="text-center text-destructive p-4 border border-destructive/50 rounded-md">
         <h2 className="text-lg font-bold">Permission Error</h2>
-        <p>Could not load user data. This is likely because your security rules are correctly preventing access.</p>
-        <p className="text-sm mt-2">This panel requires admin permission to list all users. Please check your Firestore rules.</p>
+        <p>Could not load your user data.</p>
       </div>
     );
   }
   
-  // Create an array with the single user object to avoid changing the table mapping logic
-  const users = user ? [user] : [];
-
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>View and manage your administrator profile.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {users.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Registration Date</TableHead>
-                  <TableHead>Admin</TableHead>
-                  <TableHead>Restricted</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                        <div className="flex items-center gap-4">
-                            <Avatar>
-                                <AvatarImage src={user.photoURL} />
-                                <AvatarFallback><User /></AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-medium">{user.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                            </div>
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                      {user.registrationDate ? format(user.registrationDate.toDate(), 'PPp') : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center space-x-2">
-                           {updatingUsers.has(user.id) ? <Loader2 className="h-4 w-4 animate-spin"/> :
-                            <Switch
-                                id={`admin-${user.id}`}
-                                checked={!!user.isAdmin}
-                                onCheckedChange={() => handleAdminToggle(user.id, !!user.isAdmin)}
-                            />
-                           }
-                            <Label htmlFor={`admin-${user.id}`}>{user.isAdmin ? <ShieldCheck className="text-green-600" /> : <ShieldOff className="text-muted-foreground"/>}</Label>
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                       <div className="flex items-center space-x-2">
-                           {updatingUsers.has(user.id) ? <Loader2 className="h-4 w-4 animate-spin"/> :
-                                <Switch
-                                    id={`restricted-${user.id}`}
-                                    checked={!!user.isRestricted}
-                                    onCheckedChange={() => handleRestrictionToggle(user.id, !!user.isRestricted)}
-                                    className="data-[state=checked]:bg-destructive"
-                                />
-                           }
-                            <Label htmlFor={`restricted-${user.id}`}>{user.isRestricted ? 'Yes' : 'No'}</Label>
-                        </div>
-                    </TableCell>
-                     <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} disabled={true} title="This feature is for demonstration.">
-                            <LogIn className="mr-2 h-4 w-4" />
-                            Login As
-                        </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-20">
-              <User className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Could not load your user profile.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+            <CardHeader>
+                <CardTitle>Your Profile</CardTitle>
+                <CardDescription>Your administrator account details.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center text-center">
+                <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src={user?.photoURL} />
+                    <AvatarFallback><User size={48} /></AvatarFallback>
+                </Avatar>
+                <h3 className="font-semibold text-xl">{user?.name || 'Admin'}</h3>
+                <p className="text-muted-foreground text-sm">{user?.email}</p>
+            </CardContent>
+            <CardFooter>
+                 <Button onClick={() => signOut(getAuth())} variant="outline" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" /> Log Out
+                </Button>
+            </CardFooter>
+        </Card>
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Documents Processed</CardTitle>
+                    <FileStack className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <p className="text-2xl font-bold">{documents?.length || 0}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Tools Used</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <p className="text-2xl font-bold">{toolUsages?.length || 0}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Your Orders</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <p className="text-2xl font-bold">{orders?.length || 0}</p>
+                </CardContent>
+            </Card>
+        </div>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+              <CardTitle>Your Recent Orders</CardTitle>
+              <CardDescription>A summary of your latest print & delivery orders.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             {orders && orders.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.slice(0,5).map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium truncate max-w-[100px]">{order.id}</TableCell>
+                          <TableCell>{order.orderDate ? format(order.orderDate.toDate(), 'PP') : 'N/A'}</TableCell>
+                          <TableCell>{order.orderType}</TableCell>
+                          <TableCell>₹{order.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                             <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    You have not placed any orders.
+                  </div>
+                )}
+          </CardContent>
+        </Card>
+         <Card className="lg:col-span-3">
+              <CardHeader>
+                  <CardTitle>Your Recent Activity</CardTitle>
+                  <CardDescription>Your latest tool usage.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 {recentActivities && recentActivities.length > 0 ? recentActivities.map(activity => (
+                      <div key={activity.id} className="flex items-center">
+                          <Activity className="h-4 w-4 mr-4 text-muted-foreground" />
+                          <div className="flex-grow">
+                              <p className="text-sm font-medium">{activity.toolName}</p>
+                              <p className="text-xs text-muted-foreground">{activity.usageTimestamp ? formatDistanceToNow(activity.usageTimestamp.toDate(), { addSuffix: true }) : 'N/A'}</p>
+                          </div>
+                      </div>
+                  )) : (
+                     <div className="text-center py-10 text-muted-foreground">
+                       No recent activity found.
+                     </div>
+                  )}
+              </CardContent>
+            </Card>
     </div>
   );
 }

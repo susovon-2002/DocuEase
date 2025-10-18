@@ -52,7 +52,7 @@ export default function AdminToolUsagePage() {
       <Card>
         <CardHeader>
           <CardTitle>My Tool Usage</CardTitle>
-          <CardDescription>An overview of the tools you have used most frequently.</CardDescription>
+          <CardDescription>An overview of the tools you have used most frequently with this account.</CardDescription>
         </CardHeader>
         <CardContent>
           {toolUsageChartData && toolUsageChartData.length > 0 ? (

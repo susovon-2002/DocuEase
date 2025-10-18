@@ -128,7 +128,7 @@ export default function AdminOrdersPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Orders</CardTitle>
-          <CardDescription>A complete history of all orders you have placed.</CardDescription>
+          <CardDescription>A complete history of all orders you have placed using this account.</CardDescription>
         </CardHeader>
         <CardContent>
           {orders && orders.length > 0 ? (
@@ -164,7 +164,7 @@ export default function AdminOrdersPage() {
                                     ) : (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
+                                                <Button variant="ghost" size="icon" disabled={true}>
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -235,7 +235,7 @@ export default function AdminOrdersPage() {
           ) : (
             <div className="text-center py-20">
               <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No orders have been placed yet.</p>
+              <p className="text-muted-foreground">You haven't placed any orders yet.</p>
             </div>
           )}
         </CardContent>
@@ -243,5 +243,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
-    

@@ -27,7 +27,7 @@ function AdminSidebar() {
   };
 
   const navLinks = [
-    { href: '/admin/users', label: 'My Profile', icon: Users },
+    { href: '/admin/users', label: 'Dashboard', icon: Users },
     { href: '/admin/orders', label: 'My Orders', icon: Package },
     { href: '/admin/tool-usage', label: 'My Tool Usage', icon: BarChart3 },
   ];
