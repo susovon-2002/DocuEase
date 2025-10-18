@@ -2,7 +2,7 @@
 'use client';
 import React from 'react';
 import { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, doc, setDoc, where } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,15 +32,16 @@ import { cn } from '@/lib/utils';
 
 export default function AdminOrdersPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set());
   const [rejectionTarget, setRejectionTarget] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'orders'), orderBy('orderDate', 'desc'));
-  }, [firestore]);
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'orders'), where('userId', '==', user.uid), orderBy('orderDate', 'desc'));
+  }, [firestore, user]);
 
   const { data: orders, isLoading, error } = useCollection(ordersQuery);
 
