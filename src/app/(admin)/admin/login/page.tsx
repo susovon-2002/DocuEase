@@ -49,19 +49,20 @@ export default function AdminLoginPage() {
         const userRef = doc(firestore, 'users', userCredential.user.uid);
         const userSnap = await getDoc(userRef);
 
-        if (userSnap.exists()) {
+        if (userSnap.exists() && userSnap.data()?.isAdmin) {
             toast({
-                title: 'Logged In',
-                description: 'Login successful.',
+                title: 'Admin Login Successful',
+                description: 'Redirecting to the dashboard.',
             });
             router.push('/admin/users');
         } else {
-            // This case might happen if a user is in auth but not in firestore. We can still let them in.
+            // Not an admin
+            await auth.signOut();
             toast({
-                title: 'Logged In',
-                description: 'Login successful.',
+                variant: 'destructive',
+                title: 'Access Denied',
+                description: 'You do not have administrative privileges.',
             });
-            router.push('/admin/users');
         }
       } else {
         throw new Error("Firestore is not available.");

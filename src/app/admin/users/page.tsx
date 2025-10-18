@@ -8,14 +8,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Loader2, User, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Loader2, User, ShieldCheck, ShieldOff, LogIn } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/firebase';
+import { useRouter } from 'next/navigation';
 
 export default function AdminUsersPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
 
@@ -43,6 +49,21 @@ export default function AdminUsersPage() {
         });
     }
   };
+  
+  const handleLoginAsUser = async (email: string) => {
+    if (!auth) return;
+    
+    // We cannot know the user's password, so this is a simulated login.
+    // In a real scenario, this would involve custom tokens or a backend function.
+    // For this prototype, we'll just show a toast and redirect to the main login.
+    toast({
+      title: 'Simulating Login',
+      description: `In a production app, you would now be logged in as ${email}. Redirecting to dashboard.`,
+    });
+    // This is a client-side simulation. A real implementation would use custom auth tokens.
+    // For now, we just navigate to the dashboard as if we were that user.
+    router.push('/dashboard');
+  }
 
   const handleRestrictionToggle = async (userId: string, isRestricted: boolean) => {
     if (!firestore) return;
@@ -95,7 +116,8 @@ export default function AdminUsersPage() {
                   <TableHead>User</TableHead>
                   <TableHead>Registration Date</TableHead>
                   <TableHead>Admin</TableHead>
-                  <TableHead className="text-right">Restricted</TableHead>
+                  <TableHead>Restricted</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -128,8 +150,8 @@ export default function AdminUsersPage() {
                             <Label htmlFor={`admin-${user.id}`}>{user.isAdmin ? <ShieldCheck className="text-green-600" /> : <ShieldOff className="text-muted-foreground"/>}</Label>
                         </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                       <div className="flex items-center justify-end space-x-2">
+                    <TableCell>
+                       <div className="flex items-center space-x-2">
                            {updatingUsers.has(user.id) ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                 <Switch
                                     id={`restricted-${user.id}`}
@@ -140,6 +162,12 @@ export default function AdminUsersPage() {
                            }
                             <Label htmlFor={`restricted-${user.id}`}>{user.isRestricted ? 'Yes' : 'No'}</Label>
                         </div>
+                    </TableCell>
+                     <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)}>
+                            <LogIn className="mr-2 h-4 w-4" />
+                            Login As
+                        </Button>
                     </TableCell>
                   </TableRow>
                 ))}
