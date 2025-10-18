@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
-const PHONEPE_HOST_URL = process.env.PHONEPE_BASE_URL || 'https://api-preprod.phonepe.com/apis/pg';
+const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : 1;
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid order data provided.' }, { status: 400 });
   }
   
-  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX) {
+  if (!MERCHANT_ID || !SALT_KEY || !SALT_INDEX || !PHONEPE_HOST_URL) {
       console.error("PhonePe environment variables are not set. Please check your .env file.");
       return NextResponse.json({ error: 'Payment provider not configured correctly on the server. Please contact support.' }, { status: 500 });
   }
@@ -37,10 +37,11 @@ export async function POST(request: Request) {
       }
     };
     
+    const apiPath = '/pg/v1/pay';
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const checksum = createHash('sha256').update(base64Payload + '/pg/v1/pay' + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
+    const checksum = createHash('sha256').update(base64Payload + apiPath + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
 
-    const response = await fetch(`${PHONEPE_HOST_URL}/pg/v1/pay`, {
+    const response = await fetch(`${PHONEPE_HOST_URL}${apiPath}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
