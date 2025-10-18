@@ -205,7 +205,7 @@ export default function PricingPage() {
                 className="w-full" 
                 variant={plan.isPrimary ? 'default' : 'outline'}
                 onClick={() => handleChoosePlan(plan)}
-                disabled={isLoading === plan.id || (user && plan.price === 0)}
+                disabled={Boolean(isLoading) || (!!user && plan.price === 0)}
               >
                 {isLoading === plan.id ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
