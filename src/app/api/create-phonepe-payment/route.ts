@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import sha256 from 'crypto-js/sha256';
+import Hex from 'crypto-js/enc-hex';
 
 const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL!;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID!;
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     const base64Payload = Buffer.from(payloadString).toString('base64');
     
     const apiPath = '/pg/v1/pay';
-    const checksum = sha256(base64Payload + apiPath + SALT_KEY).toString() + `###${SALT_INDEX}`;
+    const checksum = sha256(base64Payload + apiPath + SALT_KEY).toString(Hex) + `###${SALT_INDEX}`;
 
     const response = await fetch(`${PHONEPE_HOST_URL}${apiPath}`, {
       method: 'POST',
@@ -59,18 +60,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ redirectUrl: responseData.data.instrumentResponse.redirectInfo.url });
     } else {
         console.error("PhonePe API Error:", responseData);
-        // The error from PhonePe might be in `responseData.message` or a deeper object.
         const errorMessage = responseData.message || 'Failed to create PhonePe payment';
-        // Add more specific error logging for yourself.
-        if (responseData.code === 'BAD_REQUEST') {
-          console.error('PhonePe Error Details:', responseData);
-        }
         return NextResponse.json({ error: errorMessage, details: responseData }, { status: response.status || 500 });
     }
 
   } catch (error: any) {
     console.error("Server Error in create-phonepe-payment:", error);
-    // Avoid leaking detailed error info to the client in production.
     const errorMessage = error.response?.data?.message || error.message || 'Failed to create PhonePe payment due to a server error.';
     return NextResponse.json(
       { error: errorMessage },
