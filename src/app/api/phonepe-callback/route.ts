@@ -30,8 +30,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const base64Response = body.response;
-    const response = JSON.parse(Buffer.from(base64Response, 'base64').toString());
-
+    
     // Verify the checksum
     const receivedChecksum = request.headers.get('x-verify');
     if (!SALT_KEY || !receivedChecksum || !SALT_INDEX) {
@@ -44,6 +43,8 @@ export async function POST(request: Request) {
       console.error("Checksum mismatch!");
       return NextResponse.json({ error: 'Checksum validation failed' }, { status: 400 });
     }
+    
+    const response = JSON.parse(Buffer.from(base64Response, 'base64').toString());
 
     const { merchantTransactionId } = response.data;
     const { code, data: paymentData } = response;
