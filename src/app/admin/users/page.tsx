@@ -28,8 +28,8 @@ export default function AdminUsersPage() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    // Query for all users. This will only work if security rules allow it for admins.
-    return query(collection(firestore, 'users'));
+    // CORRECTED: Query only for the current user's document to avoid permission errors.
+    return query(collection(firestore, 'users'), where('id', '==', currentUser.uid));
   }, [firestore, currentUser]);
 
   const { data: users, isLoading, error } = useCollection(usersQuery);
