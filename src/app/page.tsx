@@ -97,7 +97,7 @@ export default function Home() {
           
            {!showAllTools ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                 {popularTools.map(tool => <ToolCard key={tool.path} tool={tool} />)}
               </div>
               <div className="text-center mt-12">
@@ -106,34 +106,24 @@ export default function Home() {
             </>
            ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-12">
+              <div className="space-y-12">
                   {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
                     if (category === 'AI Tools') return null;
                     const CategoryIcon = categoryIcons[category] || FilePenLine;
                     return (
                       <div key={category}>
-                        <h3 className="text-xl font-semibold mb-4 flex items-center">
-                          <CategoryIcon className="h-6 w-6 mr-3 text-primary" />
+                        <h3 className="text-2xl font-semibold mb-6 flex items-center">
+                          <CategoryIcon className="h-8 w-8 mr-4 text-primary" />
                           {category}
                         </h3>
-                        <ul className="space-y-3">
-                          {categoryTools.map(tool => {
-                            const ToolIcon = tool.icon;
-                            return (
-                              <li key={tool.path}>
-                                <Link href={tool.path} className="flex items-center text-muted-foreground hover:text-primary transition-colors text-base">
-                                  <ToolIcon className="h-5 w-5 mr-3" />
-                                  {tool.title}
-                                </Link>
-                              </li>
-                            )
-                          })}
-                        </ul>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                           {categoryTools.map(tool => <ToolCard key={tool.path} tool={tool} />)}
+                        </div>
                       </div>
                     )
                   })}
               </div>
-               <div className="text-center mt-12">
+               <div className="text-center mt-16">
                 <Button onClick={() => setShowAllTools(false)} size="lg" variant="outline">Show Less</Button>
               </div>
             </>

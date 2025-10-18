@@ -31,6 +31,7 @@ export type Tool = {
   icon: LucideIcon;
   path: string;
   category: string;
+  color: string;
 };
 
 export const tools: Tool[] = [
@@ -41,6 +42,7 @@ export const tools: Tool[] = [
     icon: Combine,
     path: '/merge-pdf',
     category: 'Organize PDF',
+    color: 'blue',
   },
   {
     title: 'Split PDF',
@@ -48,6 +50,7 @@ export const tools: Tool[] = [
     icon: Scissors,
     path: '/split-pdf',
     category: 'Organize PDF',
+    color: 'green',
   },
   {
     title: 'Remove Pages',
@@ -55,6 +58,7 @@ export const tools: Tool[] = [
     icon: EyeOff, // Using EyeOff as a substitute for a remove page icon
     path: '/remove-pages',
     category: 'Organize PDF',
+    color: 'red',
   },
   {
     title: 'Extract Pages',
@@ -62,6 +66,7 @@ export const tools: Tool[] = [
     icon: GitCompareArrows, // Using GitCompareArrows as a substitute
     path: '/extract-pages',
     category: 'Organize PDF',
+    color: 'yellow',
   },
   // Optimize PDF
   {
@@ -70,6 +75,7 @@ export const tools: Tool[] = [
     icon: Minimize2,
     path: '/compress-pdf',
     category: 'Optimize PDF',
+    color: 'indigo',
   },
   {
     title: 'Repair PDF',
@@ -77,6 +83,7 @@ export const tools: Tool[] = [
     icon: Wrench,
     path: '/repair-pdf',
     category: 'Optimize PDF',
+    color: 'purple',
   },
   {
     title: 'Optimize PDF',
@@ -84,6 +91,7 @@ export const tools: Tool[] = [
     icon: Gauge,
     path: '/optimize-pdf',
     category: 'Optimize PDF',
+    color: 'pink',
   },
   // Convert to PDF
   {
@@ -92,6 +100,7 @@ export const tools: Tool[] = [
     icon: FileImage,
     path: '/jpg-to-pdf',
     category: 'Convert to PDF',
+    color: 'teal',
   },
   {
     title: 'WORD to PDF',
@@ -99,6 +108,7 @@ export const tools: Tool[] = [
     icon: FileText,
     path: '/word-to-pdf',
     category: 'Convert to PDF',
+    color: 'sky',
   },
   {
     title: 'POWERPOINT to PDF',
@@ -106,6 +116,7 @@ export const tools: Tool[] = [
     icon: FilePieChart,
     path: '/powerpoint-to-pdf',
     category: 'Convert to PDF',
+    color: 'orange',
   },
   {
     title: 'EXCEL to PDF',
@@ -113,6 +124,7 @@ export const tools: Tool[] = [
     icon: FileSpreadsheet,
     path: '/excel-to-pdf',
     category: 'Convert to PDF',
+    color: 'emerald',
   },
   {
     title: 'HTML to PDF',
@@ -120,6 +132,7 @@ export const tools: Tool[] = [
     icon: FileCode,
     path: '/html-to-pdf',
     category: 'Convert to PDF',
+    color: 'cyan',
   },
   {
     title: 'HD Camera to PDF',
@@ -127,6 +140,7 @@ export const tools: Tool[] = [
     icon: Camera,
     path: '/hd-camera-to-pdf',
     category: 'Convert to PDF',
+    color: 'rose',
   },
   // Convert from PDF
   {
@@ -135,6 +149,7 @@ export const tools: Tool[] = [
     icon: FileImage,
     path: '/pdf-to-jpg',
     category: 'Convert from PDF',
+    color: 'teal',
   },
   {
     title: 'PDF to WORD',
@@ -142,6 +157,7 @@ export const tools: Tool[] = [
     icon: FileText,
     path: '/pdf-to-word',
     category: 'Convert from PDF',
+    color: 'sky',
   },
   {
     title: 'PDF to POWERPOINT',
@@ -149,6 +165,7 @@ export const tools: Tool[] = [
     icon: FilePieChart,
     path: '/pdf-to-powerpoint',
     category: 'Convert from PDF',
+    color: 'orange',
   },
   {
     title: 'PDF to PDF/A',
@@ -156,6 +173,7 @@ export const tools: Tool[] = [
     icon: BookDown,
     path: '/pdf-to-pdfa',
     category: 'Convert from PDF',
+    color: 'lime',
   },
   // Edit PDF
   {
@@ -164,6 +182,7 @@ export const tools: Tool[] = [
     icon: RotateCw,
     path: '/rotate-pdf',
     category: 'Edit PDF',
+    color: 'fuchsia',
   },
   {
     title: 'Add Page Numbers',
@@ -171,6 +190,7 @@ export const tools: Tool[] = [
     icon: Hash,
     path: '/add-page-numbers',
     category: 'Edit PDF',
+    color: 'violet',
   },
   {
     title: 'Add Watermark',
@@ -178,6 +198,7 @@ export const tools: Tool[] = [
     icon: Paintbrush,
     path: '/add-watermark',
     category: 'Edit PDF',
+    color: 'amber',
   },
   {
     title: 'Crop PDF',
@@ -185,6 +206,7 @@ export const tools: Tool[] = [
     icon: Crop,
     path: '/crop-pdf',
     category: 'Edit PDF',
+    color: 'stone',
   },
   {
     title: 'Edit PDF',
@@ -192,6 +214,7 @@ export const tools: Tool[] = [
     icon: FilePenLine,
     path: '/edit-pdf',
     category: 'Edit PDF',
+    color: 'slate',
   },
    {
     title: 'Compare PDF',
@@ -199,6 +222,7 @@ export const tools: Tool[] = [
     icon: GitCompareArrows,
     path: '/compare-pdf',
     category: 'Edit PDF',
+    color: 'neutral',
   },
   // PDF Security
   {
@@ -207,6 +231,7 @@ export const tools: Tool[] = [
     icon: LockOpen,
     path: '/unlock-pdf',
     category: 'PDF Security',
+    color: 'green',
   },
   {
     title: 'Protect PDF',
@@ -214,6 +239,7 @@ export const tools: Tool[] = [
     icon: Lock,
     path: '/protect-pdf',
     category: 'PDF Security',
+    color: 'red',
   },
   {
     title: 'Sign PDF',
@@ -221,6 +247,7 @@ export const tools: Tool[] = [
     icon: PenLine,
     path: '/sign-pdf',
     category: 'PDF Security',
+    color: 'blue',
   },
   {
     title: 'Redact PDF',
@@ -228,5 +255,6 @@ export const tools: Tool[] = [
     icon: EyeOff,
     path: '/redact-pdf',
     category: 'PDF Security',
+    color: 'gray',
   },
 ];
