@@ -5,7 +5,7 @@ import { config } from 'dotenv';
 config();
 
 const PHONEPE_HOST_URL = 'https://api.phonepe.com/apis/pg';
-const MERCHANT_ID = process.env.NEXT_PUBLIC_PHONEPE_MERCHANT_ID;
+const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : 1;
 
