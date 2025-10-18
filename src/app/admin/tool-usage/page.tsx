@@ -2,10 +2,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Wrench } from 'lucide-react';
 import { countBy, map } from 'lodash';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
@@ -15,13 +14,14 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'
 
 export default function AdminToolUsagePage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
-  const allToolUsagesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collectionGroup(firestore, 'toolUsages'));
-  }, [firestore]);
+  const toolUsagesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, `users/${user.uid}/toolUsages`));
+  }, [firestore, user]);
 
-  const { data: toolUsages, isLoading, error } = useCollection(allToolUsagesQuery);
+  const { data: toolUsages, isLoading, error } = useCollection(toolUsagesQuery);
 
   const toolUsageChartData = useMemo(() => {
     if (!toolUsages) return [];
@@ -51,8 +51,8 @@ export default function AdminToolUsagePage() {
     <div>
       <Card>
         <CardHeader>
-          <CardTitle>Tool Usage Analytics</CardTitle>
-          <CardDescription>An overview of the most popular tools across the platform.</CardDescription>
+          <CardTitle>My Tool Usage</CardTitle>
+          <CardDescription>An overview of the tools you have used most frequently.</CardDescription>
         </CardHeader>
         <CardContent>
           {toolUsageChartData && toolUsageChartData.length > 0 ? (
@@ -71,7 +71,7 @@ export default function AdminToolUsagePage() {
           ) : (
             <div className="text-center py-20">
               <Wrench className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No tools have been used yet.</p>
+              <p className="text-muted-foreground">You haven't used any tools yet.</p>
             </div>
           )}
         </CardContent>
