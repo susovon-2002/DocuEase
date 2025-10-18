@@ -127,8 +127,8 @@ export default function AdminOrdersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All User Orders</CardTitle>
-          <CardDescription>A complete history of all orders placed on the platform.</CardDescription>
+          <CardTitle>My Orders</CardTitle>
+          <CardDescription>A complete history of all orders you have placed.</CardDescription>
         </CardHeader>
         <CardContent>
           {orders && orders.length > 0 ? (
@@ -243,3 +243,5 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+    

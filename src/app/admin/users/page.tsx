@@ -28,9 +28,8 @@ export default function AdminUsersPage() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    // Query for the current user's document only to avoid permission errors
-    // trying to list all users, which is blocked by security rules.
-    return query(collection(firestore, 'users'), where('id', '==', currentUser.uid));
+    // Query for all users. This will only work if security rules allow it for admins.
+    return query(collection(firestore, 'users'));
   }, [firestore, currentUser]);
 
   const { data: users, isLoading, error } = useCollection(usersQuery);
@@ -100,7 +99,7 @@ export default function AdminUsersPage() {
       <div className="text-center text-destructive p-4 border border-destructive/50 rounded-md">
         <h2 className="text-lg font-bold">Permission Error</h2>
         <p>Could not load user data. This is likely because your security rules are correctly preventing access.</p>
-        <p className="text-sm mt-2">The table below is showing only your own user data to resolve this.</p>
+        <p className="text-sm mt-2">This panel requires admin permission to list all users. Please check your Firestore rules.</p>
       </div>
     );
   }
@@ -188,3 +187,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
