@@ -34,7 +34,7 @@ const AuthContent = () => {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
 
   if (isUserLoading || isUserProfileLoading) {
-    return <div className="h-8 w-8 rounded-full bg-muted" />;
+    return <div className="h-11 w-24 rounded-md bg-muted" />;
   }
   
   if (user) {
@@ -103,6 +103,11 @@ const AuthContent = () => {
 
 
 const Header = () => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -127,7 +132,7 @@ const Header = () => {
             </Link>
           </Button>
           
-          <AuthContent />
+          {isClient ? <AuthContent /> : <div className="h-11 w-24 rounded-md bg-muted" />}
 
         </div>
       </div>
