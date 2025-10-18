@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
     const checksum = createHash('sha256').update(base64Payload + '/pg/v1/pay' + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
 
-    const response = await fetch(`${PHONEPE_HOST_URL}/v1/pay`, {
+    const response = await fetch(`${PHONEPE_HOST_URL}/pg/v1/pay`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
