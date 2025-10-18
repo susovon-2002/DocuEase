@@ -102,7 +102,7 @@ const AuthContent = () => {
   }
 
   return (
-    <Button asChild>
+    <Button asChild size="lg">
       <Link href="/login">
         <LogIn className="mr-2 h-4 w-4" />
         Login
@@ -124,12 +124,12 @@ const Header = () => {
         </div>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button asChild variant="ghost">
+          <Button asChild variant="ghost" size="lg">
             <Link href="/pricing">
               Pricing
             </Link>
           </Button>
-          <Button asChild variant="secondary">
+          <Button asChild variant="secondary" size="lg">
             <Link href="/print-delivery">
               <Printer className="mr-2 h-4 w-4" />
               Print &amp; Delivery
