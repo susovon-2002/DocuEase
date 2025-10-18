@@ -7,6 +7,9 @@ import { FirebaseClientProvider } from '@/firebase';
 import { FloatingVideoPlayer } from '@/components/FloatingVideoPlayer';
 import { EntertainmentButton } from '@/components/EntertainmentButton';
 import { Analytics } from '@vercel/analytics/react';
+import { config } from 'dotenv';
+
+config();
 
 export const metadata: Metadata = {
   title: 'DocuEase',
