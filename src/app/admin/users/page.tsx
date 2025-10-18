@@ -29,6 +29,7 @@ export default function AdminUsersPage() {
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
     // Query for the current user's document only to avoid permission errors
+    // trying to list all users, which is blocked by security rules.
     return query(collection(firestore, 'users'), where('id', '==', currentUser.uid));
   }, [firestore, currentUser]);
 
@@ -96,9 +97,10 @@ export default function AdminUsersPage() {
 
   if (error) {
     return (
-      <div className="text-center text-destructive">
-        <p>Error loading users: {error.message}</p>
-        <p className="text-sm mt-2">Please wait a moment and refresh the page. If the issue persists, check your Firestore rules.</p>
+      <div className="text-center text-destructive p-4 border border-destructive/50 rounded-md">
+        <h2 className="text-lg font-bold">Permission Error</h2>
+        <p>Could not load user data. This is likely because your security rules are correctly preventing access.</p>
+        <p className="text-sm mt-2">The table below is showing only your own user data to resolve this.</p>
       </div>
     );
   }
@@ -178,7 +180,7 @@ export default function AdminUsersPage() {
           ) : (
             <div className="text-center py-20">
               <User className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No users have registered yet.</p>
+              <p className="text-muted-foreground">No user data to display. This may be due to security rules.</p>
             </div>
           )}
         </CardContent>
