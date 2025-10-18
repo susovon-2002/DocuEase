@@ -12,8 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { signInWithEmailAndPassword, User } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 
@@ -48,9 +48,7 @@ export default function AdminLoginPage() {
       if (firestore) {
         const userRef = doc(firestore, 'users', userCredential.user.uid);
         
-        // ** THE FIX IS HERE **
         // Forcefully grant admin rights to the special user email.
-        // This ensures the check below will pass, even if the account was created without admin rights.
         if (userCredential.user.email === 'susovonsantra4@gmail.com') {
           await setDoc(userRef, { isAdmin: true }, { merge: true });
         }
@@ -64,7 +62,6 @@ export default function AdminLoginPage() {
             });
             router.push('/admin/users');
         } else {
-            // Not an admin
             await auth.signOut();
             toast({
                 variant: 'destructive',

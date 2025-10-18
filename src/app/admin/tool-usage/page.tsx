@@ -18,8 +18,6 @@ export default function AdminToolUsagePage() {
 
   const toolUsagesQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // ** THE FIX IS HERE **
-    // Only query for tool usages belonging to the currently logged-in user.
     return query(collection(firestore, `users/${user.uid}/toolUsages`));
   }, [firestore, user]);
 
