@@ -40,6 +40,8 @@ export default function AdminOrdersPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // ** THE FIX IS HERE **
+    // Only query for orders belonging to the currently logged-in user.
     return query(collection(firestore, 'orders'), where('userId', '==', user.uid), orderBy('orderDate', 'desc'));
   }, [firestore, user]);
 
