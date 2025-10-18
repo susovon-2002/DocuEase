@@ -129,7 +129,7 @@ const Header = () => {
               Pricing
             </Link>
           </Button>
-          <Button asChild variant="ghost">
+          <Button asChild variant="secondary">
             <Link href="/print-delivery">
               <Printer className="mr-2 h-4 w-4" />
               Print &amp; Delivery
