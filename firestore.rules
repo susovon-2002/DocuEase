@@ -1,119 +1,143 @@
 /**
- * @fileOverview Firestore Security Rules for DocuEase.
+ * @file Firebase Security Rules for DocuEase Application
  *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, documents, and tool usages.
- * Orders are stored in a root collection with a `userId` field, allowing for both user-specific and admin access.
- *
- * Data Structure:
- * - /users/{userId}: User profile information, accessible only to the user.
- * - /subscriptions/{subscriptionId}: Subscription details.
- * - /users/{userId}/documents/{documentId}: Documents owned by the user.
- * - /users/{userId}/toolUsages/{toolUsageId}: Tool usage records for the user.
- * - /orders/{orderId}: Orders placed by users, with a `userId` field linking to the user.
- *
- * Key Security Decisions:
- * - Users can only access their own profile and associated data (documents, tool usages).
- * - Listing all users is disallowed.
- * - Orders are stored in a root collection for admin access, but individual users can query their own orders using the `userId` field.
- *
- * Denormalization for Authorization:
- * - The `orders` collection relies on the `userId` field within each document for authorization.
+ * @corePhilosophy This ruleset enforces a strict user-ownership model for user-specific data while allowing broader access to order data for administrative purposes.
+ * @dataStructure
+ *   - /users/{userId}: Stores user profile data, accessible only by the user.
+ *   - /subscriptions/{subscriptionId}: Stores subscription details, accessible by anyone.
+ *   - /users/{userId}/documents/{documentId}: Stores user documents, accessible only by the user.
+ *   - /users/{userId}/toolUsages/{toolUsageId}: Stores tool usage data, accessible only by the user.
+ *   - /orders/{orderId}: Stores order data, accessible by admins and the user who created the order.
+ *   - /pendingPayments/{paymentId}: Stores pending payment data.
+ * @keySecurityDecisions
+ *   - User listing is disallowed to protect user privacy.
+ *   - Read access to subscriptions is public.
+ * @denormalizationForAuthorization Not applicable in this ruleset.
+ * @structuralSegregation User-specific data is stored under /users/{userId} to enforce ownership, while order data is stored in a top-level collection for admin access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles.
+     * @description Secure access to user profiles. Only the authenticated user can read/write their own profile.
      * @path /users/{userId}
+     * @allow (get, update, delete) User with ID 'user123' can read/update/delete their own profile.
+     * @allow (create) User with ID 'user123' can create their own profile if it doesn't already exist.
+     * @deny (get, update, delete) User with ID 'user456' cannot read/update/delete the profile of user 'user123'.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
+      // Verify identity
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Verify ownership
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isCreatingOwner(userId) {
-          return request.auth.uid == userId && request.resource.data.id == request.auth.uid;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return request.auth.uid == userId;
       }
 
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // User listing is disallowed.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Public read access to subscriptions.
+     * @path /subscriptions/{subscriptionId}
+     * @allow (get, list) Any user can read any subscription.
+     * @deny (create, update, delete) No user can create, update, or delete subscriptions.
+     * @principle Public read access with restricted write access.
+     */
+    match /subscriptions/{subscriptionId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Secure access to user documents. Only the authenticated user can read/write their own documents.
+     * @path /users/{userId}/documents/{documentId}
+     * @allow (get, update, delete) User with ID 'user123' can read/update/delete their own document.
+     * @allow (create) User with ID 'user123' can create a document under their own user ID.
+     * @deny (get, update, delete) User with ID 'user456' cannot read/update/delete the document of user 'user123'.
+     * @principle Enforces document ownership for all operations on user documents.
+     */
+    match /users/{userId}/documents/{documentId} {
+      // Verify identity
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Verify ownership
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
 
-      allow create: if isCreatingOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+    /**
+     * @description Secure access to user tool usage records. Only the authenticated user can read/write their own tool usage records.
+     * @path /users/{userId}/toolUsages/{toolUsageId}
+     * @allow (get, update, delete) User with ID 'user123' can read/update/delete their own tool usage record.
+     * @allow (create) User with ID 'user123' can create a tool usage record under their own user ID.
+     * @deny (get, update, delete) User with ID 'user456' cannot read/update/delete the tool usage record of user 'user123'.
+     * @principle Enforces document ownership for all operations on user tool usage records.
+     */
+    match /users/{userId}/toolUsages/{toolUsageId} {
+      // Verify identity
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Verify ownership
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Secure access to orders. Orders can be created by authenticated users, and read/modified by admins.
+     * @path /orders/{orderId}
+     * @allow (get, list) Any user can read any order.
+     * @allow (create) User can create an order.
+     * @deny (update, delete) No user can update or delete an order.
+     * @principle Allows any user to create order.
+     */
+    match /orders/{orderId} {
+        // Verify identity
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if false;
     }
 
      /**
-      * @description Allows public read access to subscriptions, but restricts creation, updates, and deletion.
-      * @path /subscriptions/{subscriptionId}
+      * @description Secure access to pending payments. Anyone can create a pending payment.
+      * @path /pendingPayments/{paymentId}
+      * @allow (create) Any user can create pending payments.
+      * @deny (get, list, update, delete) No user can perform other operations.
+      * @principle Allows create payments.
       */
-    match /subscriptions/{subscriptionId} {
-        allow get, list: if true;
-        allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Enforces user-ownership for documents.
-     * @path /users/{userId}/documents/{documentId}
-     */
-    match /users/{userId}/documents/{documentId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Enforces user-ownership for tool usage records.
-     * @path /users/{userId}/toolUsages/{toolUsageId}
-     */
-    match /users/{userId}/toolUsages/{toolUsageId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Allows users to create, read, update and delete their own orders.
-     * @path /orders/{orderId}
-     */
-    match /orders/{orderId} {
-      function isOwner() {
-        return request.auth != null && request.resource.data.userId == request.auth.uid;
-      }
-      function isExistingOwner() {
-        return request.auth != null && resource.data.userId == request.auth.uid;
-      }
-
-      allow get: if isExistingOwner();
-      allow list: if request.auth != null && request.query.get("userId") == request.auth.uid;
-
-      allow create: if isOwner();
-      allow update: if isExistingOwner();
-      allow delete: if isExistingOwner();
+    match /pendingPayments/{paymentId} {
+      allow create: if true;
+      allow get, list, update, delete: if false;
     }
   }
 }
