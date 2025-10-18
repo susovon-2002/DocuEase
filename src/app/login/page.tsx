@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { Checkbox } from '@/components/ui/checkbox';
-import { doc, serverTimestamp } from 'firebase/firestore';
+import { doc, serverTimestamp, getDocs, collection, query, limit } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -76,20 +76,24 @@ export default function LoginPage() {
     setCaptchaText(generateCaptcha());
   }
 
-  const createUserProfile = (user: User) => {
+  const createUserProfile = async (user: User) => {
     if (!firestore) return;
+    
+    // Check if any users exist.
+    const usersCollectionRef = collection(firestore, 'users');
+    const q = query(usersCollectionRef, limit(1));
+    const snapshot = await getDocs(q);
+    const isFirstUser = snapshot.empty;
+
     const userRef = doc(firestore, `users/${user.uid}`);
     
-    // Grant admin privileges to the specified user.
-    const isAdmin = user.email === 'susovonsantra4@gmail.com';
-
     setDocumentNonBlocking(userRef, {
         id: user.uid,
         email: user.email,
         name: user.displayName || user.email?.split('@')[0],
         photoURL: user.photoURL,
         registrationDate: serverTimestamp(),
-        isAdmin: isAdmin,
+        isAdmin: isFirstUser, // Grant admin privileges to the first user.
         isRestricted: false,
     }, { merge: true });
   }
@@ -119,7 +123,7 @@ export default function LoginPage() {
     try {
       if (isSignUp) {
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-        createUserProfile(userCredential.user);
+        await createUserProfile(userCredential.user);
         toast({
           title: 'Account Created',
           description: 'You have been successfully signed up.',

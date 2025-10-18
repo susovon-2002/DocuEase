@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -47,12 +47,6 @@ export default function AdminLoginPage() {
       
       if (firestore) {
         const userRef = doc(firestore, 'users', userCredential.user.uid);
-        
-        // Forcefully grant admin rights to the special user email.
-        if (userCredential.user.email === 'susovonsantra4@gmail.com') {
-          await setDoc(userRef, { isAdmin: true }, { merge: true });
-        }
-        
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists() && userSnap.data()?.isAdmin) {
