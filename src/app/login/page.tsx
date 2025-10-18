@@ -80,8 +80,8 @@ export default function LoginPage() {
     if (!firestore) return;
     const userRef = doc(firestore, `users/${user.uid}`);
     
-    // By default, new users are not admins. This must be set manually in Firestore.
-    const isAdmin = false;
+    // Grant admin privileges to the specified user.
+    const isAdmin = user.email === 'susovonsantra4@gmail.com';
 
     setDocumentNonBlocking(userRef, {
         id: user.uid,
