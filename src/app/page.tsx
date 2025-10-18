@@ -113,7 +113,7 @@ export default function Home() {
                     return (
                       <div key={category}>
                         <h3 className="text-xl font-semibold mb-4 flex items-center">
-                          <CategoryIcon className="h-5 w-5 mr-3 text-primary" />
+                          <CategoryIcon className="h-6 w-6 mr-3 text-primary" />
                           {category}
                         </h3>
                         <ul className="space-y-3">
@@ -121,8 +121,8 @@ export default function Home() {
                             const ToolIcon = tool.icon;
                             return (
                               <li key={tool.path}>
-                                <Link href={tool.path} className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                                  <ToolIcon className="h-4 w-4 mr-2" />
+                                <Link href={tool.path} className="flex items-center text-muted-foreground hover:text-primary transition-colors text-base">
+                                  <ToolIcon className="h-5 w-5 mr-3" />
                                   {tool.title}
                                 </Link>
                               </li>
