@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import * as admin from 'firebase-admin';
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
-const SALT_INDEX = parseInt(process.env.PHONEPE_SALT_INDEX || '1');
+const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : undefined;
 
 // Initialize Firebase Admin SDK
 try {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // Verify the checksum
     const receivedChecksum = request.headers.get('x-verify');
-    if (!SALT_KEY || !receivedChecksum) {
+    if (!SALT_KEY || !receivedChecksum || !SALT_INDEX) {
         console.error("Checksum verification failed: Missing SALT_KEY or received checksum.");
         return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
     }
