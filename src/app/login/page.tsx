@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, LogIn, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
   password: z.string().min(6, 'Password must be at least 6 characters.'),
   terms: z.boolean().optional(),
+  captcha: z.string().min(1, "Please enter the captcha."),
 }).refine((data) => {
     // Terms are only required for sign up
     if (data.terms === undefined) return true;
@@ -35,13 +36,30 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const generateCaptcha = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let captcha = '';
+  for (let i = 0; i < 6; i++) {
+    captcha += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return captcha;
+};
+
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [captchaText, setCaptchaText] = useState('');
+
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
+  
+  useEffect(() => {
+    setCaptchaText(generateCaptcha());
+  }, []);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -49,9 +67,14 @@ export default function LoginPage() {
       email: '',
       password: '',
       terms: false,
+      captcha: '',
     },
   });
   
+  const refreshCaptcha = () => {
+    setCaptchaText(generateCaptcha());
+  }
+
   const createUserProfile = (user: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, `users/${user.uid}`);
@@ -71,6 +94,17 @@ export default function LoginPage() {
   }
 
   const onSubmit = async (data: FormValues) => {
+    if (data.captcha.toLowerCase() !== captchaText.toLowerCase()) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Captcha',
+        description: 'The characters you entered did not match the captcha.',
+      });
+      refreshCaptcha();
+      form.setValue('captcha', '');
+      return;
+    }
+
     if (isSignUp && !data.terms) {
       toast({
         variant: 'destructive',
@@ -113,6 +147,7 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
+      refreshCaptcha();
     }
   };
 
@@ -154,6 +189,28 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="captcha"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Security Check</FormLabel>
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 p-2 bg-muted rounded-md text-center tracking-[0.5em] text-2xl font-bold select-none line-through">
+                            {captchaText}
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={refreshCaptcha}>
+                            <RefreshCw className="h-5 w-5" />
+                        </Button>
+                    </div>
+                    <FormControl>
+                      <Input placeholder="Enter the characters above" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {isSignUp && (
                 <FormField
                     control={form.control}
