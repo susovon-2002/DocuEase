@@ -2,8 +2,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, setDoc, query, where } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -21,14 +21,16 @@ import { useRouter } from 'next/navigation';
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const auth = useAuth();
+  const { user: currentUser } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'users');
-  }, [firestore]);
+    if (!firestore || !currentUser) return null;
+    // Query for the current user's document only to avoid permission errors
+    return query(collection(firestore, 'users'), where('id', '==', currentUser.uid));
+  }, [firestore, currentUser]);
 
   const { data: users, isLoading, error } = useCollection(usersQuery);
 
