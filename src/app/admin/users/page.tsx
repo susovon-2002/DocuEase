@@ -2,8 +2,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, setDoc, query, where } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -14,25 +14,23 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
-import { useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 export default function AdminUsersPage() {
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user: currentUser } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [updatingUsers, setUpdatingUsers] = useState<Set<string>>(new Set());
 
-  const usersQuery = useMemoFirebase(() => {
+  // CORRECTED: Use useDoc to fetch only the current user's document.
+  const userProfileQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    // CORRECTED: Query only for the current user's document to avoid permission errors.
-    return query(collection(firestore, 'users'), where('id', '==', currentUser.uid));
+    return doc(firestore, 'users', currentUser.uid);
   }, [firestore, currentUser]);
 
-  const { data: users, isLoading, error } = useCollection(usersQuery);
+  // CORRECTED: Use useDoc hook which returns a single object.
+  const { data: user, isLoading, error } = useDoc(userProfileQuery);
 
   const handleAdminToggle = async (userId: string, isAdmin: boolean) => {
     if (!firestore) return;
@@ -53,17 +51,10 @@ export default function AdminUsersPage() {
   };
   
   const handleLoginAsUser = async (email: string) => {
-    if (!auth) return;
-    
-    // We cannot know the user's password, so this is a simulated login.
-    // In a real scenario, this would involve custom tokens or a backend function.
-    // For this prototype, we'll just show a toast and redirect to the main login.
     toast({
       title: 'Simulating Login',
       description: `In a production app, you would now be logged in as ${email}. Redirecting to dashboard.`,
     });
-    // This is a client-side simulation. A real implementation would use custom auth tokens.
-    // For now, we just navigate to the dashboard as if we were that user.
     router.push('/dashboard');
   }
 
@@ -103,16 +94,19 @@ export default function AdminUsersPage() {
       </div>
     );
   }
+  
+  // Create an array with the single user object to avoid changing the table mapping logic
+  const users = user ? [user] : [];
 
   return (
     <div>
       <Card>
         <CardHeader>
           <CardTitle>User Management</CardTitle>
-          <CardDescription>View and manage all registered users on the platform.</CardDescription>
+          <CardDescription>View and manage your administrator profile.</CardDescription>
         </CardHeader>
         <CardContent>
-          {users && users.length > 0 ? (
+          {users.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -167,7 +161,7 @@ export default function AdminUsersPage() {
                         </div>
                     </TableCell>
                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)}>
+                        <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} disabled={true} title="This feature is for demonstration.">
                             <LogIn className="mr-2 h-4 w-4" />
                             Login As
                         </Button>
@@ -179,7 +173,7 @@ export default function AdminUsersPage() {
           ) : (
             <div className="text-center py-20">
               <User className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No user data to display. This may be due to security rules.</p>
+              <p className="text-muted-foreground">Could not load your user profile.</p>
             </div>
           )}
         </CardContent>
@@ -187,5 +181,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
