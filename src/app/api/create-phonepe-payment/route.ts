@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
-const PHONEPE_HOST_URL = 'https://api.phonepe.com/apis/pg';
+const PHONEPE_HOST_URL = process.env.PHONEPE_BASE_URL || 'https://api-preprod.phonepe.com/apis/pg';
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const SALT_INDEX = process.env.PHONEPE_SALT_INDEX ? parseInt(process.env.PHONEPE_SALT_INDEX) : 1;
@@ -45,14 +45,10 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
         'X-VERIFY': checksum,
+        'accept': 'application/json',
       },
       body: JSON.stringify({ request: base64Payload }),
     });
-
-    if (!response.ok) {
-        console.error("PhonePe API response error:", await response.text());
-        throw new Error(`PhonePe API responded with status ${response.status}`);
-    }
 
     const responseData = await response.json();
 
@@ -63,10 +59,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment' }, { status: 500 });
     }
 
-  } catch (error) {
-    console.error('Error creating PhonePe payment:', error);
+  } catch (error: any) {
+    console.error("PhonePe Payment Error:", error.response?.data || error.message || error);
     return NextResponse.json(
-      { error: 'Failed to create PhonePe payment due to a server error. Check server logs for details.' },
+      { error: error.message || 'Failed to create PhonePe payment due to a server error. Check server logs for details.' },
       { status: 500 }
     );
   }
