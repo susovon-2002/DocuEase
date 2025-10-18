@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
+import { config } from 'dotenv';
+
+config();
 
 const PHONEPE_HOST_URL = 'https://api.phonepe.com/apis/pg';
 const MERCHANT_ID = process.env.NEXT_PUBLIC_PHONEPE_MERCHANT_ID;
