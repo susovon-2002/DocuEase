@@ -25,7 +25,6 @@ const AuthContent = () => {
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
 
   const userProfileQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -34,23 +33,7 @@ const AuthContent = () => {
   
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc(userProfileQuery);
 
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push('/');
-    } catch (error) {
-      console.error('Error signing out: ', error);
-    }
-  };
-
-  if (!isClient || isUserLoading || isUserProfileLoading) {
-    // Render a static placeholder on the server and during initial client load/auth check.
-    // This MUST be identical to prevent hydration errors.
+  if (isUserLoading || isUserProfileLoading) {
     return <div className="h-8 w-8 rounded-full bg-muted" />;
   }
   
@@ -92,7 +75,14 @@ const AuthContent = () => {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
+          <DropdownMenuItem onClick={async () => {
+              try {
+                await signOut(auth);
+                router.push('/');
+              } catch (error) {
+                console.error('Error signing out: ', error);
+              }
+            }}>
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
           </DropdownMenuItem>
@@ -113,6 +103,12 @@ const AuthContent = () => {
 
 
 const Header = () => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-20 items-center">
@@ -136,7 +132,7 @@ const Header = () => {
             </Link>
           </Button>
           
-          <AuthContent />
+          {isClient ? <AuthContent /> : <div className="h-11 w-24 rounded-md bg-muted" />}
 
         </div>
       </div>
