@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ redirectUrl: responseData.data.instrumentResponse.redirectInfo.url });
     } else {
         console.error("PhonePe Error:", responseData);
-        return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment' }, { status: 500 });
+        return NextResponse.json({ error: responseData.message || 'Failed to create PhonePe payment' }, { status: response.status });
     }
 
   } catch (error: any) {
