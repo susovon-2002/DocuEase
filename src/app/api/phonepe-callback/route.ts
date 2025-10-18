@@ -1,5 +1,6 @@
+
 import { NextResponse } from 'next/server';
-import { createHash } from 'crypto';
+import sha256 from 'crypto-js/sha256';
 import * as admin from 'firebase-admin';
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
         console.error("Checksum verification failed: Missing SALT_KEY or received checksum.");
         return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
     }
-    const calculatedChecksum = createHash('sha256').update(Buffer.from(body.response, 'base64').toString() + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
+    const calculatedChecksum = sha256(Buffer.from(body.response, 'base64').toString() + SALT_KEY).toString() + `###${SALT_INDEX}`;
     
     if (receivedChecksum !== calculatedChecksum) {
       console.error("Checksum mismatch!");

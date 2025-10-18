@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { createHash } from 'crypto';
+import sha256 from 'crypto-js/sha256';
+import { v4 as uuidv4 } from 'uuid';
 
 const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL!;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID!;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     
     const apiPath = '/pg/v1/pay';
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const checksum = createHash('sha256').update(base64Payload + apiPath + SALT_KEY).digest('hex') + `###${SALT_INDEX}`;
+    const checksum = sha256(base64Payload + apiPath + SALT_KEY).toString() + `###${SALT_INDEX}`;
 
     const response = await fetch(`${PHONEPE_HOST_URL}${apiPath}`, {
       method: 'POST',
@@ -68,3 +69,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
