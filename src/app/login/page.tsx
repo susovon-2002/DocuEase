@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, LogIn, RefreshCw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Loader2, LogIn, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { useRouter }from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [captchaText, setCaptchaText] = useState('');
+  const [loginSelection, setLoginSelection] = useState<'user' | 'admin' | null>(null);
 
   const { toast } = useToast();
   const auth = useAuth();
@@ -150,6 +151,31 @@ export default function LoginPage() {
       refreshCaptcha();
     }
   };
+
+  if (!loginSelection) {
+    return (
+        <div className="container mx-auto px-4 py-12 flex justify-center items-center">
+            <Card className="w-full max-w-md">
+                <CardHeader>
+                    <CardTitle>Choose Login Type</CardTitle>
+                    <CardDescription>Select how you would like to sign in.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4">
+                     <Button size="lg" onClick={() => setLoginSelection('user')}>
+                        <UserCheck className="mr-2 h-5 w-5" />
+                        User Login / Sign Up
+                    </Button>
+                    <Button size="lg" variant="outline" asChild>
+                       <Link href="/admin/login">
+                         <Shield className="mr-2 h-5 w-5" />
+                         Admin Login
+                       </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-12 flex justify-center items-center">
@@ -259,23 +285,33 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
-              <Button
-                type="button"
-                variant="link"
-                onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    if (!isSignUp) {
-                        form.register('terms');
-                    } else {
-                        form.unregister('terms');
-                    }
-                }}
-                className="text-sm"
-              >
-                {isSignUp
-                  ? 'Already have an account? Sign In'
-                  : "Don't have an account? Sign Up"}
-              </Button>
+              <div className="flex justify-between w-full">
+                <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => setLoginSelection(null)}
+                    className="text-sm p-0 h-auto"
+                >
+                    Back to selection
+                </Button>
+                <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => {
+                        setIsSignUp(!isSignUp);
+                        if (!isSignUp) {
+                            form.register('terms');
+                        } else {
+                            form.unregister('terms');
+                        }
+                    }}
+                    className="text-sm p-0 h-auto"
+                >
+                    {isSignUp
+                    ? 'Already have an account? Sign In'
+                    : "Don't have an account? Sign Up"}
+                </Button>
+              </div>
             </CardFooter>
           </form>
         </Form>
