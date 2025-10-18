@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
 import sha256 from 'crypto-js/sha256';
-import { v4 as uuidv4 } from 'uuid';
 
 const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL!;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID!;
@@ -69,4 +68,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

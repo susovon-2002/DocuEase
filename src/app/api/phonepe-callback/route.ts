@@ -28,9 +28,9 @@ const getDb = () => {
 
 export async function POST(request: Request) {
   try {
-    const textBody = await request.text();
-    const body = JSON.parse(textBody);
-    const response = JSON.parse(Buffer.from(body.response, 'base64').toString());
+    const body = await request.json();
+    const base64Response = body.response;
+    const response = JSON.parse(Buffer.from(base64Response, 'base64').toString());
 
     // Verify the checksum
     const receivedChecksum = request.headers.get('x-verify');
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         console.error("Checksum verification failed: Missing SALT_KEY or received checksum.");
         return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
     }
-    const calculatedChecksum = sha256(Buffer.from(body.response, 'base64').toString() + SALT_KEY).toString() + `###${SALT_INDEX}`;
+    const calculatedChecksum = sha256(base64Response + SALT_KEY).toString() + `###${SALT_INDEX}`;
     
     if (receivedChecksum !== calculatedChecksum) {
       console.error("Checksum mismatch!");
