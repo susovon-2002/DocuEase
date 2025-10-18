@@ -19,6 +19,9 @@ try {
 
 
 const getDb = () => {
+    if (admin.apps.length === 0) {
+        throw new Error("Firebase Admin SDK not initialized");
+    }
     return admin.firestore();
 };
 
