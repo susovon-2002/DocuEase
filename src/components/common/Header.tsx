@@ -103,11 +103,6 @@ const AuthContent = () => {
 
 
 const Header = () => {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -132,7 +127,7 @@ const Header = () => {
             </Link>
           </Button>
           
-          {isClient ? <AuthContent /> : <div className="h-11 w-24 rounded-md bg-muted" />}
+          <AuthContent />
 
         </div>
       </div>
