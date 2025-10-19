@@ -50,19 +50,20 @@ const fonts = [
   { name: 'Neucha', family: "'Neucha', cursive", url: 'https://fonts.gstatic.com/s/neucha/v18/q5uGsou0JOdh94bk.ttf' },
   { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive", url: 'https://fonts.gstatic.com/s/nothingyoucoulddo/v15/oY1B8fbBpaP5F1evpgUL-bT_wA.ttf' },
   { name: 'Parisienne', family: "'Parisienne', cursive", url: 'https://fonts.gstatic.com/s/parisienne/v13/E21i_d3kivvG83fM4g.ttf' },
+  { name: 'Patrick Hand', family: "'Patrick Hand', cursive", url: 'https://fonts.gstatic.com/s/patrickhand/v19/LDI1apSQOAYtSuYWp8ZhfYeMWQ.ttf' },
+  { name: 'Permanent Marker', family: "'Permanent Marker', cursive", url: 'https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQ.ttf' },
   { name: 'Pinyon Script', family: "'Pinyon Script', cursive", url: 'https://fonts.gstatic.com/s/pinyonscript/v16/6xK_d2Dy7pEV_z10T-7b6w.ttf' },
+  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", url: 'https://fonts.gstatic.com/s/reeniebeanie/v16/z7NSdR76eDkaJKZJFkk.ttf' },
   { name: 'Rock Salt', family: "'Rock Salt', cursive", url: 'https://fonts.gstatic.com/s/rocksalt/v16/MwQ0bhv11fWD6QsAVOZ.ttf' },
   { name: 'Rouge Script', family: "'Rouge Script', cursive", url: 'https://fonts.gstatic.com/s/rougescript/v14/syky-y18lb0tSbf-scg.ttf' },
   { name: 'Sacramento', family: "'Sacramento', cursive", url: 'https://fonts.gstatic.com/s/sacramento/v13/buEzpo6gcdjy0EiurwI.ttf' },
   { name: 'Schoolbell', family: "'Schoolbell', cursive", url: 'https://fonts.gstatic.com/s/schoolbell/v16/92zQtWxDY2WLsm-b-y-.ttf' },
   { name: 'Short Stack', family: "'Short Stack', cursive", url: 'https://fonts.gstatic.com/s/shortstack/v15/bMr-Y5crOpgY-3CF_.ttf' },
   { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive", url: 'https://fonts.gstatic.com/s/thegirlnextdoor/v16/pe0zMJCbPY0TJIqte_8Y-o29.ttf' },
-  { name: 'Zeyada', family: "'Zeyada', cursive", url: 'https://fonts.gstatic.com/s/zeyada/v15/11hAGp_3YGCTv-s.ttf' },
-  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", url: 'https://fonts.gstatic.com/s/reeniebeanie/v16/z7NSdR76eDkaJKZJFkk.ttf' },
-  { name: 'Sue Ellen Francisco', family: "'Sue Ellen Francisco', cursive", url: 'https://fonts.gstatic.com/s/sueellenfrancisco/v16/wremfA7slc-B9hmwkh_P31Y.ttf' },
   { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive", url: 'https://fonts.gstatic.com/s/waitingforthesunrise/v16/WBL1rEb2NKnsuby0faPjOS-Ex0.ttf' },
+  { name: 'Zeyada', family: "'Zeyada', cursive", url: 'https://fonts.gstatic.com/s/zeyada/v15/11hAGp_3YGCTv-s.ttf' },
+  { name: 'Sue Ellen Francisco', family: "'Sue Ellen Francisco', cursive", url: 'https://fonts.gstatic.com/s/sueellenfrancisco/v16/wremfA7slc-B9hmwkh_P31Y.ttf' },
   { name: 'Just Me Again Down Here', family: "'Just Me Again Down Here', cursive", url: 'https://fonts.gstatic.com/s/justmeagaindownhere/v22/MwQmbgX5Mffqimazvc7I-p2O.ttf' },
-  { name: 'Permanent Marker', family: "'Permanent Marker', cursive", url: 'https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQ.ttf' },
   { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive", url: 'https://fonts.gstatic.com/s/gloriahallelujah/v17/CA1k7d3y-ooH8v_9K8AFg.ttf' },
 ];
 
@@ -157,20 +158,25 @@ export function TextToHandwritingClient() {
               });
           }
 
+          let currentY = y;
+          if (drawHorizontalLines) {
+              for (let i = 0; i < 25; i++) {
+                  if (currentY < 50) break;
+                  const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
+                  page.drawLine({ start: { x: 40, y: currentY - 2 }, end: { x: width - 40, y: currentY - 2 }, thickness: 0.5, color: lineColor });
+                  currentY -= lineHeight;
+              }
+          }
+
           const pageLines = lines.slice(p * linesPerPage, (p + 1) * linesPerPage);
           
+          currentY = y;
           for (const line of pageLines) {
-             if (y < 50) break;
-             if (drawHorizontalLines) {
-                 const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
-                 page.drawLine({
-                     start: { x: 40, y: y - 2 }, end: { x: width - 40, y: y - 2 }, thickness: 0.5, color: lineColor,
-                 });
-             }
+             if (currentY < 50) break;
              page.drawText(line, {
-                x: 50, y: y, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+                x: 50, y: currentY, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
-             y -= lineHeight;
+             currentY -= lineHeight;
           }
         }
         
@@ -335,20 +341,20 @@ export function TextToHandwritingClient() {
                     <Card className="flex-grow">
                         <CardContent className="p-4">
                             <div className="w-full aspect-[210/297] border rounded-md overflow-hidden relative transition-colors bg-white">
-                               {showDateTimeHeader && (
+                                {showDateTimeHeader && (
                                     <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
                                         {new Date().toLocaleDateString()}
                                     </div>
                                 )}
-                                {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                    <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
-                                 )}
-                                 <div className="absolute inset-0 p-8 overflow-y-auto">
+                                <div className="absolute inset-0 p-8 overflow-y-auto">
+                                    {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: showDateTimeHeader ? '4rem' : '2rem', bottom: '2rem'}}></div>
+                                    )}
                                     <div className="relative">
                                         {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
                                             <div 
                                                 className="absolute inset-0 pointer-events-none"
-                                                style={{top: showDateTimeHeader ? '2rem' : '0'}}
+                                                style={{top: showDateTimeHeader ? '3.5rem' : '1.5rem'}}
                                             >
                                                 {Array.from({ length: 40 }).map((_, i) => (
                                                     <div 
@@ -363,7 +369,7 @@ export function TextToHandwritingClient() {
                                             </div>
                                         )}
                                         <pre 
-                                            className="whitespace-pre-wrap break-words font-inherit relative"
+                                            className="whitespace-pre-wrap break-words font-inherit relative w-full h-full"
                                             style={{
                                                 fontFamily: font,
                                                 fontSize: `${fontSize}px`,
@@ -371,7 +377,7 @@ export function TextToHandwritingClient() {
                                                 lineHeight: 1.6,
                                                 letterSpacing: `${letterSpacing}px`,
                                                 wordSpacing: `${wordSpacing}px`,
-                                                paddingTop: showDateTimeHeader ? '2rem': '0',
+                                                paddingTop: showDateTimeHeader ? '2.5rem': '0.5rem',
                                             }}
                                         >{text}</pre>
                                     </div>
