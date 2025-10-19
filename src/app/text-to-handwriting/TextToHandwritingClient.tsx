@@ -148,7 +148,6 @@ export function TextToHandwritingClient() {
         const lines = text.split('\n');
         
         // Draw lines and text together
-        const lineGap = lineHeight;
         const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
         const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
 
@@ -169,17 +168,18 @@ export function TextToHandwritingClient() {
              if (drawHorizontalLines) {
                  const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
                  page.drawLine({
-                     start: { x: 40, y: y - (fontSize * 0.2) },
-                     end: { x: width - 40, y: y - (fontSize * 0.2) },
+                     start: { x: 40, y: y },
+                     end: { x: width - 40, y: y },
                      thickness: 0.5,
                      color: lineColor,
                  });
              }
              
              // NOTE: pdf-lib doesn't support letterSpacing/wordSpacing directly. This is a simplified drawing.
+             // The y coordinate in drawText refers to the baseline. We add a small offset to make it sit ON the line.
              page.drawText(line, {
                 x: 50,
-                y,
+                y: y + (fontSize * 0.2), // Adjust to sit on the line
                 font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
