@@ -3,20 +3,20 @@
 import { useState } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler } from 'lucide-react';
+import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const fonts = [
-  { name: 'Caveat', family: "'Caveat', cursive" },
   { name: 'Dancing Script', family: "'Dancing Script', cursive" },
+  { name: 'Caveat', family: "'Caveat', cursive" },
   { name: 'Indie Flower', family: "'Indie Flower', cursive" },
   { name: 'Patrick Hand', family: "'Patrick Hand', cursive" },
   { name: 'Homemade Apple', family: "'Homemade Apple', cursive" },
@@ -34,6 +34,7 @@ export function TextToHandwritingClient() {
   const [letterSpacing, setLetterSpacing] = useState(0);
   const [wordSpacing, setWordSpacing] = useState(0);
   const [showLines, setShowLines] = useState(true);
+  const [showDateTimeHeader, setShowDateTimeHeader] = useState(true);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -72,13 +73,28 @@ export function TextToHandwritingClient() {
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const lineHeight = fontSize * 1.6;
 
+        let y = height - 55;
+
+        // Draw Date/Page Header
+        if (showDateTimeHeader) {
+            const headerText = `${new Date().toLocaleDateString()} | Page 1`;
+            page.drawText(headerText, {
+                x: width - 50 - helveticaFont.widthOfTextAtSize(headerText, 10),
+                y: height - 40,
+                font: helveticaFont,
+                size: 10,
+                color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+            });
+            y -= 20;
+        }
+
         // Draw lines if enabled
         if (showLines) {
             const lineGap = lineHeight;
             const lineColor = rgb(0.8, 0.8, 0.8); // Light grey lines
-            for (let y = height - 50; y > 50; y -= lineGap) {
+            for (let lineY = y; lineY > 50; lineY -= lineGap) {
                 page.drawLine({
-                    start: { x: 40, y },
+                    start: { x: 40, y: lineY },
                     end: { x: width - 40, y },
                     thickness: 0.5,
                     color: lineColor,
@@ -87,7 +103,6 @@ export function TextToHandwritingClient() {
         }
         
         const lines = text.split('\n');
-        let y = height - 55; // Start just above the first line
         
         for (const line of lines) {
              if (y < 50) {
@@ -159,21 +174,35 @@ export function TextToHandwritingClient() {
                              placeholder="Enter your text here..."
                            />
                         </div>
-                        <div className="space-y-2">
-                           <Label htmlFor="font-select">Handwriting Font</Label>
-                           <Select value={font} onValueChange={setFont}>
-                                <SelectTrigger id="font-select">
-                                    <SelectValue placeholder="Select a font" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {fonts.map(f => (
-                                        <SelectItem key={f.name} value={f.family} style={{fontFamily: f.family}}>
-                                            {f.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                           </Select>
+                        
+                         <div className="space-y-4">
+                            <Label>Handwriting Font</Label>
+                            <div className="flex items-center space-x-2 border rounded-md p-3">
+                                <Checkbox id="show-header" checked={showDateTimeHeader} onCheckedChange={v => setShowDateTimeHeader(Boolean(v))} />
+                                <Label htmlFor="show-header" className="flex-grow">Show date and page number header</Label>
+                                <Button variant="link" className="p-0 h-auto text-primary">(settings)</Button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <Card className="flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square hover:bg-accent" onClick={() => toast({title: "Coming Soon!", description: "Custom font uploads will be available in a future update."})}>
+                                    <Upload className="h-6 w-6 mb-1"/>
+                                    <p className="text-xs font-medium">Upload Font</p>
+                                </Card>
+                                {fonts.map(f => (
+                                    <Card 
+                                        key={f.name} 
+                                        className={cn(
+                                            "flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
+                                            font === f.family ? 'ring-2 ring-primary' : 'hover:bg-accent'
+                                        )}
+                                        onClick={() => setFont(f.family)}
+                                    >
+                                        <p style={{fontFamily: f.family}} className="text-2xl">AaBb</p>
+                                        <p className="text-xs font-medium truncate w-full">{f.name}</p>
+                                    </Card>
+                                ))}
+                            </div>
                         </div>
+
                          <div className="space-y-2">
                             <Label><Palette className="inline-block mr-2" />Ink & Paper Color</Label>
                             <div className="flex gap-4">
@@ -214,13 +243,24 @@ export function TextToHandwritingClient() {
                             backgroundColor: paperColor
                           }}
                         >
+                            {showDateTimeHeader && (
+                                <div className="absolute top-8 right-8 text-xs" style={{color: fontColor}}>
+                                    {new Date().toLocaleDateString()}
+                                </div>
+                            )}
                             {showLines && (
-                                <div className="absolute inset-0 p-8 pointer-events-none">
+                                <div 
+                                    className="absolute inset-0 p-8 pointer-events-none"
+                                    style={{top: showDateTimeHeader ? '4rem' : '2rem'}}
+                                >
                                     {Array.from({ length: 20 }).map((_, i) => (
                                         <div 
                                             key={i} 
-                                            className="h-px bg-gray-300"
-                                            style={{ marginTop: `${fontSize * 1.6}px`}}
+                                            className="h-px"
+                                            style={{
+                                                backgroundColor: hexToRgb(fontColor) ? `rgba(${hexToRgb(fontColor).r * 255}, ${hexToRgb(fontColor).g * 255}, ${hexToRgb(fontColor).b * 255}, 0.3)` : 'rgba(0,0,0,0.2)',
+                                                marginTop: `${fontSize * 1.6}px`
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -234,6 +274,7 @@ export function TextToHandwritingClient() {
                                     lineHeight: 1.6,
                                     letterSpacing: `${letterSpacing}px`,
                                     wordSpacing: `${wordSpacing}px`,
+                                    paddingTop: showDateTimeHeader ? '2rem': '0',
                                 }}
                             >{text}</pre>
                         </div>
