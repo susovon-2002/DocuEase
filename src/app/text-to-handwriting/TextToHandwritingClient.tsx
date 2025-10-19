@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler, Upload, Book, Droplets, Minus, Sigma } from 'lucide-react';
+import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler, Upload, Book, Droplets, Minus, Sigma, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -86,25 +86,24 @@ export function TextToHandwritingClient() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   
-  const handleDownload = async () => {
-    if (!text) {
+  const generatePdf = async (options: { targetText: string, targetFontFamily: string, pageCount: number }) => {
+    const { targetText, targetFontFamily, pageCount } = options;
+
+    if (!targetText) {
         toast({
             variant: 'destructive',
             title: 'No Text',
             description: 'Please enter some text to convert.',
         });
-        return;
+        return null;
     }
     
     setIsProcessing(true);
     try {
         const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage();
-        const { width, height } = page.getSize();
         const fontRgb = hexToRgb(fontColor);
 
-        // Fetch and embed the selected font
-        const selectedFont = fonts.find(f => f.family === font);
+        const selectedFont = fonts.find(f => f.family === targetFontFamily);
         let customFont;
         if (selectedFont?.url) {
             try {
@@ -119,92 +118,98 @@ export function TextToHandwritingClient() {
              customFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         }
 
-        // Set background color
-        page.drawRectangle({
-          x: 0,
-          y: 0,
-          width,
-          height,
-          color: rgb(1, 1, 1) // Always white background for paper effect
-        });
+        const lines = targetText.split('\n');
+        const linesPerPage = Math.ceil(lines.length / pageCount);
 
-        const lineHeight = fontSize * 1.6;
-        let y = height - 50; // Initial Y position
+        for (let p = 0; p < pageCount; p++) {
+          const page = pdfDoc.addPage();
+          const { width, height } = page.getSize();
+          
+          page.drawRectangle({
+            x: 0, y: 0, width, height, color: rgb(1, 1, 1)
+          });
+          
+          let y = height - 50; 
+          const lineHeight = fontSize * 1.6;
 
-        // Draw Date/Page Header
-        if (showDateTimeHeader) {
-            const headerText = `${new Date().toLocaleDateString()} | Page 1`;
-            const headerFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            page.drawText(headerText, {
-                x: width - 50 - headerFont.widthOfTextAtSize(headerText, 10),
-                y: height - 40,
-                font: headerFont,
-                size: 10,
-                color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
-            });
-            y -= 30; // Adjust starting Y for text after header
-        }
+          if (showDateTimeHeader) {
+              const headerText = `${new Date().toLocaleDateString()} | Page ${p + 1}`;
+              const headerFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+              page.drawText(headerText, {
+                  x: width - 50 - headerFont.widthOfTextAtSize(headerText, 10),
+                  y: height - 40,
+                  font: headerFont,
+                  size: 10,
+                  color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+              });
+              y -= 30;
+          }
+          
+          const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
+          const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
 
-        const lines = text.split('\n');
-        
-        // Draw lines and text together
-        const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
-        const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
+          if (drawVerticalLine) {
+              page.drawLine({
+                  start: { x: 40, y: height - 20 },
+                  end: { x: 40, y: 30 },
+                  thickness: 1,
+                  color: rgb(1, 0.8, 0.8),
+              });
+          }
 
-        if (drawVerticalLine) {
-            page.drawLine({
-                start: { x: 40, y: height - 20 },
-                end: { x: 40, y: 30 },
-                thickness: 1,
-                color: rgb(1, 0.8, 0.8), // Light red
-            });
-        }
-
-        for (const line of lines) {
-             if (y < 50) {
-                break; // Stop if we run out of space on one page
-             }
-
+          const pageLines = lines.slice(p * linesPerPage, (p + 1) * linesPerPage);
+          
+          for (const line of pageLines) {
+             if (y < 50) break;
              if (drawHorizontalLines) {
                  const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
                  page.drawLine({
-                     start: { x: 40, y: y },
-                     end: { x: width - 40, y: y },
-                     thickness: 0.5,
-                     color: lineColor,
+                     start: { x: 40, y: y }, end: { x: width - 40, y: y }, thickness: 0.5, color: lineColor,
                  });
              }
-             
-             // NOTE: pdf-lib doesn't support letterSpacing/wordSpacing directly. This is a simplified drawing.
-             // The y coordinate in drawText refers to the baseline. We add a small offset to make it sit ON the line.
              page.drawText(line, {
-                x: 50,
-                y: y + (fontSize * 0.2), // Adjust to sit on the line
-                font: customFont,
-                size: fontSize,
-                color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+                x: 50, y: y + (fontSize * 0.2), font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
              y -= lineHeight;
+          }
         }
-
+        
         const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'handwriting.pdf';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast({ title: 'PDF Generated!', description: 'Your handwritten text has been downloaded.' });
+        return new Blob([pdfBytes], { type: 'application/pdf' });
         
     } catch(e) {
         console.error(e);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not generate the PDF.'});
+        return null;
     } finally {
         setIsProcessing(false);
+    }
+  };
+
+  const handleDownload = async (type: 'all-pages-pdf' | 'this-page-pdf' | 'all-pages-img' | 'this-page-img', targetFont?: string) => {
+    if ((type.includes('pdf') || type.includes('img')) && !text) {
+       toast({ variant: 'destructive', title: 'No Text', description: 'Please enter some text to convert.'});
+       return;
+    }
+
+    const currentFont = targetFont || font;
+
+    if (type.endsWith('pdf')) {
+      const pageCount = (type === 'this-page-pdf' && !targetFont) ? 1 : Math.ceil(text.split('\n').length / 20); // Rough estimate for all pages
+      const pdfBlob = await generatePdf({ targetText: text, targetFontFamily: currentFont, pageCount });
+      if (pdfBlob) {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = targetFont ? `${fonts.find(f => f.family === targetFont)?.name}.pdf` : `handwriting_${type}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: 'PDF Generated!', description: 'Your handwritten text has been downloaded.' });
+      }
+    } else {
+      toast({ title: 'Coming Soon', description: 'Image download functionality will be available in a future update.' });
     }
   };
 
@@ -248,7 +253,6 @@ export function TextToHandwritingClient() {
                             <div className="flex items-center space-x-2 border rounded-md p-3">
                                 <Checkbox id="show-header" checked={showDateTimeHeader} onCheckedChange={v => setShowDateTimeHeader(Boolean(v))} />
                                 <Label htmlFor="show-header" className="flex-grow">Show date and page number header</Label>
-                                <Button variant="link" className="p-0 h-auto text-primary">(settings)</Button>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <Card className="flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square hover:bg-accent" onClick={() => toast({title: "Coming Soon!", description: "Custom font uploads will be available in a future update."})}>
@@ -259,13 +263,24 @@ export function TextToHandwritingClient() {
                                     <Card 
                                         key={f.name} 
                                         className={cn(
-                                            "flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
+                                            "relative group flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
                                             font === f.family ? 'ring-2 ring-primary' : 'hover:bg-accent'
                                         )}
                                         onClick={() => setFont(f.family)}
                                     >
                                         <p style={{fontFamily: f.family}} className="text-2xl">AaBb</p>
                                         <p className="text-xs font-medium truncate w-full">{f.name}</p>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDownload('this-page-pdf', f.family);
+                                            }}
+                                        >
+                                            <Download className="h-4 w-4" />
+                                        </Button>
                                     </Card>
                                 ))}
                             </div>
@@ -314,62 +329,72 @@ export function TextToHandwritingClient() {
                         </div>
                     </CardContent>
                 </Card>
-                 <Button onClick={handleDownload} disabled={isProcessing} size="lg" className="w-full">
-                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
-                    {isProcessing ? 'Generating PDF...' : 'Download as PDF'}
-                </Button>
             </div>
             <div className="lg:col-span-2">
-                 <div className="sticky top-24">
-                     <Card>
+                 <div className="sticky top-24 flex gap-4">
+                    <Card className="flex-grow">
                         <CardContent className="p-4">
-                            <div 
-                              className="w-full aspect-[4/5] border rounded-md overflow-hidden relative transition-colors bg-white"
-                            >
-                                <div className="absolute inset-0 p-8">
-                                    {showDateTimeHeader && (
-                                        <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
-                                            {new Date().toLocaleDateString()}
-                                        </div>
-                                    )}
-                                    {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
-                                     )}
-                                     <div className="h-full overflow-y-auto">
-                                        <div className="relative">
-                                            {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
-                                                <div 
-                                                    className="absolute inset-0 pointer-events-none"
-                                                    style={{top: showDateTimeHeader ? '2rem' : '0'}}
-                                                >
-                                                    {Array.from({ length: 40 }).map((_, i) => (
-                                                        <div 
-                                                            key={i} 
-                                                            className="h-px"
-                                                            style={{
-                                                                backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
-                                                                marginTop: `${fontSize * 1.6}px`
-                                                            }}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <pre 
-                                                className="whitespace-pre-wrap font-inherit relative"
-                                                style={{
-                                                    fontFamily: font,
-                                                    fontSize: `${fontSize}px`,
-                                                    color: fontColor,
-                                                    lineHeight: 1.6,
-                                                    letterSpacing: `${letterSpacing}px`,
-                                                    wordSpacing: `${wordSpacing}px`,
-                                                    paddingTop: showDateTimeHeader ? '2rem': '0',
-                                                }}
-                                            >{text}</pre>
-                                        </div>
+                            <div className="w-full aspect-[4/5] border rounded-md overflow-hidden relative transition-colors bg-white">
+                               {showDateTimeHeader && (
+                                    <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
+                                        {new Date().toLocaleDateString()}
+                                    </div>
+                                )}
+                                {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                                    <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
+                                 )}
+                                 <div className="absolute inset-0 p-8 overflow-y-auto">
+                                    <div className="relative">
+                                        {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
+                                            <div 
+                                                className="absolute inset-0 pointer-events-none"
+                                                style={{top: showDateTimeHeader ? '2rem' : '0'}}
+                                            >
+                                                {Array.from({ length: 40 }).map((_, i) => (
+                                                    <div 
+                                                        key={i} 
+                                                        className="h-px"
+                                                        style={{
+                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
+                                                            marginTop: `${fontSize * 1.6}px`
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                        <pre 
+                                            className="whitespace-pre-wrap font-inherit relative"
+                                            style={{
+                                                fontFamily: font,
+                                                fontSize: `${fontSize}px`,
+                                                color: fontColor,
+                                                lineHeight: 1.6,
+                                                letterSpacing: `${letterSpacing}px`,
+                                                wordSpacing: `${wordSpacing}px`,
+                                                paddingTop: showDateTimeHeader ? '2rem': '0',
+                                            }}
+                                        >{text}</pre>
                                     </div>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="w-48 flex-shrink-0">
+                        <CardContent className="p-4 space-y-2">
+                            <h3 className="text-sm font-semibold text-center text-muted-foreground">PDF OPTIONS</h3>
+                            <Button onClick={() => handleDownload('all-pages-pdf')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
+                                <Download className="mr-2"/> Download all pages
+                            </Button>
+                             <Button onClick={() => handleDownload('this-page-pdf')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
+                                <Download className="mr-2"/> Download this page
+                            </Button>
+                            <h3 className="text-sm font-semibold text-center text-muted-foreground pt-4">IMAGE OPTIONS</h3>
+                             <Button onClick={() => handleDownload('all-pages-img')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
+                                <ImageIcon className="mr-2"/> Download all pages
+                            </Button>
+                             <Button onClick={() => handleDownload('this-page-img')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
+                                <ImageIcon className="mr-2"/> Download this page
+                            </Button>
                         </CardContent>
                     </Card>
                  </div>
