@@ -224,6 +224,14 @@ export const tools: Tool[] = [
     category: 'Edit PDF',
     color: 'neutral',
   },
+  {
+    title: 'Text to Handwriting',
+    description: 'Convert typed text into real human-like handwriting.',
+    icon: FilePenLine,
+    path: '/text-to-handwriting',
+    category: 'Edit PDF',
+    color: 'orange',
+  },
   // PDF Security
   {
     title: 'Unlock PDF',
