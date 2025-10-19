@@ -23,6 +23,40 @@ const fonts = [
   { name: 'Kalam', family: "'Kalam', cursive" },
   { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive" },
   { name: 'Amatic SC', family: "'Amatic SC', cursive" },
+  { name: 'Architects Daughter', family: "'Architects Daughter', cursive" },
+  { name: 'Bad Script', family: "'Bad Script', cursive" },
+  { name: 'Berkshire Swash', family: "'Berkshire Swash', cursive" },
+  { name: 'Calligraffitti', family: "'Calligraffitti', cursive" },
+  { name: 'Cedarville Cursive', family: "'Cedarville Cursive', cursive" },
+  { name: 'Clicker Script', family: "'Clicker Script', cursive" },
+  { name: 'Cookie', family: "'Cookie', cursive" },
+  { name: 'Damion', family: "'Damion', cursive" },
+  { name: 'Euphoria Script', family: "'Euphoria Script', cursive" },
+  { name: 'Felipa', family: "'Felipa', cursive" },
+  { name: 'Gochi Hand', family: "'Gochi Hand', cursive" },
+  { name: 'Great Vibes', family: "'Great Vibes', cursive" },
+  { name: 'Handlee', family: "'Handlee', cursive" },
+  { name: 'Italianno', family: "'Italianno', cursive" },
+  { name: 'Jim Nightshade', family: "'Jim Nightshade', cursive" },
+  { name: 'Kristi', family: "'Kristi', cursive" },
+  { name: 'La Belle Aurore', family: "'La Belle Aurore', cursive" },
+  { name: 'Marck Script', family: "'Marck Script', cursive" },
+  { name: 'Meddon', family: "'Meddon', cursive" },
+  { name: 'Merienda', family: "'Merienda', cursive" },
+  { name: 'Montez', family: "'Montez', cursive" },
+  { name: 'Mr De Haviland', family: "'Mr De Haviland', cursive" },
+  { name: 'Nanum Pen Script', family: "'Nanum Pen Script', cursive" },
+  { name: 'Neucha', family: "'Neucha', cursive" },
+  { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive" },
+  { name: 'Parisienne', family: "'Parisienne', cursive" },
+  { name: 'Pinyon Script', family: "'Pinyon Script', cursive" },
+  { name: 'Rock Salt', family: "'Rock Salt', cursive" },
+  { name: 'Rouge Script', family: "'Rouge Script', cursive" },
+  { name: 'Sacramento', family: "'Sacramento', cursive" },
+  { name: 'Schoolbell', family: "'Schoolbell', cursive" },
+  { name: 'Short Stack', family: "'Short Stack', cursive" },
+  { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive" },
+  { name: 'Zeyada', family: "'Zeyada', cursive" },
 ];
 
 export function TextToHandwritingClient() {
@@ -154,7 +188,7 @@ export function TextToHandwritingClient() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Caveat&family=Dancing+Script&family=Indie+Flower&family=Patrick+Hand&family=Homemade+Apple&family=Kalam&family=Shadows+Into+Light&family=Amatic+SC&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Pinyon+Script&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=The+Girl+Next+Door&family=Zeyada&display=swap');
       `}</style>
       <div className="w-full max-w-6xl mx-auto">
         <div className="text-center mb-8">
