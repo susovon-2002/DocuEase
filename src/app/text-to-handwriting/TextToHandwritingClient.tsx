@@ -129,8 +129,7 @@ export function TextToHandwritingClient() {
         });
 
         const lineHeight = fontSize * 1.6;
-
-        let y = height - 55;
+        let y = height - 50; // Initial Y position
 
         // Draw Date/Page Header
         if (showDateTimeHeader) {
@@ -143,25 +142,16 @@ export function TextToHandwritingClient() {
                 size: 10,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
             });
-            y -= 20;
+            y -= 30; // Adjust starting Y for text after header
         }
 
-        // Draw lines if enabled
+        const lines = text.split('\n');
+        
+        // Draw lines and text together
         const lineGap = lineHeight;
         const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
         const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
 
-        if (drawHorizontalLines) {
-            const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1); // Light grey or blue
-            for (let lineY = y + (fontSize * 0.4); lineY > 50; lineY -= lineGap) {
-                page.drawLine({
-                    start: { x: 40, y: lineY },
-                    end: { x: width - 40, y: lineY },
-                    thickness: 0.5,
-                    color: lineColor,
-                });
-            }
-        }
         if (drawVerticalLine) {
             page.drawLine({
                 start: { x: 40, y: height - 20 },
@@ -170,15 +160,23 @@ export function TextToHandwritingClient() {
                 color: rgb(1, 0.8, 0.8), // Light red
             });
         }
-        
-        const lines = text.split('\n');
-        
+
         for (const line of lines) {
              if (y < 50) {
                 break; // Stop if we run out of space on one page
              }
-             // NOTE: pdf-lib doesn't support letterSpacing directly. Word spacing is a premium feature.
-             // We are drawing text line by line.
+
+             if (drawHorizontalLines) {
+                 const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
+                 page.drawLine({
+                     start: { x: 40, y: y - (fontSize * 0.2) },
+                     end: { x: width - 40, y: y - (fontSize * 0.2) },
+                     thickness: 0.5,
+                     color: lineColor,
+                 });
+             }
+             
+             // NOTE: pdf-lib doesn't support letterSpacing/wordSpacing directly. This is a simplified drawing.
              page.drawText(line, {
                 x: 50,
                 y,
