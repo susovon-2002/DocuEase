@@ -50,7 +50,6 @@ const fonts = [
   { name: 'Neucha', family: "'Neucha', cursive", url: 'https://fonts.gstatic.com/s/neucha/v18/q5uGsou0JOdh94bk.ttf' },
   { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive", url: 'https://fonts.gstatic.com/s/nothingyoucoulddo/v15/oY1B8fbBpaP5F1evpgUL-bT_wA.ttf' },
   { name: 'Parisienne', family: "'Parisienne', cursive", url: 'https://fonts.gstatic.com/s/parisienne/v13/E21i_d3kivvG83fM4g.ttf' },
-  { name: 'Patrick Hand', family: "'Patrick Hand', cursive", url: 'https://fonts.gstatic.com/s/patrickhand/v19/LDI1apSQOAYtSuYWp8ZhfYeMWQ.ttf' },
   { name: 'Permanent Marker', family: "'Permanent Marker', cursive", url: 'https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQ.ttf' },
   { name: 'Pinyon Script', family: "'Pinyon Script', cursive", url: 'https://fonts.gstatic.com/s/pinyonscript/v16/6xK_d2Dy7pEV_z10T-7b6w.ttf' },
   { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", url: 'https://fonts.gstatic.com/s/reeniebeanie/v16/z7NSdR76eDkaJKZJFkk.ttf' },
@@ -120,9 +119,11 @@ export function TextToHandwritingClient() {
         }
 
         const lines = targetText.split('\n');
-        const linesPerPage = Math.ceil(lines.length / 20); // Approx 20 lines per page
+        const linesPerPage = 20;
+        const totalPages = pageCount > 0 ? pageCount : Math.ceil(lines.length / linesPerPage);
 
-        for (let p = 0; p < pageCount; p++) {
+
+        for (let p = 0; p < totalPages; p++) {
           const page = pdfDoc.addPage();
           const { width, height } = page.getSize();
           
@@ -130,7 +131,7 @@ export function TextToHandwritingClient() {
             x: 0, y: 0, width, height, color: rgb(1, 1, 1)
           });
           
-          let y = height - 50; 
+          let y = height - 60; 
           const lineHeight = fontSize * 1.6;
 
           if (showDateTimeHeader) {
@@ -143,7 +144,6 @@ export function TextToHandwritingClient() {
                   size: 10,
                   color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
               });
-              y -= 30;
           }
           
           const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
@@ -158,25 +158,25 @@ export function TextToHandwritingClient() {
               });
           }
 
-          let currentY = y;
+          let currentYForLines = y;
           if (drawHorizontalLines) {
               for (let i = 0; i < 25; i++) {
-                  if (currentY < 50) break;
+                  if (currentYForLines < 50) break;
                   const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
-                  page.drawLine({ start: { x: 40, y: currentY - 2 }, end: { x: width - 40, y: currentY - 2 }, thickness: 0.5, color: lineColor });
-                  currentY -= lineHeight;
+                  page.drawLine({ start: { x: 40, y: currentYForLines }, end: { x: width - 40, y: currentYForLines }, thickness: 0.5, color: lineColor });
+                  currentYForLines -= lineHeight;
               }
           }
-
+          
           const pageLines = lines.slice(p * linesPerPage, (p + 1) * linesPerPage);
           
-          currentY = y;
+          let currentYForText = y;
           for (const line of pageLines) {
-             if (currentY < 50) break;
+             if (currentYForText < 50) break;
              page.drawText(line, {
-                x: 50, y: currentY, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+                x: 50, y: currentYForText, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
-             currentY -= lineHeight;
+             currentYForText -= lineHeight;
           }
         }
         
@@ -201,7 +201,7 @@ export function TextToHandwritingClient() {
     const currentFont = targetFont || font;
 
     if (type.endsWith('pdf')) {
-      const pageCount = (type === 'this-page-pdf') ? 1 : Math.ceil(text.split('\n').length / 20); // Rough estimate for all pages
+      const pageCount = (type === 'this-page-pdf') ? 1 : 0;
       const pdfBlob = await generatePdf({ targetText: text, targetFontFamily: currentFont, pageCount });
       if (pdfBlob) {
         const url = URL.createObjectURL(pdfBlob);
