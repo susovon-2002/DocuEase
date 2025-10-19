@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler, Upload } from 'lucide-react';
+import { Loader2, Download, Wand2, FileText, CaseSensitive, Palette, Ruler, Upload, Book, Droplets, Minus, Sigma } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,15 +66,21 @@ const fonts = [
   { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive" },
 ];
 
+const papers = [
+    { id: 'gray-line', name: 'Gray Line', icon: Minus },
+    { id: 'blue-line', name: 'Blue Line', icon: Sigma },
+    { id: 'plain', name: 'Plain Paper', icon: Book },
+    { id: 'white', name: 'White Paper', icon: Droplets },
+]
+
 export function TextToHandwritingClient() {
   const [text, setText] = useState('This free text to handwriting converter tool allows you to convert typed text into real human-like handwriting.');
   const [font, setFont] = useState(fonts[0].family);
   const [fontSize, setFontSize] = useState(24);
   const [fontColor, setFontColor] = useState('#000000');
-  const [paperColor, setPaperColor] = useState('#FFFFFF');
+  const [paperStyle, setPaperStyle] = useState('gray-line');
   const [letterSpacing, setLetterSpacing] = useState(0);
   const [wordSpacing, setWordSpacing] = useState(0);
-  const [showLines, setShowLines] = useState(true);
   const [showDateTimeHeader, setShowDateTimeHeader] = useState(true);
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,7 +101,6 @@ export function TextToHandwritingClient() {
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage();
         const { width, height } = page.getSize();
-        const paperRgb = hexToRgb(paperColor);
         const fontRgb = hexToRgb(fontColor);
 
         // Set background color
@@ -103,7 +109,7 @@ export function TextToHandwritingClient() {
           y: 0,
           width,
           height,
-          color: rgb(paperRgb.r, paperRgb.g, paperRgb.b)
+          color: rgb(1, 1, 1) // Always white background for paper effect
         });
 
         // This is a simplified version. pdf-lib needs fonts to be embedded
@@ -129,9 +135,12 @@ export function TextToHandwritingClient() {
         }
 
         // Draw lines if enabled
-        if (showLines) {
-            const lineGap = lineHeight;
-            const lineColor = rgb(0.8, 0.8, 0.8); // Light grey lines
+        const lineGap = lineHeight;
+        const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
+        const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
+
+        if (drawHorizontalLines) {
+            const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1); // Light grey or blue
             for (let lineY = y; lineY > 50; lineY -= lineGap) {
                 page.drawLine({
                     start: { x: 40, y: lineY },
@@ -140,6 +149,14 @@ export function TextToHandwritingClient() {
                     color: lineColor,
                 });
             }
+        }
+        if (drawVerticalLine) {
+            page.drawLine({
+                start: { x: 40, y: height - 20 },
+                end: { x: 40, y: 30 },
+                thickness: 1,
+                color: rgb(1, 0.8, 0.8), // Light red
+            });
         }
         
         const lines = text.split('\n');
@@ -243,11 +260,33 @@ export function TextToHandwritingClient() {
                             </div>
                         </div>
 
+                         <div className="space-y-4">
+                            <Label>Papers</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {papers.map(p => {
+                                    const Icon = p.icon;
+                                    return (
+                                        <Card
+                                            key={p.id}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
+                                                paperStyle === p.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
+                                            )}
+                                            onClick={() => setPaperStyle(p.id)}
+                                        >
+                                            <Icon className="h-6 w-6 mb-1" />
+                                            <p className="text-xs font-medium truncate w-full">{p.name}</p>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                         </div>
+
+
                          <div className="space-y-2">
-                            <Label><Palette className="inline-block mr-2" />Ink & Paper Color</Label>
+                            <Label><Palette className="inline-block mr-2" />Ink Color</Label>
                             <div className="flex gap-4">
                                 <Input id="font-color" type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="h-10 p-1 w-full"/>
-                                <Input id="paper-color" type="color" value={paperColor} onChange={(e) => setPaperColor(e.target.value)} className="h-10 p-1 w-full"/>
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -262,11 +301,6 @@ export function TextToHandwritingClient() {
                             <Label><CaseSensitive className="inline-block mr-2" />Word Spacing ({wordSpacing}px)</Label>
                             <Slider value={[wordSpacing]} onValueChange={(v) => setWordSpacing(v[0])} min={-5} max={20} step={1} />
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Ruler className="h-4 w-4 text-muted-foreground"/>
-                            <Switch id="show-lines" checked={showLines} onCheckedChange={setShowLines} />
-                            <Label htmlFor="show-lines">Show Ruled Lines</Label>
-                        </div>
                     </CardContent>
                 </Card>
                  <Button onClick={handleDownload} disabled={isProcessing} size="lg" className="w-full">
@@ -278,17 +312,14 @@ export function TextToHandwritingClient() {
                  <Card>
                     <CardContent className="p-4">
                         <div 
-                          className="w-full aspect-[4/5] border rounded-md p-8 overflow-y-auto relative transition-colors"
-                          style={{
-                            backgroundColor: paperColor
-                          }}
+                          className="w-full aspect-[4/5] border rounded-md p-8 overflow-y-auto relative transition-colors bg-white"
                         >
                             {showDateTimeHeader && (
                                 <div className="absolute top-8 right-8 text-xs" style={{color: fontColor}}>
                                     {new Date().toLocaleDateString()}
                                 </div>
                             )}
-                            {showLines && (
+                            {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
                                 <div 
                                     className="absolute inset-0 p-8 pointer-events-none"
                                     style={{top: showDateTimeHeader ? '4rem' : '2rem'}}
@@ -298,13 +329,17 @@ export function TextToHandwritingClient() {
                                             key={i} 
                                             className="h-px"
                                             style={{
-                                                backgroundColor: hexToRgb(fontColor) ? `rgba(${hexToRgb(fontColor).r * 255}, ${hexToRgb(fontColor).g * 255}, ${hexToRgb(fontColor).b * 255}, 0.3)` : 'rgba(0,0,0,0.2)',
+                                                backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
                                                 marginTop: `${fontSize * 1.6}px`
                                             }}
                                         />
                                     ))}
                                 </div>
                             )}
+                             {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                                <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
+                             )}
+
                             <pre 
                                 className="whitespace-pre-wrap font-inherit relative"
                                 style={{
@@ -327,3 +362,4 @@ export function TextToHandwritingClient() {
     </>
   );
 }
+
