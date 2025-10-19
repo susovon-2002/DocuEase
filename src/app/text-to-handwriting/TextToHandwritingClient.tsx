@@ -312,46 +312,50 @@ export function TextToHandwritingClient() {
                  <Card>
                     <CardContent className="p-4">
                         <div 
-                          className="w-full aspect-[4/5] border rounded-md p-8 overflow-y-auto relative transition-colors bg-white"
+                          className="w-full aspect-[4/5] border rounded-md p-8 overflow-hidden relative transition-colors bg-white"
                         >
                             {showDateTimeHeader && (
-                                <div className="absolute top-8 right-8 text-xs" style={{color: fontColor}}>
+                                <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
                                     {new Date().toLocaleDateString()}
-                                </div>
-                            )}
-                            {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
-                                <div 
-                                    className="absolute inset-0 p-8 pointer-events-none"
-                                    style={{top: showDateTimeHeader ? '4rem' : '2rem'}}
-                                >
-                                    {Array.from({ length: 20 }).map((_, i) => (
-                                        <div 
-                                            key={i} 
-                                            className="h-px"
-                                            style={{
-                                                backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
-                                                marginTop: `${fontSize * 1.6}px`
-                                            }}
-                                        />
-                                    ))}
                                 </div>
                             )}
                              {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
                                 <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
                              )}
 
-                            <pre 
-                                className="whitespace-pre-wrap font-inherit relative"
-                                style={{
-                                    fontFamily: font,
-                                    fontSize: `${fontSize}px`,
-                                    color: fontColor,
-                                    lineHeight: 1.6,
-                                    letterSpacing: `${letterSpacing}px`,
-                                    wordSpacing: `${wordSpacing}px`,
-                                    paddingTop: showDateTimeHeader ? '2rem': '0',
-                                }}
-                            >{text}</pre>
+                            <div className="h-full overflow-y-auto">
+                                <div className="relative">
+                                    {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
+                                        <div 
+                                            className="absolute inset-0 pointer-events-none"
+                                            style={{top: showDateTimeHeader ? '2rem' : '0'}}
+                                        >
+                                            {Array.from({ length: 40 }).map((_, i) => (
+                                                <div 
+                                                    key={i} 
+                                                    className="h-px"
+                                                    style={{
+                                                        backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
+                                                        marginTop: `${fontSize * 1.6}px`
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    <pre 
+                                        className="whitespace-pre-wrap font-inherit relative"
+                                        style={{
+                                            fontFamily: font,
+                                            fontSize: `${fontSize}px`,
+                                            color: fontColor,
+                                            lineHeight: 1.6,
+                                            letterSpacing: `${letterSpacing}px`,
+                                            wordSpacing: `${wordSpacing}px`,
+                                            paddingTop: showDateTimeHeader ? '2rem': '0',
+                                        }}
+                                    >{text}</pre>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
