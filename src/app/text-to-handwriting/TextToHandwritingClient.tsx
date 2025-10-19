@@ -16,54 +16,54 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const fonts = [
-  { name: 'Dancing Script', family: "'Dancing Script', cursive" },
-  { name: 'Caveat', family: "'Caveat', cursive" },
-  { name: 'Indie Flower', family: "'Indie Flower', cursive" },
-  { name: 'Patrick Hand', family: "'Patrick Hand', cursive" },
-  { name: 'Homemade Apple', family: "'Homemade Apple', cursive" },
-  { name: 'Kalam', family: "'Kalam', cursive" },
-  { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive" },
-  { name: 'Amatic SC', family: "'Amatic SC', cursive" },
-  { name: 'Architects Daughter', family: "'Architects Daughter', cursive" },
-  { name: 'Bad Script', family: "'Bad Script', cursive" },
-  { name: 'Berkshire Swash', family: "'Berkshire Swash', cursive" },
-  { name: 'Calligraffitti', family: "'Calligraffitti', cursive" },
-  { name: 'Cedarville Cursive', family: "'Cedarville Cursive', cursive" },
-  { name: 'Clicker Script', family: "'Clicker Script', cursive" },
-  { name: 'Cookie', family: "'Cookie', cursive" },
-  { name: 'Damion', family: "'Damion', cursive" },
-  { name: 'Euphoria Script', family: "'Euphoria Script', cursive" },
-  { name: 'Felipa', family: "'Felipa', cursive" },
-  { name: 'Gochi Hand', family: "'Gochi Hand', cursive" },
-  { name: 'Great Vibes', family: "'Great Vibes', cursive" },
-  { name: 'Handlee', family: "'Handlee', cursive" },
-  { name: 'Italianno', family: "'Italianno', cursive" },
-  { name: 'Jim Nightshade', family: "'Jim Nightshade', cursive" },
-  { name: 'Kristi', family: "'Kristi', cursive" },
-  { name: 'La Belle Aurore', family: "'La Belle Aurore', cursive" },
-  { name: 'Marck Script', family: "'Marck Script', cursive" },
-  { name: 'Meddon', family: "'Meddon', cursive" },
-  { name: 'Merienda', family: "'Merienda', cursive" },
-  { name: 'Montez', family: "'Montez', cursive" },
-  { name: 'Mr De Haviland', family: "'Mr De Haviland', cursive" },
-  { name: 'Nanum Pen Script', family: "'Nanum Pen Script', cursive" },
-  { name: 'Neucha', family: "'Neucha', cursive" },
-  { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive" },
-  { name: 'Parisienne', family: "'Parisienne', cursive" },
-  { name: 'Pinyon Script', family: "'Pinyon Script', cursive" },
-  { name: 'Rock Salt', family: "'Rock Salt', cursive" },
-  { name: 'Rouge Script', family: "'Rouge Script', cursive" },
-  { name: 'Sacramento', family: "'Sacramento', cursive" },
-  { name: 'Schoolbell', family: "'Schoolbell', cursive" },
-  { name: 'Short Stack', family: "'Short Stack', cursive" },
-  { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive" },
-  { name: 'Zeyada', family: "'Zeyada', cursive" },
-  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive" },
-  { name: 'Sue Ellen Francisco', family: "'Sue Ellen Francisco', cursive" },
-  { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive" },
-  { name: 'Just Me Again Down Here', family: "'Just Me Again Down Here', cursive" },
-  { name: 'Permanent Marker', family: "'Permanent Marker', cursive" },
-  { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive" },
+  { name: 'Dancing Script', family: "'Dancing Script', cursive", url: 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6YS-zF4S-kcSWSVi_sxjsohD9F50Ruu7BMSo3Rep8hA.ttf' },
+  { name: 'Caveat', family: "'Caveat', cursive", url: 'https://fonts.gstatic.com/s/caveat/v17/WnznHAc5bAfYB2Q7aAnP-A.ttf' },
+  { name: 'Indie Flower', family: "'Indie Flower', cursive", url: 'https://fonts.gstatic.com/s/indieflower/v17/m8JVjfNVeKWVnh3QMuKkFcZlKw.ttf' },
+  { name: 'Patrick Hand', family: "'Patrick Hand', cursive", url: 'https://fonts.gstatic.com/s/patrickhand/v19/LDI1apSQOAYtSuYWp8ZhfYeMWQ.ttf' },
+  { name: 'Homemade Apple', family: "'Homemade Apple', cursive", url: 'https://fonts.gstatic.com/s/homemadeapple/v17/Qw3EZQFXECDrI2q789EKQZJob3s.ttf' },
+  { name: 'Kalam', family: "'Kalam', cursive", url: 'https://fonts.gstatic.com/s/kalam/v16/YA9dr0Wd4kDdMthQOC_A.ttf' },
+  { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive", url: 'https://fonts.gstatic.com/s/shadowsintolight/v15/UqyNK9UOIntux_czAv8kIZpjeV4.ttf' },
+  { name: 'Amatic SC', family: "'Amatic SC', cursive", url: 'https://fonts.gstatic.com/s/amaticsc/v26/TUZyUseanmGILKvSZJMM_Q.ttf' },
+  { name: 'Architects Daughter', family: "'Architects Daughter', cursive", url: 'https://fonts.gstatic.com/s/architectsdaughter/v16/KtkxAKiDZI_td1Lkx62xHZHDtg.ttf' },
+  { name: 'Bad Script', family: "'Bad Script', cursive", url: 'https://fonts.gstatic.com/s/badscript/v16/6NUT8F6UgbdyGv9BiYc3Yg.ttf' },
+  { name: 'Berkshire Swash', family: "'Berkshire Swash', cursive", url: 'https://fonts.gstatic.com/s/berkshireswash/v17/ptRRTi-cavZOGqCvnNJDl5m5Xw.ttf' },
+  { name: 'Calligraffitti', family: "'Calligraffitti', cursive", url: 'https://fonts.gstatic.com/s/calligraffitti/v18/46k2lbT3XjDVqJw3DCmCFjE0.ttf' },
+  { name: 'Cedarville Cursive', family: "'Cedarville Cursive', cursive", url: 'https://fonts.gstatic.com/s/cedarvillecursive/v19/yYL00g_a2veiudhUmxjo5VKko1A.ttf' },
+  { name: 'Clicker Script', family: "'Clicker Script', cursive", url: 'https://fonts.gstatic.com/s/clickerscript/v13/dmFyOi1PZt_rI89523a5W3o_wQ.ttf' },
+  { name: 'Cookie', family: "'Cookie', cursive", url: 'https://fonts.gstatic.com/s/cookie/v18/syky-y18lb0tSbf9kg.ttf' },
+  { name: 'Damion', family: "'Damion', cursive", url: 'https://fonts.gstatic.com/s/damion/v15/hv-XlzJ3q-6P6d8_1A.ttf' },
+  { name: 'Euphoria Script', family: "'Euphoria Script', cursive", url: 'https://fonts.gstatic.com/s/euphoriascript/v13/mFTpWb0X2bLb_cx6DcrWLVv7.ttf' },
+  { name: 'Felipa', family: "'Felipa', cursive", url: 'https://fonts.gstatic.com/s/felipa/v15/FwZa7-s4wUdjG81-.ttf' },
+  { name: 'Gochi Hand', family: "'Gochi Hand', cursive", url: 'https://fonts.gstatic.com/s/gochihand/v16/hES16Sl2C_6IuuWg-5G_pg.ttf' },
+  { name: 'Great Vibes', family: "'Great Vibes', cursive", url: 'https://fonts.gstatic.com/s/greatvibes/v14/RWmMoKWR9v4ksMvYd2gW.ttf' },
+  { name: 'Handlee', family: "'Handlee', cursive", url: 'https://fonts.gstatic.com/s/handlee/v14/P5uSgW-p_w_qg__w.ttf' },
+  { name: 'Italianno', family: "'Italianno', cursive", url: 'https://fonts.gstatic.com/s/italianno/v15/vc1nwpZuZw9wW3Jda-q1.ttf' },
+  { name: 'Jim Nightshade', family: "'Jim Nightshade', cursive", url: 'https://fonts.gstatic.com/s/jimnightshade/v13/PlIaFuIpARkChrva4rpkf3-d.ttf' },
+  { name: 'Kristi', family: "'Kristi', cursive", url: 'https://fonts.gstatic.com/s/kristi/v17/uK_y4rqWcEky-jI_.ttf' },
+  { name: 'La Belle Aurore', family: "'La Belle Aurore', cursive", url: 'https://fonts.gstatic.com/s/labelleaurore/v16/uHU-9GsF2PsL62cK_x7-go_g.ttf' },
+  { name: 'Marck Script', family: "'Marck Script', cursive", url: 'https://fonts.gstatic.com/s/marckscript/v17/nwpTtK2oNgBA3Or78gap.ttf' },
+  { name: 'Meddon', family: "'Meddon', cursive", url: 'https://fonts.gstatic.com/s/meddon/v21/kmK8ZqA2BxL4a2d-.ttf' },
+  { name: 'Merienda', family: "'Merienda', cursive", url: 'https://fonts.gstatic.com/s/merienda/v14/gNMHW3x8Qoy5_mf8u_c.ttf' },
+  { name: 'Montez', family: "'Montez', cursive", url: 'https://fonts.gstatic.com/s/montez/v24/845ZNMk5GoG2eA.ttf' },
+  { name: 'Mr De Haviland', family: "'Mr De Haviland', cursive", url: 'https://fonts.gstatic.com/s/mrdehaviland/v14/OpNV-EzB_t81gK-C-UNp-FA.ttf' },
+  { name: 'Nanum Pen Script', family: "'Nanum Pen Script', cursive", url: 'https://fonts.gstatic.com/s/nanumpenscript/v19/daaLssmEwepwba2kUcrI0A.ttf' },
+  { name: 'Neucha', family: "'Neucha', cursive", url: 'https://fonts.gstatic.com/s/neucha/v18/q5uGsou0JOdh94bk.ttf' },
+  { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive", url: 'https://fonts.gstatic.com/s/nothingyoucoulddo/v15/oY1B8fbBpaP5F1evpgUL-bT_wA.ttf' },
+  { name: 'Parisienne', family: "'Parisienne', cursive", url: 'https://fonts.gstatic.com/s/parisienne/v13/E21i_d3kivvG83fM4g.ttf' },
+  { name: 'Pinyon Script', family: "'Pinyon Script', cursive", url: 'https://fonts.gstatic.com/s/pinyonscript/v16/6xK_d2Dy7pEV_z10T-7b6w.ttf' },
+  { name: 'Rock Salt', family: "'Rock Salt', cursive", url: 'https://fonts.gstatic.com/s/rocksalt/v16/MwQ0bhv11fWD6QsAVOZ.ttf' },
+  { name: 'Rouge Script', family: "'Rouge Script', cursive", url: 'https://fonts.gstatic.com/s/rougescript/v14/syky-y18lb0tSbf-scg.ttf' },
+  { name: 'Sacramento', family: "'Sacramento', cursive", url: 'https://fonts.gstatic.com/s/sacramento/v13/buEzpo6gcdjy0EiurwI.ttf' },
+  { name: 'Schoolbell', family: "'Schoolbell', cursive", url: 'https://fonts.gstatic.com/s/schoolbell/v16/92zQtWxDY2WLsm-b-y-.ttf' },
+  { name: 'Short Stack', family: "'Short Stack', cursive", url: 'https://fonts.gstatic.com/s/shortstack/v15/bMr-Y5crOpgY-3CF_.ttf' },
+  { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive", url: 'https://fonts.gstatic.com/s/thegirlnextdoor/v16/pe0zMJCbPY0TJIqte_8Y-o29.ttf' },
+  { name: 'Zeyada', family: "'Zeyada', cursive", url: 'https://fonts.gstatic.com/s/zeyada/v15/11hAGp_3YGCTv-s.ttf' },
+  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", url: 'https://fonts.gstatic.com/s/reeniebeanie/v16/z7NSdR76eDkaJKZJFkk.ttf' },
+  { name: 'Sue Ellen Francisco', family: "'Sue Ellen Francisco', cursive", url: 'https://fonts.gstatic.com/s/sueellenfrancisco/v16/wremfA7slc-B9hmwkh_P31Y.ttf' },
+  { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive", url: 'https://fonts.gstatic.com/s/waitingforthesunrise/v16/WBL1rEb2NKnsuby0faPjOS-Ex0.ttf' },
+  { name: 'Just Me Again Down Here', family: "'Just Me Again Down Here', cursive", url: 'https://fonts.gstatic.com/s/justmeagaindownhere/v22/MwQmbgX5Mffqimazvc7I-p2O.ttf' },
+  { name: 'Permanent Marker', family: "'Permanent Marker', cursive", url: 'https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQ.ttf' },
+  { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive", url: 'https://fonts.gstatic.com/s/gloriahallelujah/v17/CA1k7d3y-ooH8v_9K8AFg.ttf' },
 ];
 
 const papers = [
@@ -103,6 +103,22 @@ export function TextToHandwritingClient() {
         const { width, height } = page.getSize();
         const fontRgb = hexToRgb(fontColor);
 
+        // Fetch and embed the selected font
+        const selectedFont = fonts.find(f => f.family === font);
+        let customFont;
+        if (selectedFont?.url) {
+            try {
+                const fontBytes = await fetch(selectedFont.url).then(res => res.arrayBuffer());
+                customFont = await pdfDoc.embedFont(fontBytes);
+            } catch (e) {
+                console.error("Failed to load custom font, falling back to Helvetica", e);
+                toast({ variant: 'destructive', title: 'Font Load Error', description: 'Could not load the selected font for the PDF. Using a default font.' });
+                customFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            }
+        } else {
+             customFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        }
+
         // Set background color
         page.drawRectangle({
           x: 0,
@@ -112,11 +128,6 @@ export function TextToHandwritingClient() {
           color: rgb(1, 1, 1) // Always white background for paper effect
         });
 
-        // This is a simplified version. pdf-lib needs fonts to be embedded
-        // to render them properly. For this client-side version, we'll use
-        // a standard font as a fallback for the PDF generation, so the output
-        // PDF won't match the preview perfectly.
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const lineHeight = fontSize * 1.6;
 
         let y = height - 55;
@@ -124,10 +135,11 @@ export function TextToHandwritingClient() {
         // Draw Date/Page Header
         if (showDateTimeHeader) {
             const headerText = `${new Date().toLocaleDateString()} | Page 1`;
+            const headerFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             page.drawText(headerText, {
-                x: width - 50 - helveticaFont.widthOfTextAtSize(headerText, 10),
+                x: width - 50 - headerFont.widthOfTextAtSize(headerText, 10),
                 y: height - 40,
-                font: helveticaFont,
+                font: headerFont,
                 size: 10,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
             });
@@ -141,10 +153,10 @@ export function TextToHandwritingClient() {
 
         if (drawHorizontalLines) {
             const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1); // Light grey or blue
-            for (let lineY = y; lineY > 50; lineY -= lineGap) {
+            for (let lineY = y + (fontSize * 0.4); lineY > 50; lineY -= lineGap) {
                 page.drawLine({
                     start: { x: 40, y: lineY },
-                    end: { x: width - 40, y },
+                    end: { x: width - 40, y: lineY },
                     thickness: 0.5,
                     color: lineColor,
                 });
@@ -165,13 +177,14 @@ export function TextToHandwritingClient() {
              if (y < 50) {
                 break; // Stop if we run out of space on one page
              }
+             // NOTE: pdf-lib doesn't support letterSpacing directly. Word spacing is a premium feature.
+             // We are drawing text line by line.
              page.drawText(line, {
                 x: 50,
                 y,
-                font: helveticaFont,
+                font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
-                wordBreaks: [' '], // Use word spacing
              });
              y -= lineHeight;
         }
@@ -313,54 +326,54 @@ export function TextToHandwritingClient() {
                      <Card>
                         <CardContent className="p-4">
                             <div 
-                              className="w-full aspect-[4/5] border rounded-md p-8 overflow-hidden relative transition-colors bg-white"
+                              className="w-full aspect-[4/5] border rounded-md overflow-hidden relative transition-colors bg-white"
                             >
-                                {showDateTimeHeader && (
-                                    <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
-                                        {new Date().toLocaleDateString()}
-                                    </div>
-                                )}
-                                 {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                    <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
-                                 )}
-
-                                <div className="h-full overflow-y-auto">
-                                    <div className="relative">
-                                        {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
-                                            <div 
-                                                className="absolute inset-0 pointer-events-none"
-                                                style={{top: showDateTimeHeader ? '2rem' : '0'}}
-                                            >
-                                                {Array.from({ length: 40 }).map((_, i) => (
-                                                    <div 
-                                                        key={i} 
-                                                        className="h-px"
-                                                        style={{
-                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
-                                                            marginTop: `${fontSize * 1.6}px`
-                                                        }}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                        <pre 
-                                            className="whitespace-pre-wrap font-inherit relative"
-                                            style={{
-                                                fontFamily: font,
-                                                fontSize: `${fontSize}px`,
-                                                color: fontColor,
-                                                lineHeight: 1.6,
-                                                letterSpacing: `${letterSpacing}px`,
-                                                wordSpacing: `${wordSpacing}px`,
-                                                paddingTop: showDateTimeHeader ? '2rem': '0',
-                                            }}
-                                        >{text}</pre>
+                                <div className="absolute inset-0 p-8">
+                                    {showDateTimeHeader && (
+                                        <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
+                                            {new Date().toLocaleDateString()}
+                                        </div>
+                                    )}
+                                    {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
+                                     )}
+                                     <div className="h-full overflow-y-auto">
+                                        <div className="relative">
+                                            {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
+                                                <div 
+                                                    className="absolute inset-0 pointer-events-none"
+                                                    style={{top: showDateTimeHeader ? '2rem' : '0'}}
+                                                >
+                                                    {Array.from({ length: 40 }).map((_, i) => (
+                                                        <div 
+                                                            key={i} 
+                                                            className="h-px"
+                                                            style={{
+                                                                backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
+                                                                marginTop: `${fontSize * 1.6}px`
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <pre 
+                                                className="whitespace-pre-wrap font-inherit relative"
+                                                style={{
+                                                    fontFamily: font,
+                                                    fontSize: `${fontSize}px`,
+                                                    color: fontColor,
+                                                    lineHeight: 1.6,
+                                                    letterSpacing: `${letterSpacing}px`,
+                                                    wordSpacing: `${wordSpacing}px`,
+                                                    paddingTop: showDateTimeHeader ? '2rem': '0',
+                                                }}
+                                            >{text}</pre>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
-                     <p className="text-xs text-muted-foreground mt-4 text-center">Live Preview. The downloaded PDF will use a standard font but will retain the text, size, color, and layout.</p>
                  </div>
             </div>
         </div>
