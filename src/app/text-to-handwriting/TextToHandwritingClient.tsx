@@ -213,13 +213,13 @@ export function TextToHandwritingClient() {
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
       `}</style>
-      <div className="w-full max-w-6xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Text to Handwriting</h1>
           <p className="text-muted-foreground mt-2">Convert typed text into a realistic handwritten style and download as a PDF.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 h-[calc(100vh-12rem)] overflow-y-auto pr-4 space-y-6">
                 <Card>
                     <CardContent className="p-6 grid grid-cols-1 gap-6">
                         <div className="space-y-2">
@@ -308,62 +308,63 @@ export function TextToHandwritingClient() {
                     {isProcessing ? 'Generating PDF...' : 'Download as PDF'}
                 </Button>
             </div>
-            <div className="md:col-span-2">
-                 <Card>
-                    <CardContent className="p-4">
-                        <div 
-                          className="w-full aspect-[4/5] border rounded-md p-8 overflow-hidden relative transition-colors bg-white"
-                        >
-                            {showDateTimeHeader && (
-                                <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
-                                    {new Date().toLocaleDateString()}
-                                </div>
-                            )}
-                             {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
-                             )}
+            <div className="lg:col-span-2">
+                 <div className="sticky top-24">
+                     <Card>
+                        <CardContent className="p-4">
+                            <div 
+                              className="w-full aspect-[4/5] border rounded-md p-8 overflow-hidden relative transition-colors bg-white"
+                            >
+                                {showDateTimeHeader && (
+                                    <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
+                                        {new Date().toLocaleDateString()}
+                                    </div>
+                                )}
+                                 {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                                    <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: '2rem', bottom: '2rem'}}></div>
+                                 )}
 
-                            <div className="h-full overflow-y-auto">
-                                <div className="relative">
-                                    {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
-                                        <div 
-                                            className="absolute inset-0 pointer-events-none"
-                                            style={{top: showDateTimeHeader ? '2rem' : '0'}}
-                                        >
-                                            {Array.from({ length: 40 }).map((_, i) => (
-                                                <div 
-                                                    key={i} 
-                                                    className="h-px"
-                                                    style={{
-                                                        backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
-                                                        marginTop: `${fontSize * 1.6}px`
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                    <pre 
-                                        className="whitespace-pre-wrap font-inherit relative"
-                                        style={{
-                                            fontFamily: font,
-                                            fontSize: `${fontSize}px`,
-                                            color: fontColor,
-                                            lineHeight: 1.6,
-                                            letterSpacing: `${letterSpacing}px`,
-                                            wordSpacing: `${wordSpacing}px`,
-                                            paddingTop: showDateTimeHeader ? '2rem': '0',
-                                        }}
-                                    >{text}</pre>
+                                <div className="h-full overflow-y-auto">
+                                    <div className="relative">
+                                        {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
+                                            <div 
+                                                className="absolute inset-0 pointer-events-none"
+                                                style={{top: showDateTimeHeader ? '2rem' : '0'}}
+                                            >
+                                                {Array.from({ length: 40 }).map((_, i) => (
+                                                    <div 
+                                                        key={i} 
+                                                        className="h-px"
+                                                        style={{
+                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
+                                                            marginTop: `${fontSize * 1.6}px`
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                        <pre 
+                                            className="whitespace-pre-wrap font-inherit relative"
+                                            style={{
+                                                fontFamily: font,
+                                                fontSize: `${fontSize}px`,
+                                                color: fontColor,
+                                                lineHeight: 1.6,
+                                                letterSpacing: `${letterSpacing}px`,
+                                                wordSpacing: `${wordSpacing}px`,
+                                                paddingTop: showDateTimeHeader ? '2rem': '0',
+                                            }}
+                                        >{text}</pre>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                 <p className="text-xs text-muted-foreground mt-4 text-center">Live Preview. The downloaded PDF will use a standard font but will retain the text, size, color, and layout.</p>
+                        </CardContent>
+                    </Card>
+                     <p className="text-xs text-muted-foreground mt-4 text-center">Live Preview. The downloaded PDF will use a standard font but will retain the text, size, color, and layout.</p>
+                 </div>
             </div>
         </div>
       </div>
     </>
   );
 }
-
