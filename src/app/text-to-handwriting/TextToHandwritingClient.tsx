@@ -119,7 +119,7 @@ export function TextToHandwritingClient() {
         }
 
         const lines = targetText.split('\n');
-        const linesPerPage = Math.ceil(lines.length / pageCount);
+        const linesPerPage = Math.ceil(lines.length / 20); // Approx 20 lines per page
 
         for (let p = 0; p < pageCount; p++) {
           const page = pdfDoc.addPage();
@@ -164,11 +164,11 @@ export function TextToHandwritingClient() {
              if (drawHorizontalLines) {
                  const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
                  page.drawLine({
-                     start: { x: 40, y: y }, end: { x: width - 40, y: y }, thickness: 0.5, color: lineColor,
+                     start: { x: 40, y: y - 2 }, end: { x: width - 40, y: y - 2 }, thickness: 0.5, color: lineColor,
                  });
              }
              page.drawText(line, {
-                x: 50, y: y + (fontSize * 0.2), font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+                x: 50, y: y, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
              y -= lineHeight;
           }
@@ -195,7 +195,7 @@ export function TextToHandwritingClient() {
     const currentFont = targetFont || font;
 
     if (type.endsWith('pdf')) {
-      const pageCount = (type === 'this-page-pdf' && !targetFont) ? 1 : Math.ceil(text.split('\n').length / 20); // Rough estimate for all pages
+      const pageCount = (type === 'this-page-pdf') ? 1 : Math.ceil(text.split('\n').length / 20); // Rough estimate for all pages
       const pdfBlob = await generatePdf({ targetText: text, targetFontFamily: currentFont, pageCount });
       if (pdfBlob) {
         const url = URL.createObjectURL(pdfBlob);
@@ -334,7 +334,7 @@ export function TextToHandwritingClient() {
                  <div className="sticky top-24 flex gap-4">
                     <Card className="flex-grow">
                         <CardContent className="p-4">
-                            <div className="w-full aspect-[4/5] border rounded-md overflow-hidden relative transition-colors bg-white">
+                            <div className="w-full aspect-[210/297] border rounded-md overflow-hidden relative transition-colors bg-white">
                                {showDateTimeHeader && (
                                     <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
                                         {new Date().toLocaleDateString()}
@@ -363,7 +363,7 @@ export function TextToHandwritingClient() {
                                             </div>
                                         )}
                                         <pre 
-                                            className="whitespace-pre-wrap font-inherit relative"
+                                            className="whitespace-pre-wrap break-words font-inherit relative"
                                             style={{
                                                 fontFamily: font,
                                                 fontSize: `${fontSize}px`,
