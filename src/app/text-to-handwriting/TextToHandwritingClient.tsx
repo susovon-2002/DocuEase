@@ -57,6 +57,12 @@ const fonts = [
   { name: 'Short Stack', family: "'Short Stack', cursive" },
   { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive" },
   { name: 'Zeyada', family: "'Zeyada', cursive" },
+  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive" },
+  { name: 'Sue Ellen Francisco', family: "'Sue Ellen Francisco', cursive" },
+  { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive" },
+  { name: 'Just Me Again Down Here', family: "'Just Me Again Down Here', cursive" },
+  { name: 'Permanent Marker', family: "'Permanent Marker', cursive" },
+  { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive" },
 ];
 
 export function TextToHandwritingClient() {
@@ -188,7 +194,7 @@ export function TextToHandwritingClient() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Pinyon+Script&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=The+Girl+Next+Door&family=Zeyada&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
       `}</style>
       <div className="w-full max-w-6xl mx-auto">
         <div className="text-center mb-8">
