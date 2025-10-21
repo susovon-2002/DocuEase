@@ -24,7 +24,6 @@ export default function Home() {
   const [showAllTools, setShowAllTools] = useState(false);
   const toolsByCategory = groupBy(tools, 'category');
   const popularTools = tools.filter(tool => popularToolPaths.includes(tool.path));
-  const aiTools = tools.filter(tool => tool.category === 'AI Tools');
 
   const categoryIcons: Record<string, LucideIcon> = {
     'Organize PDF': Combine,
@@ -33,7 +32,6 @@ export default function Home() {
     'Convert from PDF': FileImage,
     'Edit PDF': FilePenLine,
     'PDF Security': Lock,
-    'AI Tools': Sparkles,
   };
 
 
@@ -88,21 +86,8 @@ export default function Home() {
         </div>
       </section>
 
-       {/* AI Tools Section */}
-      <section className="py-20 bg-secondary/50">
-        <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">AI-Powered Tools</h2>
-            <p className="text-muted-foreground mt-2">Experience the magic of AI in your document workflow.</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 justify-center">
-            {aiTools.map(tool => <ToolCard key={tool.path} tool={tool} />)}
-          </div>
-        </div>
-      </section>
-
       {/* All Tools Section */}
-      <section className="py-20" id="all-tools">
+      <section className="py-20 bg-secondary/50" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold">Our Suite of Tools</h2>
@@ -122,7 +107,6 @@ export default function Home() {
             <>
               <div className="space-y-12">
                   {Object.entries(toolsByCategory).map(([category, categoryTools]) => {
-                    if (category === 'AI Tools') return null;
                     const CategoryIcon = categoryIcons[category] || FilePenLine;
                     return (
                       <div key={category}>
@@ -147,7 +131,7 @@ export default function Home() {
 
 
       {/* Testimonials */}
-      <section className="py-20 bg-secondary/50">
+      <section className="py-20">
         <div className="container mx-auto">
             <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold">Loved by Professionals Worldwide</h2>
@@ -183,7 +167,7 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20">
+      <section className="py-20 bg-secondary/50">
         <div className="container mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Simplify Your Documents?</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
