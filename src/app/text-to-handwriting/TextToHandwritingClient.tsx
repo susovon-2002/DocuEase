@@ -66,10 +66,10 @@ const fonts = [
 ];
 
 const papers = [
-    { id: 'gray-line', name: 'Gray Line', icon: Minus },
-    { id: 'blue-line', name: 'Blue Line', icon: Sigma },
-    { id: 'plain', name: 'Plain Paper', icon: Book },
-    { id: 'white', name: 'White Paper', icon: Droplets },
+    { id: 'gray-line', name: 'Gray Line', icon: Minus, color: 'text-gray-500' },
+    { id: 'blue-line', name: 'Blue Line', icon: Sigma, color: 'text-blue-500' },
+    { id: 'plain', name: 'Plain Paper', icon: Book, color: 'text-yellow-700' },
+    { id: 'white', name: 'White Paper', icon: Droplets, color: 'text-sky-400' },
 ]
 
 export function TextToHandwritingClient() {
@@ -162,7 +162,7 @@ export function TextToHandwritingClient() {
               });
           }
 
-          let currentYForLines = y;
+          let currentYForLines = y + 4; // Adjustment
           if (drawHorizontalLines) {
               for (let i = 0; i < 25; i++) {
                   if (currentYForLines < 50) break;
@@ -179,7 +179,7 @@ export function TextToHandwritingClient() {
              if (currentYForText < 50) break;
              page.drawText(line, {
                 x: 50,
-                y: currentYForText, // This baseline should be correct with the lines
+                y: currentYForText,
                 font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
@@ -314,7 +314,7 @@ export function TextToHandwritingClient() {
                                             )}
                                             onClick={() => setPaperStyle(p.id)}
                                         >
-                                            <Icon className="h-6 w-6 mb-1" />
+                                            <Icon className={cn("h-6 w-6 mb-1", p.color)} />
                                             <p className="text-xs font-medium truncate w-full">{p.name}</p>
                                         </Card>
                                     )
@@ -358,7 +358,7 @@ export function TextToHandwritingClient() {
                                     {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
                                         <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: showDateTimeHeader ? '4rem' : '2rem', bottom: '2rem'}}></div>
                                     )}
-                                    <div className="relative">
+                                    <div className="relative w-full h-full">
                                         {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
                                             <div 
                                                 className="absolute inset-0 pointer-events-none"
