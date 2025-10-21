@@ -19,7 +19,6 @@ const fonts = [
   { name: 'Dancing Script', family: "'Dancing Script', cursive", url: 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6YS-zF4S-kcSWSVi_sxjsohD9F50Ruu7BMSo3Rep8hA.ttf' },
   { name: 'Caveat', family: "'Caveat', cursive", url: 'https://fonts.gstatic.com/s/caveat/v17/WnznHAc5bAfYB2Q7aAnP-A.ttf' },
   { name: 'Indie Flower', family: "'Indie Flower', cursive", url: 'https://fonts.gstatic.com/s/indieflower/v17/m8JVjfNVeKWVnh3QMuKkFcZlKw.ttf' },
-  { name: 'Patrick Hand', family: "'Patrick Hand', cursive", url: 'https://fonts.gstatic.com/s/patrickhand/v19/LDI1apSQOAYtSuYWp8ZhfYeMWQ.ttf' },
   { name: 'Homemade Apple', family: "'Homemade Apple', cursive", url: 'https://fonts.gstatic.com/s/homemadeapple/v17/Qw3EZQFXECDrI2q789EKQZJob3s.ttf' },
   { name: 'Kalam', family: "'Kalam', cursive", url: 'https://fonts.gstatic.com/s/kalam/v16/YA9dr0Wd4kDdMthQOC_A.ttf' },
   { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive", url: 'https://fonts.gstatic.com/s/shadowsintolight/v15/UqyNK9UOIntux_czAv8kIZpjeV4.ttf' },
@@ -107,7 +106,12 @@ export function TextToHandwritingClient() {
         let customFont;
         if (selectedFont?.url) {
             try {
-                const fontBytes = await fetch(selectedFont.url).then(res => res.arrayBuffer());
+                // Use the new API route to fetch the font
+                const fontRes = await fetch(`/api/fetch-font?url=${encodeURIComponent(selectedFont.url)}`);
+                if (!fontRes.ok) {
+                    throw new Error(`Failed to fetch font via proxy: ${fontRes.statusText}`);
+                }
+                const fontBytes = await fontRes.arrayBuffer();
                 customFont = await pdfDoc.embedFont(fontBytes);
             } catch (e) {
                 console.error("Failed to load custom font, falling back to Helvetica", e);
@@ -174,7 +178,11 @@ export function TextToHandwritingClient() {
           for (const line of pageLines) {
              if (currentYForText < 50) break;
              page.drawText(line, {
-                x: 50, y: currentYForText, font: customFont, size: fontSize, color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
+                x: 50,
+                y: currentYForText, // This baseline should be correct with the lines
+                font: customFont,
+                size: fontSize,
+                color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
              currentYForText -= lineHeight;
           }
