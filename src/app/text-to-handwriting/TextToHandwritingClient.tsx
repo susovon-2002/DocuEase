@@ -49,6 +49,7 @@ const fonts = [
   { name: 'Neucha', family: "'Neucha', cursive", url: 'https://fonts.gstatic.com/s/neucha/v18/q5uGsou0JOdh94bk.ttf' },
   { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive", url: 'https://fonts.gstatic.com/s/nothingyoucoulddo/v15/oY1B8fbBpaP5F1evpgUL-bT_wA.ttf' },
   { name: 'Parisienne', family: "'Parisienne', cursive", url: 'https://fonts.gstatic.com/s/parisienne/v13/E21i_d3kivvG83fM4g.ttf' },
+  { name: 'Patrick Hand', family: "'Patrick Hand', cursive", url: 'https://fonts.gstatic.com/s/patrickhand/v19/LDI1apSQOAYtSuYWp8Zhfw.ttf' },
   { name: 'Permanent Marker', family: "'Permanent Marker', cursive", url: 'https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQ.ttf' },
   { name: 'Pinyon Script', family: "'Pinyon Script', cursive", url: 'https://fonts.gstatic.com/s/pinyonscript/v16/6xK_d2Dy7pEV_z10T-7b6w.ttf' },
   { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", url: 'https://fonts.gstatic.com/s/reeniebeanie/v16/z7NSdR76eDkaJKZJFkk.ttf' },
@@ -56,6 +57,7 @@ const fonts = [
   { name: 'Rouge Script', family: "'Rouge Script', cursive", url: 'https://fonts.gstatic.com/s/rougescript/v14/syky-y18lb0tSbf-scg.ttf' },
   { name: 'Sacramento', family: "'Sacramento', cursive", url: 'https://fonts.gstatic.com/s/sacramento/v13/buEzpo6gcdjy0EiurwI.ttf' },
   { name: 'Schoolbell', family: "'Schoolbell', cursive", url: 'https://fonts.gstatic.com/s/schoolbell/v16/92zQtWxDY2WLsm-b-y-.ttf' },
+  { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive", url: 'https://fonts.gstatic.com/s/shadowsintolight/v15/UqyNK9UOIntux_czAv8kIZpjeV4.ttf' },
   { name: 'Short Stack', family: "'Short Stack', cursive", url: 'https://fonts.gstatic.com/s/shortstack/v15/bMr-Y5crOpgY-3CF_.ttf' },
   { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive", url: 'https://fonts.gstatic.com/s/thegirlnextdoor/v16/pe0zMJCbPY0TJIqte_8Y-o29.ttf' },
   { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive", url: 'https://fonts.gstatic.com/s/waitingforthesunrise/v16/WBL1rEb2NKnsuby0faPjOS-Ex0.ttf' },
@@ -66,21 +68,18 @@ const fonts = [
 ];
 
 const papers = [
-    { id: 'gray-line', name: 'Gray Line', icon: Minus, color: 'text-gray-500' },
-    { id: 'blue-line', name: 'Blue Line', icon: Sigma, color: 'text-blue-500' },
-    { id: 'plain', name: 'Plain Paper', icon: Book, color: 'text-yellow-700' },
-    { id: 'white', name: 'White Paper', icon: Droplets, color: 'text-sky-400' },
+    { id: 'gray-line', name: 'Gray Line', icon: Minus, color: 'text-cyan-400' },
+    { id: 'blue-line', name: 'Blue Line', icon: Sigma, color: 'text-cyan-400' },
+    { id: 'plain', name: 'Plain Paper', icon: Book, color: 'text-cyan-400' },
+    { id: 'white', name: 'White Paper', icon: Droplets, color: 'text-cyan-400' },
 ]
 
 export function TextToHandwritingClient() {
-  const [text, setText] = useState('GET READY TO PLAY');
+  const [text, setText] = useState('Type your text here...');
   const [font, setFont] = useState(fonts[0].family);
   const [fontSize, setFontSize] = useState(24);
-  const [fontColor, setFontColor] = useState('#ff0055');
-  const [paperStyle, setPaperStyle] = useState('gray-line');
-  const [letterSpacing, setLetterSpacing] = useState(0);
-  const [wordSpacing, setWordSpacing] = useState(0);
-  const [showDateTimeHeader, setShowDateTimeHeader] = useState(true);
+  const [fontColor, setFontColor] = useState('#00e5ff');
+  const [paperStyle, setPaperStyle] = useState('plain');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -106,10 +105,9 @@ export function TextToHandwritingClient() {
         let customFont;
         if (selectedFont?.url) {
             try {
-                // Use the new API route to fetch the font
                 const fontRes = await fetch(`/api/fetch-font?url=${encodeURIComponent(selectedFont.url)}`);
                 if (!fontRes.ok) {
-                    throw new Error(`Failed to fetch font via proxy: ${fontRes.statusText}`);
+                    throw new Error(`Failed to fetch font: ${fontRes.statusText}`);
                 }
                 const fontBytes = await fontRes.arrayBuffer();
                 customFont = await pdfDoc.embedFont(fontBytes);
@@ -123,7 +121,7 @@ export function TextToHandwritingClient() {
         }
 
         const lines = targetText.split('\n');
-        const linesPerPage = 20;
+        const linesPerPage = Math.floor((595 - 100) / (fontSize * 1.2)); // A4 height, rough estimate
         const totalPages = pageCount > 0 ? pageCount : Math.ceil(lines.length / linesPerPage);
 
 
@@ -131,61 +129,48 @@ export function TextToHandwritingClient() {
           const page = pdfDoc.addPage();
           const { width, height } = page.getSize();
           
-          page.drawRectangle({
-            x: 0, y: 0, width, height, color: rgb(0.1, 0.1, 0.15)
-          });
+           if (paperStyle !== 'white') {
+             page.drawRectangle({
+                x: 0, y: 0, width, height, color: rgb(0, 0, 0)
+             });
+           }
           
           let y = height - 60; 
-          const lineHeight = fontSize * 1.6;
+          const lineHeight = fontSize * 1.5;
 
-          if (showDateTimeHeader) {
-              const headerText = `${new Date().toLocaleDateString()} | Page ${p + 1}`;
-              const headerFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-              page.drawText(headerText, {
-                  x: width - 50 - headerFont.widthOfTextAtSize(headerText, 10),
-                  y: height - 40,
-                  font: headerFont,
-                  size: 10,
-                  color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
-              });
-          }
-          
           const drawHorizontalLines = paperStyle === 'gray-line' || paperStyle === 'blue-line';
           const drawVerticalLine = paperStyle === 'blue-line' || paperStyle === 'plain';
 
           if (drawVerticalLine) {
               page.drawLine({
-                  start: { x: 40, y: height - 20 },
-                  end: { x: 40, y: 30 },
+                  start: { x: 50, y: height - 40 },
+                  end: { x: 50, y: 40 },
                   thickness: 1,
                   color: rgb(1, 0.2, 0.4),
-                  opacity: 0.5,
+                  opacity: 0.7,
               });
           }
 
-          let currentYForLines = y - fontSize / 2; // Adjustment
           if (drawHorizontalLines) {
-              for (let i = 0; i < 25; i++) {
-                  if (currentYForLines < 50) break;
-                  const lineColor = paperStyle === 'gray-line' ? rgb(1, 0.2, 0.4) : rgb(0.2, 0.4, 1);
-                  page.drawLine({ start: { x: 40, y: currentYForLines }, end: { x: width - 40, y: currentYForLines }, thickness: 0.5, color: lineColor, opacity: 0.5 });
-                  currentYForLines -= lineHeight;
+              for (let i = 0; y - (i * lineHeight) > 40; i++) {
+                  const currentY = y - (i * lineHeight);
+                  const lineColor = paperStyle === 'gray-line' ? rgb(0.5, 0.5, 0.5) : rgb(0.2, 0.4, 1);
+                  page.drawLine({ start: { x: 40, y: currentY }, end: { x: width - 40, y: currentY }, thickness: 0.5, color: lineColor, opacity: 0.5 });
               }
           }
           
           const pageLines = lines.slice(p * linesPerPage, (p + 1) * linesPerPage);
           
-          let currentYForText = y;
           for (const line of pageLines) {
-             if (currentYForText < 50) break;
+             if (y < 40 + fontSize) break;
              page.drawText(line, {
-                x: 50,
-                y: currentYForText - fontSize + 5, // Adjusted for baseline
+                x: 55,
+                y: y - fontSize,
                 font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
              });
-             currentYForText -= lineHeight;
+             y -= lineHeight;
           }
         }
         
@@ -242,114 +227,133 @@ export function TextToHandwritingClient() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family-sans-serif&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
       `}</style>
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-black text-cyan-400 font-code">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline tracking-widest uppercase">GET READY TO PLAY</h1>
+          <h1 className="text-4xl md:text-5xl font-headline tracking-widest uppercase" style={{ textShadow: '0 0 10px #00e5ff, 0 0 20px #00e5ff' }}>Text To Handwriting</h1>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 h-[calc(100vh-12rem)] overflow-y-auto pr-4 space-y-6">
-                <Card className="bg-card/80 border-primary/20">
-                    <CardContent className="p-6 grid grid-cols-1 gap-6">
-                        <div className="space-y-2">
-                           <Label className="text-primary font-headline tracking-wider">01. ENTER TEXT</Label>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Main Preview Area */}
+            <div className="lg:col-span-8">
+                 <div className="relative border-2 border-cyan-400/50 p-1 bg-black" style={{ clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%)' }}>
+                    <div className="w-full aspect-[210/297] rounded-sm overflow-hidden relative bg-black p-8">
+                       {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
+                           <div className="absolute top-8 left-12 bottom-8 w-px bg-red-500/70 pointer-events-none z-0"></div>
+                       )}
+                       <div className="relative w-full h-full">
+                           {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
+                               <div className="absolute inset-0 pointer-events-none z-0">
+                                   {Array.from({ length: 40 }).map((_, i) => (
+                                       <div 
+                                           key={i} 
+                                           className="h-px"
+                                           style={{
+                                               backgroundColor: paperStyle === 'gray-line' ? 'rgba(100, 100, 100, 0.5)' : 'rgba(0, 100, 255, 0.3)',
+                                               marginTop: `${fontSize * 1.5}px`
+                                           }}
+                                       />
+                                   ))}
+                               </div>
+                           )}
                            <Textarea 
-                             value={text} 
-                             onChange={(e) => setText(e.target.value)}
-                             rows={4}
-                             placeholder="Enter your text here..."
-                             className="bg-input border-primary/30 text-foreground"
+                               className="absolute inset-0 w-full h-full bg-transparent border-0 resize-none z-10 p-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                               value={text}
+                               onChange={(e) => setText(e.target.value)}
+                               style={{
+                                   fontFamily: font,
+                                   fontSize: `${fontSize}px`,
+                                   color: fontColor,
+                                   lineHeight: 1.5,
+                                   textShadow: `0 0 3px ${fontColor}80`,
+                               }}
                            />
-                        </div>
-                        
-                         <div className="space-y-4">
-                            <Label className="text-primary font-headline tracking-wider">02. CHOOSE STYLE</Label>
-                             <div className="grid grid-cols-4 gap-2">
-                                {papers.map(p => {
-                                    const Icon = p.icon;
-                                    return (
-                                        <Card
-                                            key={p.id}
-                                            className={cn(
-                                                "bg-input border-primary/30 flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
-                                                paperStyle === p.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
-                                            )}
-                                            onClick={() => setPaperStyle(p.id)}
-                                        >
-                                            <Icon className={cn("h-5 w-5 mb-1", p.color)} />
-                                            <p className="text-xs font-medium truncate w-full">{p.name}</p>
-                                        </Card>
-                                    )
-                                })}
-                            </div>
-                         </div>
-
-
-                         <div className="space-y-2">
-                            <Label className="text-primary font-headline tracking-wider">03. CUSTOMIZE</Label>
-                            <div className="flex gap-2">
-                                <Input id="font-color" type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="h-10 p-1 w-16 bg-input border-primary/30"/>
-                                 <Slider value={[fontSize]} onValueChange={(v) => setFontSize(v[0])} min={12} max={48} step={1} />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Button onClick={() => handleDownload('all-pages-pdf')} disabled={isProcessing} size="lg" variant="outline" className="w-full h-16 border-2 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground text-lg tracking-widest font-headline">
-                    {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5"/>}
-                    DOWNLOAD NOW
-                </Button>
+                       </div>
+                    </div>
+                </div>
             </div>
-            <div className="lg:col-span-2">
-                 <div className="sticky top-24">
-                    <Card className="flex-grow bg-card/80 border-primary/20">
-                        <CardContent className="p-4">
-                            <div className="w-full aspect-[210/297] rounded-md overflow-hidden relative transition-colors bg-background">
-                                {showDateTimeHeader && (
-                                    <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
-                                        {new Date().toLocaleDateString()}
-                                    </div>
-                                )}
-                                <div className="absolute inset-0 p-8 overflow-y-auto">
-                                    {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/20 pointer-events-none" style={{top: showDateTimeHeader ? '4rem' : '2rem', bottom: '2rem'}}></div>
-                                    )}
-                                    <div className="relative w-full h-full">
-                                        {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
-                                            <div 
-                                                className="absolute inset-0 pointer-events-none"
-                                                style={{top: showDateTimeHeader ? '3.5rem' : '1.5rem'}}
-                                            >
-                                                {Array.from({ length: 40 }).map((_, i) => (
-                                                    <div 
-                                                        key={i} 
-                                                        className="h-px"
-                                                        style={{
-                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(255, 0, 85, 0.2)' : 'rgba(0, 122, 255, 0.2)',
-                                                            marginTop: `${fontSize * 1.6}px`
-                                                        }}
-                                                    />
-                                                ))}
-                                            </div>
+
+            {/* Controls Sidebar */}
+            <div className="lg:col-span-4 space-y-4">
+                {/* Text Input */}
+                <div className="relative border border-cyan-400/30 p-4 bg-black/50" style={{ clipPath: 'polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)' }}>
+                    <div className="absolute top-1 right-4 text-xs uppercase font-headline text-cyan-400/70">Source Text</div>
+                    <Textarea 
+                      value={text} 
+                      onChange={(e) => setText(e.target.value)}
+                      rows={5}
+                      placeholder="Enter your text here..."
+                      className="bg-transparent border-0 text-cyan-300 placeholder:text-cyan-700 focus:ring-0 p-0"
+                    />
+                </div>
+                
+                {/* Font and Style Controls */}
+                 <div className="relative border border-cyan-400/30 p-4 bg-black/50 space-y-4" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 15px 100%, 0 calc(100% - 15px))' }}>
+                    <div className="absolute top-1 left-4 text-xs uppercase font-headline text-cyan-400/70">Styling Matrix</div>
+                    <div className="pt-4 grid grid-cols-2 gap-4">
+                         <div>
+                            <Label className="text-xs text-cyan-400/70">Font Size</Label>
+                            <Slider value={[fontSize]} onValueChange={(v) => setFontSize(v[0])} min={12} max={48} step={1} className="[&>span>span]:bg-cyan-400 [&>span]:bg-cyan-400/20"/>
+                        </div>
+                        <div>
+                            <Label className="text-xs text-cyan-400/70">Ink Color</Label>
+                            <Input id="font-color" type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="h-10 p-1 w-full bg-transparent border-cyan-400/30"/>
+                        </div>
+                    </div>
+                     <div>
+                        <Label className="text-xs text-cyan-400/70">Paper Style</Label>
+                         <div className="grid grid-cols-4 gap-2 mt-2">
+                            {papers.map(p => {
+                                const Icon = p.icon;
+                                return (
+                                    <div
+                                        key={p.id}
+                                        className={cn(
+                                            "border border-cyan-400/30 flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square transition-all",
+                                            paperStyle === p.id ? 'bg-cyan-400/20 border-cyan-400' : 'hover:bg-cyan-400/10'
                                         )}
-                                        <pre 
-                                            className="whitespace-pre-wrap break-words relative w-full h-full font-headline uppercase"
-                                            style={{
-                                                fontSize: `${fontSize}px`,
-                                                color: fontColor,
-                                                lineHeight: 1.6,
-                                                letterSpacing: `${letterSpacing}px`,
-                                                wordSpacing: `${wordSpacing}px`,
-                                                paddingTop: showDateTimeHeader ? '2.5rem': '0.5rem',
-                                                textShadow: `0 0 5px ${fontColor}40`,
-                                            }}
-                                        >{text}</pre>
+                                        onClick={() => setPaperStyle(p.id)}
+                                        style={{ clipPath: 'polygon(0 10px, 10px 0, 100% 0, 100% 100%, 0 100%)' }}
+                                    >
+                                        <Icon className={cn("h-4 w-4 mb-1", p.color)} />
+                                        <p className="text-xs font-medium truncate w-full">{p.name}</p>
                                     </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                 </div>
+                                )
+                            })}
+                        </div>
+                     </div>
+                </div>
+
+                {/* Font Selector */}
+                <div className="relative border border-cyan-400/30 p-4 bg-black/50" style={{ clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)' }}>
+                   <div className="absolute top-1 right-4 text-xs uppercase font-headline text-cyan-400/70">Font Selection</div>
+                    <div className="h-64 overflow-y-auto space-y-1 pr-2 pt-4">
+                        {fonts.map(f => (
+                           <div key={f.name} className="flex items-center">
+                             <Button
+                                variant="ghost"
+                                className={cn(
+                                    "w-full justify-start text-left h-auto py-1.5 transition-all",
+                                    font === f.family ? "bg-cyan-400/20 text-cyan-300" : "text-cyan-400/80 hover:bg-cyan-400/10 hover:text-cyan-300"
+                                )}
+                                style={{ fontFamily: f.family }}
+                                onClick={() => setFont(f.family)}
+                             >
+                                 {f.name}
+                             </Button>
+                             <Button size="icon" variant="ghost" className="h-7 w-7 text-cyan-400/70 hover:text-cyan-300 hover:bg-cyan-400/10" onClick={() => handleDownload('this-page-pdf', f.family)}>
+                               <Download className="h-4 w-4" />
+                             </Button>
+                           </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Download Button */}
+                <Button onClick={() => handleDownload('all-pages-pdf')} disabled={isProcessing} size="lg" className="w-full h-16 bg-cyan-400/90 text-black font-bold text-lg tracking-widest font-headline hover:bg-cyan-300 hover:shadow-[0_0_20px_#00e5ff]">
+                    {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5"/>}
+                    GENERATE & DOWNLOAD
+                </Button>
             </div>
         </div>
       </div>
