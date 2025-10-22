@@ -73,10 +73,10 @@ const papers = [
 ]
 
 export function TextToHandwritingClient() {
-  const [text, setText] = useState('This free text to handwriting converter tool allows you to convert typed text into real human-like handwriting.');
+  const [text, setText] = useState('GET READY TO PLAY');
   const [font, setFont] = useState(fonts[0].family);
   const [fontSize, setFontSize] = useState(24);
-  const [fontColor, setFontColor] = useState('#000000');
+  const [fontColor, setFontColor] = useState('#ff0055');
   const [paperStyle, setPaperStyle] = useState('gray-line');
   const [letterSpacing, setLetterSpacing] = useState(0);
   const [wordSpacing, setWordSpacing] = useState(0);
@@ -132,7 +132,7 @@ export function TextToHandwritingClient() {
           const { width, height } = page.getSize();
           
           page.drawRectangle({
-            x: 0, y: 0, width, height, color: rgb(1, 1, 1)
+            x: 0, y: 0, width, height, color: rgb(0.1, 0.1, 0.15)
           });
           
           let y = height - 60; 
@@ -158,16 +158,17 @@ export function TextToHandwritingClient() {
                   start: { x: 40, y: height - 20 },
                   end: { x: 40, y: 30 },
                   thickness: 1,
-                  color: rgb(1, 0.8, 0.8),
+                  color: rgb(1, 0.2, 0.4),
+                  opacity: 0.5,
               });
           }
 
-          let currentYForLines = y + 4; // Adjustment
+          let currentYForLines = y - fontSize / 2; // Adjustment
           if (drawHorizontalLines) {
               for (let i = 0; i < 25; i++) {
                   if (currentYForLines < 50) break;
-                  const lineColor = paperStyle === 'gray-line' ? rgb(0.8, 0.8, 0.8) : rgb(0.8, 0.9, 1);
-                  page.drawLine({ start: { x: 40, y: currentYForLines }, end: { x: width - 40, y: currentYForLines }, thickness: 0.5, color: lineColor });
+                  const lineColor = paperStyle === 'gray-line' ? rgb(1, 0.2, 0.4) : rgb(0.2, 0.4, 1);
+                  page.drawLine({ start: { x: 40, y: currentYForLines }, end: { x: width - 40, y: currentYForLines }, thickness: 0.5, color: lineColor, opacity: 0.5 });
                   currentYForLines -= lineHeight;
               }
           }
@@ -179,7 +180,7 @@ export function TextToHandwritingClient() {
              if (currentYForText < 50) break;
              page.drawText(line, {
                 x: 50,
-                y: currentYForText,
+                y: currentYForText - fontSize + 5, // Adjusted for baseline
                 font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
@@ -241,80 +242,42 @@ export function TextToHandwritingClient() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
       `}</style>
       <div className="w-full max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Text to Handwriting</h1>
-          <p className="text-muted-foreground mt-2">Convert typed text into a realistic handwritten style and download as a PDF.</p>
+          <h1 className="text-4xl md:text-5xl font-bold font-headline tracking-widest uppercase">GET READY TO PLAY</h1>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 h-[calc(100vh-12rem)] overflow-y-auto pr-4 space-y-6">
-                <Card>
+                <Card className="bg-card/80 border-primary/20">
                     <CardContent className="p-6 grid grid-cols-1 gap-6">
                         <div className="space-y-2">
-                           <Label><FileText className="inline-block mr-2" />Text to Convert</Label>
+                           <Label className="text-primary font-headline tracking-wider">01. ENTER TEXT</Label>
                            <Textarea 
                              value={text} 
                              onChange={(e) => setText(e.target.value)}
-                             rows={8}
+                             rows={4}
                              placeholder="Enter your text here..."
+                             className="bg-input border-primary/30 text-foreground"
                            />
                         </div>
                         
                          <div className="space-y-4">
-                            <Label>Handwriting Font</Label>
-                            <div className="flex items-center space-x-2 border rounded-md p-3">
-                                <Checkbox id="show-header" checked={showDateTimeHeader} onCheckedChange={v => setShowDateTimeHeader(Boolean(v))} />
-                                <Label htmlFor="show-header" className="flex-grow">Show date and page number header</Label>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                <Card className="flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square hover:bg-accent" onClick={() => toast({title: "Coming Soon!", description: "Custom font uploads will be available in a future update."})}>
-                                    <Upload className="h-6 w-6 mb-1"/>
-                                    <p className="text-xs font-medium">Upload Font</p>
-                                </Card>
-                                {fonts.map(f => (
-                                    <Card 
-                                        key={f.name} 
-                                        className={cn(
-                                            "relative group flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
-                                            font === f.family ? 'ring-2 ring-primary' : 'hover:bg-accent'
-                                        )}
-                                        onClick={() => setFont(f.family)}
-                                    >
-                                        <p style={{fontFamily: f.family}} className="text-2xl">AaBb</p>
-                                        <p className="text-xs font-medium truncate w-full">{f.name}</p>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDownload('this-page-pdf', f.family);
-                                            }}
-                                        >
-                                            <Download className="h-4 w-4" />
-                                        </Button>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
-
-                         <div className="space-y-4">
-                            <Label>Papers</Label>
-                            <div className="grid grid-cols-4 gap-2">
+                            <Label className="text-primary font-headline tracking-wider">02. CHOOSE STYLE</Label>
+                             <div className="grid grid-cols-4 gap-2">
                                 {papers.map(p => {
                                     const Icon = p.icon;
                                     return (
                                         <Card
                                             key={p.id}
                                             className={cn(
-                                                "flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
+                                                "bg-input border-primary/30 flex flex-col items-center justify-center text-center p-2 cursor-pointer aspect-square",
                                                 paperStyle === p.id ? 'ring-2 ring-primary' : 'hover:bg-accent'
                                             )}
                                             onClick={() => setPaperStyle(p.id)}
                                         >
-                                            <Icon className={cn("h-6 w-6 mb-1", p.color)} />
+                                            <Icon className={cn("h-5 w-5 mb-1", p.color)} />
                                             <p className="text-xs font-medium truncate w-full">{p.name}</p>
                                         </Card>
                                     )
@@ -324,31 +287,24 @@ export function TextToHandwritingClient() {
 
 
                          <div className="space-y-2">
-                            <Label><Palette className="inline-block mr-2" />Ink Color</Label>
-                            <div className="flex gap-4">
-                                <Input id="font-color" type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="h-10 p-1 w-full"/>
+                            <Label className="text-primary font-headline tracking-wider">03. CUSTOMIZE</Label>
+                            <div className="flex gap-2">
+                                <Input id="font-color" type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="h-10 p-1 w-16 bg-input border-primary/30"/>
+                                 <Slider value={[fontSize]} onValueChange={(v) => setFontSize(v[0])} min={12} max={48} step={1} />
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Font Size ({fontSize}px)</Label>
-                            <Slider value={[fontSize]} onValueChange={(v) => setFontSize(v[0])} min={12} max={48} step={1} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label><CaseSensitive className="inline-block mr-2" />Letter Spacing ({letterSpacing}px)</Label>
-                            <Slider value={[letterSpacing]} onValueChange={(v) => setLetterSpacing(v[0])} min={-5} max={10} step={0.5} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label><CaseSensitive className="inline-block mr-2" />Word Spacing ({wordSpacing}px)</Label>
-                            <Slider value={[wordSpacing]} onValueChange={(v) => setWordSpacing(v[0])} min={-5} max={20} step={1} />
                         </div>
                     </CardContent>
                 </Card>
+                <Button onClick={() => handleDownload('all-pages-pdf')} disabled={isProcessing} size="lg" variant="outline" className="w-full h-16 border-2 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground text-lg tracking-widest font-headline">
+                    {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5"/>}
+                    DOWNLOAD NOW
+                </Button>
             </div>
             <div className="lg:col-span-2">
-                 <div className="sticky top-24 flex gap-4">
-                    <Card className="flex-grow">
+                 <div className="sticky top-24">
+                    <Card className="flex-grow bg-card/80 border-primary/20">
                         <CardContent className="p-4">
-                            <div className="w-full aspect-[210/297] border rounded-md overflow-hidden relative transition-colors bg-white">
+                            <div className="w-full aspect-[210/297] rounded-md overflow-hidden relative transition-colors bg-background">
                                 {showDateTimeHeader && (
                                     <div className="absolute top-8 right-8 text-xs z-10" style={{color: fontColor}}>
                                         {new Date().toLocaleDateString()}
@@ -356,7 +312,7 @@ export function TextToHandwritingClient() {
                                 )}
                                 <div className="absolute inset-0 p-8 overflow-y-auto">
                                     {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
-                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/70 pointer-events-none" style={{top: showDateTimeHeader ? '4rem' : '2rem', bottom: '2rem'}}></div>
+                                        <div className="absolute top-0 left-12 bottom-0 w-px bg-red-300/20 pointer-events-none" style={{top: showDateTimeHeader ? '4rem' : '2rem', bottom: '2rem'}}></div>
                                     )}
                                     <div className="relative w-full h-full">
                                         {(paperStyle === 'gray-line' || paperStyle === 'blue-line') && (
@@ -369,7 +325,7 @@ export function TextToHandwritingClient() {
                                                         key={i} 
                                                         className="h-px"
                                                         style={{
-                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(0,0,0,0.2)' : 'rgba(200, 220, 255, 0.8)',
+                                                            backgroundColor: paperStyle === 'gray-line' ? 'rgba(255, 0, 85, 0.2)' : 'rgba(0, 122, 255, 0.2)',
                                                             marginTop: `${fontSize * 1.6}px`
                                                         }}
                                                     />
@@ -377,38 +333,20 @@ export function TextToHandwritingClient() {
                                             </div>
                                         )}
                                         <pre 
-                                            className="whitespace-pre-wrap break-words font-inherit relative w-full h-full"
+                                            className="whitespace-pre-wrap break-words relative w-full h-full font-headline uppercase"
                                             style={{
-                                                fontFamily: font,
                                                 fontSize: `${fontSize}px`,
                                                 color: fontColor,
                                                 lineHeight: 1.6,
                                                 letterSpacing: `${letterSpacing}px`,
                                                 wordSpacing: `${wordSpacing}px`,
                                                 paddingTop: showDateTimeHeader ? '2.5rem': '0.5rem',
+                                                textShadow: `0 0 5px ${fontColor}40`,
                                             }}
                                         >{text}</pre>
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="w-48 flex-shrink-0">
-                        <CardContent className="p-4 space-y-2">
-                            <h3 className="text-sm font-semibold text-center text-muted-foreground">PDF OPTIONS</h3>
-                            <Button onClick={() => handleDownload('all-pages-pdf')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
-                                <Download className="mr-2"/> Download all pages
-                            </Button>
-                             <Button onClick={() => handleDownload('this-page-pdf')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
-                                <Download className="mr-2"/> Download this page
-                            </Button>
-                            <h3 className="text-sm font-semibold text-center text-muted-foreground pt-4">IMAGE OPTIONS</h3>
-                             <Button onClick={() => handleDownload('all-pages-img')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
-                                <ImageIcon className="mr-2"/> Download all pages
-                            </Button>
-                             <Button onClick={() => handleDownload('this-page-img')} disabled={isProcessing} className="w-full justify-start" variant="ghost">
-                                <ImageIcon className="mr-2"/> Download this page
-                            </Button>
                         </CardContent>
                     </Card>
                  </div>

@@ -17,8 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['Calibri', 'sans-serif'],
-        headline: ['Calibri', 'sans-serif'],
+        body: ['"Orbitron"', 'sans-serif'],
+        headline: ['"Orbitron"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
