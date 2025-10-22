@@ -34,7 +34,7 @@ const fonts = [
   { name: 'Euphoria Script', family: "'Euphoria Script', cursive", url: 'https://fonts.gstatic.com/s/euphoriascript/v13/mFTpWb0X2bLb_cx6DcrWLVv7.ttf' },
   { name: 'Felipa', family: "'Felipa', cursive", url: 'https://fonts.gstatic.com/s/felipa/v15/FwZa7-s4wUdjG81-.ttf' },
   { name: 'Gochi Hand', family: "'Gochi Hand', cursive", url: 'https://fonts.gstatic.com/s/gochihand/v16/hES16Sl2C_6IuuWg-5G_pg.ttf' },
-  { name: 'Great Vibes', family: "'Great Vibes', cursive", url: 'https://fonts.gstatic.com/s/greatvibes/v14/RWmMoKWR9v4ksMvYd2gW.ttf' },
+  { name: 'Great Vibes', family: "'Great Vibes', cursive", url: 'https://fonts.gstatic.com/s/greatvives/v14/RWmMoKWR9v4ksMvYd2gW.ttf' },
   { name: 'Handlee', family: "'Handlee', cursive", url: 'https://fonts.gstatic.com/s/handlee/v14/P5uSgW-p_w_qg__w.ttf' },
   { name: 'Italianno', family: "'Italianno', cursive", url: 'https://fonts.gstatic.com/s/italianno/v15/vc1nwpZuZw9wW3Jda-q1.ttf' },
   { name: 'Jim Nightshade', family: "'Jim Nightshade', cursive", url: 'https://fonts.gstatic.com/s/jimnightshade/v13/PlIaFuIpARkChrva4rpkf3-d.ttf' },
@@ -57,7 +57,6 @@ const fonts = [
   { name: 'Rouge Script', family: "'Rouge Script', cursive", url: 'https://fonts.gstatic.com/s/rougescript/v14/syky-y18lb0tSbf-scg.ttf' },
   { name: 'Sacramento', family: "'Sacramento', cursive", url: 'https://fonts.gstatic.com/s/sacramento/v13/buEzpo6gcdjy0EiurwI.ttf' },
   { name: 'Schoolbell', family: "'Schoolbell', cursive", url: 'https://fonts.gstatic.com/s/schoolbell/v16/92zQtWxDY2WLsm-b-y-.ttf' },
-  { name: 'Shadows Into Light', family: "'Shadows Into Light', cursive", url: 'https://fonts.gstatic.com/s/shadowsintolight/v15/UqyNK9UOIntux_czAv8kIZpjeV4.ttf' },
   { name: 'Short Stack', family: "'Short Stack', cursive", url: 'https://fonts.gstatic.com/s/shortstack/v15/bMr-Y5crOpgY-3CF_.ttf' },
   { name: 'The Girl Next Door', family: "'The Girl Next Door', cursive", url: 'https://fonts.gstatic.com/s/thegirlnextdoor/v16/pe0zMJCbPY0TJIqte_8Y-o29.ttf' },
   { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive", url: 'https://fonts.gstatic.com/s/waitingforthesunrise/v16/WBL1rEb2NKnsuby0faPjOS-Ex0.ttf' },
@@ -68,10 +67,10 @@ const fonts = [
 ];
 
 const papers = [
-    { id: 'gray-line', name: 'Gray Line', icon: Minus, color: 'text-cyan-400' },
-    { id: 'blue-line', name: 'Blue Line', icon: Sigma, color: 'text-cyan-400' },
     { id: 'plain', name: 'Plain Paper', icon: Book, color: 'text-cyan-400' },
-    { id: 'white', name: 'White Paper', icon: Droplets, color: 'text-cyan-400' },
+    { id: 'gray-line', name: 'Gray Line', icon: Minus, color: 'text-gray-400' },
+    { id: 'blue-line', name: 'Blue Line', icon: Sigma, color: 'text-blue-400' },
+    { id: 'white', name: 'White Paper', icon: Droplets, color: 'text-white' },
 ]
 
 export function TextToHandwritingClient() {
@@ -131,7 +130,7 @@ export function TextToHandwritingClient() {
           
            if (paperStyle !== 'white') {
              page.drawRectangle({
-                x: 0, y: 0, width, height, color: rgb(0, 0, 0)
+                x: 0, y: 0, width, height, color: rgb(0.06, 0.09, 0.13) // Dark blue bg
              });
            }
           
@@ -165,7 +164,7 @@ export function TextToHandwritingClient() {
              if (y < 40 + fontSize) break;
              page.drawText(line, {
                 x: 55,
-                y: y - fontSize,
+                y: y - fontSize - (fontSize * 0.2), // Adjust y for baseline
                 font: customFont,
                 size: fontSize,
                 color: rgb(fontRgb.r, fontRgb.g, fontRgb.b),
@@ -227,9 +226,9 @@ export function TextToHandwritingClient() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family-sans-serif&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Amatic+SC&family=Architects+Daughter&family=Bad+Script&family=Berkshire+Swash&family=Calligraffitti&family=Caveat&family=Cedarville+Cursive&family=Clicker+Script&family=Cookie&family=Damion&family=Dancing+Script&family=Euphoria+Script&family=Felipa&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Handlee&family=Homemade+Apple&family=Indie+Flower&family=Italianno&family=Jim+Nightshade&family=Just+Me+Again+Down+Here&family=Kalam&family=Kristi&family=La+Belle+Aurore&family=Marck+Script&family=Meddon&family=Merienda&family=Montez&family=Mr+De+Haviland&family=Nanum+Pen+Script&family=Neucha&family=Nothing+You+Could+Do&family=Parisienne&family=Patrick+Hand&family=Permanent+Marker&family=Pinyon+Script&family=Reenie+Beanie&family=Rock+Salt&family=Rouge+Script&family=Sacramento&family=Schoolbell&family=Shadows+Into+Light&family=Short+Stack&family=Sue+Ellen+Francisco&family=The+Girl+Next+Door&family=Waiting+for+the+Sunrise&family=Zeyada&display=swap');
       `}</style>
-      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-black text-cyan-400 font-code">
+      <div className="w-full max-w-7xl mx-auto p-4 md:p-8 bg-background text-cyan-400 font-body">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-headline tracking-widest uppercase" style={{ textShadow: '0 0 10px #00e5ff, 0 0 20px #00e5ff' }}>Text To Handwriting</h1>
         </div>
@@ -237,7 +236,7 @@ export function TextToHandwritingClient() {
             {/* Main Preview Area */}
             <div className="lg:col-span-8">
                  <div className="relative border-2 border-cyan-400/50 p-1 bg-black" style={{ clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%)' }}>
-                    <div className="w-full aspect-[210/297] rounded-sm overflow-hidden relative bg-black p-8">
+                    <div className="w-full aspect-[210/297] rounded-sm overflow-hidden relative bg-background p-8">
                        {(paperStyle === 'blue-line' || paperStyle === 'plain') && (
                            <div className="absolute top-8 left-12 bottom-8 w-px bg-red-500/70 pointer-events-none z-0"></div>
                        )}
