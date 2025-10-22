@@ -5,6 +5,22 @@ import React from 'react';
 import Link from 'next/link';
 import { CurrentYear } from './CurrentYear';
 
+const FluxLogo = () => (
+    <div className="flex items-center space-x-2">
+        <div className="grid grid-cols-4 gap-0.5">
+            {Array.from({ length: 16 }).map((_, i) => (
+                <div
+                    key={i}
+                    className="w-1 h-1 bg-primary rounded-full"
+                    style={{ opacity: Math.random() * 0.8 + 0.2 }}
+                />
+            ))}
+        </div>
+        <span className="font-bold text-3xl font-headline tracking-wider">FLUX</span>
+    </div>
+);
+
+
 const Footer = () => {
 
   return (
@@ -12,8 +28,7 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="">
-            <h3 className="font-semibold mb-4">DocuEase</h3>
-            <p className="text-sm text-muted-foreground">The All-in-One PDF Toolkit</p>
+             <FluxLogo />
           </div>
 
           <div className="">
@@ -39,7 +54,7 @@ const Footer = () => {
         </div>
         <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-center items-center">
           <p className="text-center text-sm text-muted-foreground">
-            &copy; <CurrentYear /> DocuEase. All Rights Reserved.
+            &copy; <CurrentYear /> FLUX. All Rights Reserved.
           </p>
         </div>
       </div>

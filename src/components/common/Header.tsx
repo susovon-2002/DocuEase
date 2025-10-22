@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileCog, UserCircle, LogOut, LayoutDashboard, LogIn, Printer } from 'lucide-react';
+import { UserCircle, LogOut, LayoutDashboard, LogIn, Printer } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUser, useAuth, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -93,6 +93,21 @@ const AuthContent = () => {
   );
 };
 
+const FluxLogo = () => (
+    <div className="flex items-center space-x-2">
+        <div className="grid grid-cols-4 gap-0.5">
+            {Array.from({ length: 16 }).map((_, i) => (
+                <div
+                    key={i}
+                    className="w-1 h-1 bg-primary rounded-full"
+                    style={{ opacity: Math.random() * 0.8 + 0.2 }}
+                />
+            ))}
+        </div>
+        <span className="font-bold text-3xl font-headline tracking-wider">FLUX</span>
+    </div>
+);
+
 
 const Header = () => {
   const [isClient, setIsClient] = useState(false);
@@ -106,21 +121,14 @@ const Header = () => {
       <div className="container flex h-20 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <FileCog className="h-10 w-10 text-primary" />
-            <span className="font-bold text-3xl">DocuEase</span>
+             <FluxLogo />
           </Link>
         </div>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button asChild variant="ghost" size="lg">
-            <Link href="/pricing">
-              Pricing
-            </Link>
-          </Button>
-          <Button asChild variant="secondary" size="lg">
-            <Link href="/print-delivery">
-              <Printer className="mr-2 h-4 w-4" />
-              Print &amp; Delivery
+          <Button asChild variant="ghost">
+            <Link href="/">
+              Home
             </Link>
           </Button>
           
