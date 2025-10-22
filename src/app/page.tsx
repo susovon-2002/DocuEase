@@ -53,17 +53,6 @@ export default function Home() {
                   <Link href="#all-tools">Get Started Now</Link>
               </Button>
             </div>
-            <div className="relative mt-20 max-w-4xl mx-auto">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-64 bg-primary/20 blur-3xl rounded-full"></div>
-              <Image 
-                src="https://picsum.photos/seed/ai-face/1200/600" 
-                alt="AI" 
-                width={1200}
-                height={600}
-                className="relative rounded-xl border border-border/20 shadow-2xl shadow-primary/10"
-                data-ai-hint="abstract technology" 
-              />
-            </div>
         </div>
       </section>
 
