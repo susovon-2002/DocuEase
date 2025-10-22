@@ -46,13 +46,13 @@ export default function Home() {
             </div>
             <div className="text-left">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
-                We are FLUX
+                DocuEase
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10">
-                Our AI solutions are designed to streamline your workflow and boost productivity.
+                Streamline your workflow and boost productivity with our suite of document tools.
               </p>
               <Button asChild size="lg">
-                  <Link href="#all-tools">Find Out More <ArrowRight className="ml-2" /></Link>
+                  <Link href="#all-tools">Get Started <ArrowRight className="ml-2" /></Link>
               </Button>
             </div>
         </div>

@@ -93,18 +93,9 @@ const AuthContent = () => {
   );
 };
 
-const FluxLogo = () => (
+const DocuEaseLogo = () => (
     <div className="flex items-center space-x-2">
-        <div className="grid grid-cols-4 gap-0.5">
-            {Array.from({ length: 16 }).map((_, i) => (
-                <div
-                    key={i}
-                    className="w-1 h-1 bg-primary rounded-full"
-                    style={{ opacity: Math.random() * 0.8 + 0.2 }}
-                />
-            ))}
-        </div>
-        <span className="font-bold text-3xl font-headline tracking-wider">FLUX</span>
+        <span className="font-bold text-3xl font-headline tracking-wider">DocuEase</span>
     </div>
 );
 
@@ -121,7 +112,7 @@ const Header = () => {
       <div className="container flex h-20 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-             <FluxLogo />
+             <DocuEaseLogo />
           </Link>
         </div>
 
