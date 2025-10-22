@@ -9,6 +9,7 @@ import { ArrowRight, Combine, Minimize2, FileImage, FilePenLine, Lock, Sparkles,
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { groupBy } from 'lodash';
 import ToolCard from '@/components/ToolCard';
+import Image from 'next/image';
 
 
 const popularToolPaths = [
@@ -38,28 +39,36 @@ export default function Home() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="py-20 md:py-32">
-        <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-12">
-            <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-primary/20 blur-3xl rounded-full"></div>
-                 <img src="https://picsum.photos/seed/ai-face/800/800" alt="AI" className="relative w-full h-auto" data-ai-hint="abstract technology" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
-                DocuEase
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10">
-                Streamline your workflow and boost productivity with our suite of document tools.
-              </p>
-              <Button asChild size="lg">
-                  <Link href="#all-tools">Get Started <ArrowRight className="ml-2" /></Link>
+      <section className="py-20 md:py-32 text-center">
+        <div className="container mx-auto">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
+              Bring Your Ideas to Life
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
+              Transform your documents with our stunning, professional-quality tools.
+              Let our app bring your imagination to life with precision and creativity.
+            </p>
+            <div className="flex justify-center items-center gap-4">
+               <Button asChild size="lg">
+                  <Link href="#all-tools">Get Started Now</Link>
               </Button>
+            </div>
+            <div className="relative mt-20 max-w-4xl mx-auto">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-64 bg-primary/20 blur-3xl rounded-full"></div>
+              <Image 
+                src="https://picsum.photos/seed/ai-face/1200/600" 
+                alt="AI" 
+                width={1200}
+                height={600}
+                className="relative rounded-xl border border-border/20 shadow-2xl shadow-primary/10"
+                data-ai-hint="abstract technology" 
+              />
             </div>
         </div>
       </section>
 
       {/* All Tools Section */}
-      <section className="py-20 bg-secondary/50" id="all-tools">
+      <section className="py-20 bg-background" id="all-tools">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold">Our Suite of Tools</h2>
@@ -83,7 +92,7 @@ export default function Home() {
                     return (
                       <div key={category}>
                         <h3 className="text-2xl font-semibold mb-6 flex items-center">
-                          <CategoryIcon className="h-8 w-8 mr-4 text-primary" />
+                          <CategoryIcon className="h-6 w-6 mr-3 text-primary" />
                           {category}
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">

@@ -17,9 +17,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['"Orbitron"', 'sans-serif'],
-        headline: ['"Orbitron"', 'sans-serif'],
-        code: ['monospace'],
+        body: ['Inter', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
