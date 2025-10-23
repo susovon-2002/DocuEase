@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mail, Phone, User } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -101,6 +102,27 @@ export default function ContactPage() {
               </Button>
             </form>
           </Form>
+
+           <Separator className="my-8" />
+
+            <div className="text-center">
+                <h3 className="text-lg font-semibold mb-4">Or Contact Us Directly</h3>
+                <div className="space-y-4 text-muted-foreground">
+                    <div className="flex items-center justify-center gap-3">
+                        <User className="h-5 w-5 text-primary"/>
+                        <span>The All-in-One PDF Toolkit (Susovon Santra)</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-3">
+                        <Mail className="h-5 w-5 text-primary"/>
+                        <a href="mailto:susovonsantra4@gmail.com" className="hover:text-primary">susovonsantra4@gmail.com</a>
+                    </div>
+                    <div className="flex items-center justify-center gap-3">
+                        <Phone className="h-5 w-5 text-primary"/>
+                        <a href="tel:8910819035" className="hover:text-primary">8910819035</a>
+                    </div>
+                </div>
+            </div>
+
         </CardContent>
       </Card>
     </div>
